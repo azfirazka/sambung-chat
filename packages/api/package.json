@@ -1,0 +1,30 @@
+{
+  "name": "@sambung-chat/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@orpc/client": "catalog:",
+    "@orpc/openapi": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/zod": "catalog:",
+    "@sambung-chat/auth": "workspace:*",
+    "@sambung-chat/db": "workspace:*",
+    "@sambung-chat/env": "workspace:*",
+    "@types/pg": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@sambung-chat/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

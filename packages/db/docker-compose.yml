@@ -1,0 +1,20 @@
+name: sambung-chat
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: sambung-chat-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sambung-chat}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./../../volume-data/postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

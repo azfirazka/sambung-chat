@@ -1,0 +1,3 @@
+{
+  "extends": "@sambung-chat/config/tsconfig.base.json"
+}

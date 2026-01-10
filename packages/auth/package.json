@@ -1,0 +1,24 @@
+{
+  "name": "@sambung-chat/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@sambung-chat/db": "workspace:*",
+    "@sambung-chat/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@sambung-chat/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
