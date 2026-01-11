@@ -1,37 +1,30 @@
 <script lang="ts">
 	import { createForm } from '@tanstack/svelte-form';
 	import { z } from 'zod';
-	import { authClient } from '$lib/auth-client';
-	import { goto } from '$app/navigation';
 
-	let { switchToSignIn } = $props<{ switchToSignIn: () => void }>();
+	interface SignUpCredentials {
+		name: string;
+		email: string;
+		password: string;
+	}
+
+	interface Props {
+		onSubmit?: (credentials: SignUpCredentials) => Promise<void> | void;
+		switchToSignIn?: () => void;
+	}
+
+	let { onSubmit, switchToSignIn }: Props = $props();
 
 	const validationSchema = z.object({
 		name: z.string().min(2, 'Name must be at least 2 characters'),
-		email: z.email('Invalid email address'),
+		email: z.string().email('Invalid email address'),
 		password: z.string().min(8, 'Password must be at least 8 characters'),
 	});
-
 
 	const form = createForm(() => ({
 		defaultValues: { name: '', email: '', password: '' },
 		onSubmit: async ({ value }) => {
-				await authClient.signUp.email(
-					{
-						email: value.email,
-						password: value.password,
-						name: value.name,
-					},
-					{
-						onSuccess: () => {
-							goto('/dashboard');
-						},
-						onError: (error) => {
-							console.log(error.error.message || 'Sign up failed. Please try again.');
-						},
-					}
-				);
-
+			await onSubmit?.(value);
 		},
 		validators: {
 			onSubmit: validationSchema,
@@ -58,7 +51,7 @@
 					<input
 						id={field.name}
 						name={field.name}
-						class="w-full border"
+						class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 						onblur={field.handleBlur}
 						value={field.state.value}
 						oninput={(e: Event) => {
@@ -83,7 +76,7 @@
 						id={field.name}
 						name={field.name}
 						type="email"
-						class="w-full border"
+						class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 						onblur={field.handleBlur}
 						value={field.state.value}
 						oninput={(e: Event) => {
@@ -108,7 +101,7 @@
 						id={field.name}
 						name={field.name}
 						type="password"
-						class="w-full border"
+						class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 						onblur={field.handleBlur}
 						value={field.state.value}
 						oninput={(e: Event) => {
@@ -125,18 +118,30 @@
 			{/snippet}
 		</form.Field>
 
-		<form.Subscribe selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}>
+		<form.Subscribe
+			selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+		>
 			{#snippet children(state)}
-				<button type="submit" class="w-full" disabled={!state.canSubmit || state.isSubmitting}>
+				<button
+					type="submit"
+					class="w-full rounded bg-[hsl(var(--color-primary))] px-4 py-2 font-semibold text-white hover:bg-[hsl(var(--color-primary-hover))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))] focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+					disabled={!state.canSubmit || state.isSubmitting}
+				>
 					{state.isSubmitting ? 'Submitting...' : 'Sign Up'}
 				</button>
 			{/snippet}
 		</form.Subscribe>
 	</form>
 
-	<div class="mt-4 text-center">
-		<button type="button" class="text-indigo-600 hover:text-indigo-800" onclick={switchToSignIn}>
-			Already have an account? Sign In
-		</button>
-	</div>
+	{#if switchToSignIn}
+		<div class="mt-4 text-center">
+			<button
+				type="button"
+				class="text-[hsl(var(--color-accent))] hover:text-[hsl(var(--color-accent-hover))]"
+				onclick={switchToSignIn}
+			>
+				Already have an account? Sign In
+			</button>
+		</div>
+	{/if}
 </div>

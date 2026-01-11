@@ -5,6 +5,13 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist",
-    "composite": true
-  }
+    "composite": true,
+    "paths": {
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"],
+      "$components": ["./src/components"],
+      "$components/*": ["./src/components/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"]
 }

@@ -48,7 +48,7 @@
 			>
 				<p
 					class="mb-1 text-sm font-semibold"
-					class:text-indigo-600={message.role === "user"}
+					class:text-[hsl(var(--color-accent))]={message.role === "user"}
 					class:text-neutral-400={message.role === "assistant"}
 				>
 					{message.role === "user" ? "You" : "AI Assistant"}
@@ -73,7 +73,7 @@
 			name="prompt"
 			bind:value={input}
 			placeholder="Type your message..."
-			class="flex-1 rounded border border-neutral-600 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+			class="flex-1 rounded border border-neutral-600 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 			autocomplete="off"
 			onkeydown={(e) => {
 				if (e.key === "Enter" && !e.shiftKey) {
@@ -85,7 +85,7 @@
 		<button
 			type="submit"
 			disabled={!input.trim()}
-			class="inline-flex h-10 w-10 items-center justify-center rounded bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+			class="inline-flex h-10 w-10 items-center justify-center rounded bg-[hsl(var(--color-primary))] text-white hover:bg-[hsl(var(--color-primary-hover))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))] focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
 			aria-label="Send message"
 		>
 			<svg

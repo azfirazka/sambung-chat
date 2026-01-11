@@ -78,7 +78,7 @@
 		<button
 			type="submit"
 			disabled={!canAdd}
-			class="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+			class="bg-[hsl(var(--color-primary))] text-white px-3 py-1 rounded disabled:opacity-50 hover:bg-[hsl(var(--color-primary-hover))] active:bg-[hsl(var(--color-primary-active))]"
 		>
 			{#if isAdding}Adding...{:else}Add{/if}
 		</button>

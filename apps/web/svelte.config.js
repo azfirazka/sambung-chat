@@ -12,6 +12,13 @@ const config = {
     // If your environment is not supported, or you settled on a specific environment, switch out the adapter.
     // See https://svelte.dev/docs/kit/adapters for more information about adapters.
     adapter: adapter(),
+
+    alias: {
+      "$lib": "../../packages/ui/src/lib",
+      "$lib/*": "../../packages/ui/src/lib/*",
+      "$components": "../../packages/ui/src/components",
+      "$components/*": "../../packages/ui/src/components/*",
+    },
   },
 };
 

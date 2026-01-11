@@ -19,7 +19,10 @@
       "@ai-sdk/openai-compatible": "^2.0.3",
       "@orpc/client": "^1.12.2",
       "drizzle-orm": "^0.45.1",
-      "@types/pg": "^8.15.6"
+      "@types/pg": "^8.15.6",
+      "clsx": "^2.1.1",
+      "tailwind-merge": "^3.2.5",
+      "@tanstack/svelte-form": "^1.19.2"
     }
   },
   "type": "module",

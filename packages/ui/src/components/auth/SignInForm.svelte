@@ -1,29 +1,28 @@
 <script lang="ts">
 	import { createForm } from '@tanstack/svelte-form';
 	import { z } from 'zod';
-	import { authClient } from '$lib/auth-client';
-	import { goto } from '$app/navigation';
 
-	let { switchToSignUp } = $props<{ switchToSignUp: () => void }>();
+	interface SignInCredentials {
+		email: string;
+		password: string;
+	}
+
+	interface Props {
+		onSubmit?: (credentials: SignInCredentials) => Promise<void> | void;
+		switchToSignUp?: () => void;
+	}
+
+	let { onSubmit, switchToSignUp }: Props = $props();
 
 	const validationSchema = z.object({
-		email: z.email('Invalid email address'),
+		email: z.string().email('Invalid email address'),
 		password: z.string().min(1, 'Password is required'),
 	});
 
 	const form = createForm(() => ({
 		defaultValues: { email: '', password: '' },
 		onSubmit: async ({ value }) => {
-				await authClient.signIn.email(
-					{ email: value.email, password: value.password },
-					{
-						onSuccess: () => goto('/dashboard'),
-						onError: (error) => {
-							console.log(error.error.message || 'Sign in failed. Please try again.');
-						},
-					}
-				);
-
+			await onSubmit?.(value);
 		},
 		validators: {
 			onSubmit: validationSchema,
@@ -50,7 +49,7 @@
 						id={field.name}
 						name={field.name}
 						type="email"
-						class="w-full border"
+						class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 						onblur={field.handleBlur}
 						value={field.state.value}
 						oninput={(e: Event) => {
@@ -75,7 +74,7 @@
 						id={field.name}
 						name={field.name}
 						type="password"
-						class="w-full border"
+						class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
 						onblur={field.handleBlur}
 						value={field.state.value}
 						oninput={(e: Event) => {
@@ -92,18 +91,30 @@
 			{/snippet}
 		</form.Field>
 
-		<form.Subscribe selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}>
+		<form.Subscribe
+			selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+		>
 			{#snippet children(state)}
-				<button type="submit" class="w-full" disabled={!state.canSubmit || state.isSubmitting}>
+				<button
+					type="submit"
+					class="w-full rounded bg-[hsl(var(--color-primary))] px-4 py-2 font-semibold text-white hover:bg-[hsl(var(--color-primary-hover))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))] focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+					disabled={!state.canSubmit || state.isSubmitting}
+				>
 					{state.isSubmitting ? 'Submitting...' : 'Sign In'}
 				</button>
 			{/snippet}
 		</form.Subscribe>
 	</form>
 
-	<div class="mt-4 text-center">
-		<button type="button" class="text-indigo-600 hover:text-indigo-800" onclick={switchToSignUp}>
-			Need an account? Sign Up
-		</button>
-	</div>
+	{#if switchToSignUp}
+		<div class="mt-4 text-center">
+			<button
+				type="button"
+				class="text-[hsl(var(--color-accent))] hover:text-[hsl(var(--color-accent-hover))]"
+				onclick={switchToSignUp}
+			>
+				Need an account? Sign Up
+			</button>
+		</div>
+	{/if}
 </div>
