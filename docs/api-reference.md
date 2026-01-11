@@ -4,6 +4,12 @@
 **Base URL:** `http://localhost:3000/rpc`
 **Last Updated:** January 11, 2026
 
+> **⚠️ Important Notice**
+>
+> This document describes the **planned API** for SambungChat. Some endpoints may not be implemented yet. Refer to the [ROADMAP](../plan-reference/ROADMAP.md) for implementation status.
+>
+> **Before implementing new endpoints**, read [ORPC + TODO Implementation Reference](../plan-reference/generated/orpc-todo-reference.md) for complete patterns and best practices.
+
 ---
 
 ## Overview
@@ -726,6 +732,37 @@ curl -X POST http://localhost:3000/rpc/chat.getAll \
 |----------|-------|--------|
 | `message.stream` | 100 requests | 1 hour |
 | All other | 1000 requests | 1 hour |
+
+---
+
+## Implementation Status
+
+Current implementation status of each endpoint group:
+
+| Endpoint Group | Status | Phase |
+|---------------|--------|-------|
+| `healthCheck` | ✅ Implemented | Foundation |
+| `auth.*` | ✅ Implemented (via Better Auth) | Foundation |
+| `todo.*` | ✅ Implemented (Example) | Foundation |
+| `privateData` | ✅ Implemented | Foundation |
+| `user.*` | ⏳ Planned | MVP |
+| `chat.*` | ⏳ Planned | MVP |
+| `message.*` | ⏳ Planned | MVP |
+| `prompt.*` | ⏳ Planned | MVP |
+| `apiKey.*` | ⏳ Planned | MVP |
+
+See [ROADMAP](../plan-reference/ROADMAP.md) for detailed timeline.
+
+---
+
+## References
+
+| Document | Purpose |
+|----------|---------|
+| [ORPC + TODO Reference](../plan-reference/generated/orpc-todo-reference.md) | Implementation patterns & best practices |
+| [Architecture](./architecture.md) | System architecture overview |
+| [Getting Started](./getting-started.md) | Installation & setup guide |
+| [Deployment](./deployment.md) | Deployment guides |
 
 ---
 
