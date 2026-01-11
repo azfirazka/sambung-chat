@@ -23,6 +23,7 @@ This document provides comprehensive architecture documentation for the SambungC
 6. [Authentication Flow](#authentication-flow)
    - [Authentication Architecture](#authentication-architecture)
    - [Login Flow (Detailed)](#login-flow-detailed)
+   - [Protected Route Access Sequence](#protected-route-access-sequence)
    - [Authentication Features](#authentication-features)
    - [Security Considerations](#security-considerations)
 7. [API Request Flow](#api-request-flow)
@@ -1511,6 +1512,240 @@ sequenceDiagram
 | Wrong password | 401 Unauthorized | "Invalid email or password" |
 | Database error | 500 Internal Server Error | "Login failed. Please try again." |
 | Network error | Network error | "Connection failed. Check your internet." |
+
+### Protected Route Access Sequence
+
+The following sequence diagram shows how the `protectedProcedure` middleware validates sessions and authorizes requests to protected API endpoints:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 User
+    participant Client as 🌐 SvelteKit Client
+    participant ORPC as 🔌 ORPC Router
+    participant Context as 📦 Context Creator
+    participant BetterAuth as 🔐 Better-Auth<br/>getSession()
+    participant Drizzle as 🗃️ Drizzle ORM
+    participant PostgreSQL as 💾 PostgreSQL
+    participant Middleware as 🛡️ Auth Middleware
+    participant Handler as ⚙️ Procedure Handler
+
+    Note over User,Handler: User requests protected resource
+
+    User->>Client: 1. Navigate to protected page<br/>e.g., /dashboard or /todos
+    Client->>Client: 2. Check client-side auth state<br/>authClient.useSession()
+
+    alt No client-side session
+        Client-->>User: Redirect to /login
+    else Has client-side session
+        Client->>ORPC: 3. Call protectedProcedure<br/>api.todos.query()
+
+        Note over ORPC,Context: Request includes session cookie<br/>automatically by browser
+
+        ORPC->>Context: 4. Create request context<br/>createContext({ req })
+
+        Context->>BetterAuth: 5. Extract session from headers<br/>auth.api.getSession({ headers })
+
+        Note over BetterAuth: Parse session cookie from request headers
+        BetterAuth->>BetterAuth: 6. Read session token from cookie
+
+        BetterAuth->>Drizzle: 7. Query session by token<br/>db.select().from(session)<br/>.where(eq(session.token, token))
+
+        Drizzle->>PostgreSQL: 8. SELECT * FROM session<br/>WHERE token = ?<br/>AND expiresAt > NOW()
+
+        PostgreSQL-->>Drizzle: 9. Session record or null
+
+        alt Session not found or expired
+            Drizzle-->>BetterAuth: null
+            BetterAuth-->>Context: { session: null }
+            Context-->>ORPC: { session: null }
+
+            ORPC->>Middleware: 10. Execute requireAuth middleware
+
+            Middleware->>Middleware: 11. Check context.session?.user
+
+            alt No session or user
+                Middleware-->>ORPC: 12. throw ORPCError("UNAUTHORIZED")
+
+                ORPC-->>Client: 13. 401 Unauthorized<br/>{ error: "Not authenticated" }
+
+                Client->>Client: 14. Clear session state<br/>Redirect to login
+                Client-->>User: 15. Show login form
+            end
+        else Session found and valid
+            Drizzle-->>BetterAuth: Session record<br/>{ id, userId, token, expiresAt, ... }
+
+            Note over BetterAuth,PostgreSQL: Join with user table
+            BetterAuth->>Drizzle: 16. Query user by userId<br/>db.select().from(user)<br/>.where(eq(user.id, userId))
+
+            Drizzle->>PostgreSQL: 17. SELECT * FROM user<br/>WHERE id = ?
+
+            PostgreSQL-->>Drizzle: 18. User record
+
+            Drizzle-->>BetterAuth: User object<br/>{ id, name, email, ... }
+
+            BetterAuth-->>Context: 19. { session: { session, user } }
+
+            Context-->>ORPC: 20. { session: { ...user } }
+
+            ORPC->>Middleware: 21. Execute requireAuth middleware
+
+            Middleware->>Middleware: 22. Check context.session?.user
+
+            alt Session has user data
+                Middleware->>Middleware: 23. User is authenticated ✅
+
+                Middleware-->>Handler: 24. next({ context })<br/>Pass authenticated context
+
+                Note over Handler: Procedure receives guaranteed<br/>authenticated session
+
+                Handler->>Handler: 25. Access context.session.user<br/>Execute business logic
+
+                alt Business logic needs database
+                    Handler->>Drizzle: 26. Query data<br/>e.g., SELECT * FROM todos<br/>WHERE userId = ?
+                    Drizzle->>PostgreSQL: 27. Execute query
+                    PostgreSQL-->>Drizzle: 28. Query results
+                    Drizzle-->>Handler: 29. Data
+                end
+
+                Handler-->>ORPC: 30. Return result<br/>{ data, user }
+
+                ORPC-->>Client: 31. 200 OK<br/>{ data, user }
+
+                Client-->>User: 32. Render protected content
+            end
+        end
+    end
+
+    Note over User,PostgreSQL: Subsequent requests automatically<br/>include the session cookie
+```
+
+#### Key Steps Explained
+
+1. **User Navigation**: User navigates to a protected page or triggers a protected API call
+2. **Client-Side Check**: Svelte client checks reactive session state via `authClient.useSession()`
+3. **ORPC Request**: If client has session, ORPC calls the protected procedure
+4. **Cookie Inclusion**: Browser automatically includes session cookie in request headers
+5. **Context Creation**: ORPC creates context by calling `createContext()` for every request
+6. **Session Extraction**: Better-Auth's `getSession()` reads and parses session token from cookie
+7. **Database Query**: Drizzle queries the `session` table by token (indexed) with expiration check
+8. **Session Validation**: PostgreSQL returns session record if token exists and not expired
+9. **User Lookup**: If session valid, Drizzle queries the `user` table by `userId` (indexed, cascade)
+10. **Middleware Check**: `requireAuth` middleware checks if `context.session?.user` exists
+11. **Authorization Decision**: Middleware throws `ORPCError("UNAUTHORIZED")` or calls `next()`
+12. **Protected Handler**: On success, handler receives guaranteed authenticated context with user data
+13. **Business Logic**: Handler can safely access `context.session.user` without null checks
+14. **Data Query**: Handler queries data (e.g., todos) filtered by authenticated user's ID
+15. **Response**: Result returned to client with user data for display
+
+#### Database Operations
+
+**Tables Accessed:**
+- `session` - Validate token and expiration (indexed by token)
+- `user` - Retrieve user data for authenticated session (indexed by id, cascade from session)
+
+**Indexes Used:**
+- `session.token` (UNIQUE) - Fast session lookup by token
+- `session.userId` (INDEX) - Fast cascade delete on user deletion
+- `user.id` (PRIMARY KEY) - Fast user lookup for session validation
+
+**Query Pattern:**
+```sql
+-- Step 1: Validate session token
+SELECT * FROM session
+WHERE token = ? AND expiresAt > NOW();
+
+-- Step 2: Get user data (only if session valid)
+SELECT * FROM user WHERE id = ?;
+```
+
+#### Middleware Flow
+
+**ORPC Context Creation:**
+```typescript
+// packages/api/src/context.ts
+export async function createContext({ context }) {
+  const session = await auth.api.getSession({
+    headers: context.req.raw.headers,
+  });
+  return { session }; // null if not authenticated
+}
+```
+
+**Auth Middleware (requireAuth):**
+```typescript
+// packages/api/src/index.ts
+const requireAuth = o.middleware(async ({ context, next }) => {
+  if (!context.session?.user) {
+    throw new ORPCError("UNAUTHORIZED");
+  }
+  return next({
+    context: {
+      session: context.session, // Guaranteed to have user
+    },
+  });
+});
+
+export const protectedProcedure = publicProcedure.use(requireAuth);
+```
+
+**Procedure Handler Usage:**
+```typescript
+// packages/api/src/index.ts
+export const appRouter = router({
+  getPrivateData: protectedProcedure
+    .query(async ({ context }) => {
+      // context.session.user is guaranteed to exist
+      const userId = context.session.user.id;
+
+      // Query user-specific data
+      const todos = await db.select()
+        .from(todoTable)
+        .where(eq(todoTable.userId, userId));
+
+      return { todos, user: context.session.user };
+    }),
+});
+```
+
+#### Security Features
+
+✅ **Server-Side Validation**: Session validated on every request (not just client-side)
+✅ **HTTP-Only Cookies**: Session token inaccessible to JavaScript (XSS protection)
+✅ **Secure Flag**: Cookies only transmitted over HTTPS
+✅ **SameSite=None**: Allows cross-origin requests for SPA architecture
+✅ **Automatic Expiration**: Sessions expire after configured timeout (30 days)
+✅ **Cascade Deletes**: User deletion removes all sessions (data integrity)
+✅ **Guaranteed Auth Context**: Protected procedures always have valid user data
+✅ **Type Safety**: TypeScript ensures context.session.user exists in protected procedures
+
+#### Error Scenarios
+
+| Scenario | Detection | Response | User Experience |
+|----------|-----------|----------|-----------------|
+| No session cookie | Cookie not in headers | 401 Unauthorized | Redirect to /login |
+| Invalid/expired token | PostgreSQL returns null | 401 Unauthorized | Redirect to /login |
+| Session missing user | Session.userId not found | 401 Unauthorized | Redirect to /login |
+| Database error | Exception in query | 500 Internal Server Error | "Request failed. Try again." |
+| Network timeout | Request timeout | 504 Gateway Timeout | "Connection timeout. Retry." |
+
+#### Performance Considerations
+
+**Query Optimization:**
+- `session.token` is UNIQUE indexed → O(log n) lookup
+- `user.id` is PRIMARY KEY → O(log n) lookup
+- Only 2 database queries per protected request
+- Queries use indexed columns (optimal performance)
+
+**Caching Strategy:**
+- Sessions cached in memory by Better-Auth (configurable)
+- User data cached per session (reduces database hits)
+- Context created once per request (reused across middleware chain)
+
+**Security vs Performance Trade-off:**
+- Every protected request hits database → 100% security
+- Caching reduces load but may delay logout propagation
+- Current implementation prioritizes security (recommended for auth)
 
 ### Authentication Features
 
