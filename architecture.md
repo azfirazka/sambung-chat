@@ -19,6 +19,7 @@ This document provides comprehensive architecture documentation for the SambungC
    - [Authentication Schema ERD](#authentication-schema-erd)
    - [Application Schema ERD](#application-schema-erd)
    - [Entity Relationships](#entity-relationships)
+   - [Drizzle Relations and Constraints](#drizzle-relations-and-constraints)
 6. [Authentication Flow](#authentication-flow)
 7. [API Request Flow](#api-request-flow)
 8. [Data Flow](#data-flow)
@@ -1070,7 +1071,227 @@ classDiagram
 4. **Cascade Deletes**: Referential integrity with automatic cleanup
 5. **Type Safety**: Drizzle ensures TypeScript types match database schema
 
-Detailed ERD diagrams and migration documentation will be added in Phase 3.
+### Drizzle Relations and Constraints
+
+#### Understanding Drizzle Relations
+
+Drizzle ORM provides a powerful relation system that defines how tables relate to each other. These relations enable type-safe queries with automatic joins and cascading behaviors.
+
+**How Relations Are Defined:**
+
+In Drizzle, relations are defined in schema files using the `relations()` function. This creates a relationship map that Drizzle uses to:
+
+1. **Enable type-safe queries** - Automatically infer types when joining related tables
+2. **Handle cascading operations** - Automatically delete or update related records
+3. **Simplify data access** - Query related data without manual JOIN statements
+
+**Current Relations in SambungChat:**
+
+```typescript
+// User relations (defined in packages/db/src/schema/auth.ts)
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),  // One user has many sessions
+  accounts: many(account),  // One user has many accounts
+}))
+
+// Session relations
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],      // Foreign key field
+    references: [user.id],         // Referenced primary key
+    relationName: "sessionToUser"
+  })
+}))
+
+// Account relations
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],      // Foreign key field
+    references: [user.id],         // Referenced primary key
+    relationName: "accountToUser"
+  })
+}))
+```
+
+**Relation Types:**
+
+- **`many()`**: One-to-many relationship (e.g., user → sessions)
+- **`one()`**: Many-to-one relationship (e.g., session → user)
+- **Fields**: The foreign key column in the child table
+- **References**: The primary key column in the parent table
+
+**Benefits of Drizzle Relations:**
+
+1. **Type Safety**: TypeScript automatically infers related data types
+2. **Query Simplification**: Use `db.query.user.findFirst({ with: { sessions: true } })` instead of complex JOINs
+3. **IntelliSense Support**: IDE auto-completion for related fields
+4. **Automatic Validation**: Ensures referential integrity at query time
+
+#### Cascade Deletes
+
+Cascade deletes are a database constraint that automatically deletes related records when a parent record is deleted. This ensures data integrity and prevents orphaned records.
+
+**What Are Cascade Deletes?**
+
+When you delete a user, cascade deletes automatically remove:
+- All sessions belonging to that user
+- All accounts linked to that user
+- Any other records with foreign keys pointing to that user
+
+**Current Cascade Behavior in SambungChat:**
+
+| Table | Foreign Key | Cascade Behavior | Purpose |
+|-------|-------------|------------------|---------|
+| `session` | `user_id` → `user.id` | `ON DELETE CASCADE` | Delete all user sessions when user is deleted |
+| `account` | `user_id` → `user.id` | `ON DELETE CASCADE` | Delete all linked OAuth accounts when user is deleted |
+
+**How Cascade Deletes Work:**
+
+```sql
+-- Example: Deleting a user
+DELETE FROM users WHERE id = 'user-123';
+
+-- Database automatically executes:
+DELETE FROM sessions WHERE user_id = 'user-123';
+DELETE FROM accounts WHERE user_id = 'user-123';
+
+-- This happens in a single transaction for data integrity
+```
+
+**Why Use Cascade Deletes?**
+
+1. **Data Integrity**: Prevents orphaned records (sessions without users)
+2. **Privacy Compliance**: Automatically removes all user data on account deletion (GDPR, CCPA)
+3. **Simplified Application Logic**: No need to manually delete related records
+4. **Atomic Operations**: All deletions happen in a single database transaction
+
+**Important Considerations:**
+
+⚠️ **Permanent Data Loss**: Cascade deletes are irreversible. Once deleted, all related data is gone.
+
+⚠️ **Backup Before Delete**: Always backup data before performing deletions that cascade.
+
+⚠️ **Soft Deletes Alternative**: For audit trails, consider adding `deleted_at` timestamps instead of hard deletes.
+
+**Example: Soft Delete Pattern (Not Currently Implemented)**
+
+```sql
+-- Instead of CASCADE, use soft deletes
+ALTER TABLE users ADD COLUMN deleted_at timestamp NULLABLE;
+
+-- Mark user as deleted (keeps data)
+UPDATE users SET deleted_at = now() WHERE id = 'user-123';
+
+-- Query only active users
+SELECT * FROM users WHERE deleted_at IS NULL;
+```
+
+#### Database Indexes
+
+Indexes are database structures that dramatically improve query performance by allowing fast lookups without scanning entire tables.
+
+**What Are Indexes?**
+
+Think of indexes like a book's index:
+- **Without index**: Database scans every row (like reading every page)
+- **With index**: Database jumps directly to matching rows (like jumping to specific pages)
+
+**Current Indexes in SambungChat:**
+
+| Table | Index Name | Indexed Columns | Query Optimization |
+|-------|-----------|-----------------|-------------------|
+| `session` | `session_userId_idx` | `user_id` | Fast lookup of all sessions for a user |
+| `account` | `account_userId_idx` | `user_id` | Fast lookup of all OAuth accounts for a user |
+| `verification` | `verification_identifier_idx` | `identifier` | Fast token verification by email/identifier |
+
+**How Indexes Improve Performance:**
+
+```typescript
+// Without index: Scans entire session table (slow)
+const sessions = await db.select().from(session).where(eq(session.userId, 'user-123'));
+
+// With index on user_id: Direct lookup (fast - 100x+ faster)
+const sessions = await db.select().from(session).where(eq(session.userId, 'user-123'));
+```
+
+**Index Types Used:**
+
+1. **Single-Column Indexes** (current):
+   - `user_id` indexes on session and account tables
+   - `identifier` index on verification table
+
+2. **Composite Indexes** (recommended for future):
+   - `(user_id, completed)` for queries filtering by both user and completion status
+   - `(user_id, created_at)` for queries showing user's recent todos
+
+**When to Create Indexes:**
+
+✅ **Create indexes on:**
+- Foreign keys (already done: `user_id`)
+- Frequently filtered columns (e.g., `completed`, `priority`)
+- Columns used in ORDER BY (e.g., `created_at`)
+- Columns used in JOIN conditions
+
+❌ **Avoid indexes on:**
+- Small tables (< 100 rows)
+- Rarely queried columns
+- Frequently updated columns (write performance penalty)
+- Columns with low cardinality (e.g., boolean with 90% true)
+
+**Index Trade-offs:**
+
+| Benefit | Cost |
+|---------|------|
+| Faster SELECT queries | Slower INSERT/UPDATE/DELETE |
+| Improved user experience | Increased storage (5-20% per index) |
+| Reduced database load | More complex query planning |
+
+**Recommended Indexes for Todo Table (Future Enhancement):**
+
+```sql
+-- For querying user's incomplete todos
+CREATE INDEX todo_userId_completed_idx ON todo(user_id, completed);
+
+-- For time-based queries
+CREATE INDEX todo_userId_createdAt_idx ON todo(user_id, created_at DESC);
+
+-- For priority-based views
+CREATE INDEX todo_userId_priority_idx ON todo(user_id, priority, created_at DESC);
+```
+
+#### Database Constraints Summary
+
+**Primary Keys (PK):**
+- Uniquely identify each record
+- Automatically indexed
+- Used by foreign keys for relationships
+- Types: `text` (UUID) for auth tables, `serial` (auto-increment) for app tables
+
+**Foreign Keys (FK):**
+- Enforce referential integrity between tables
+- Ensure child records reference valid parent records
+- Support cascade deletes for automatic cleanup
+- Current: 2 foreign keys (session→user, account→user)
+
+**Unique Constraints:**
+- Ensure column values are unique across all rows
+- Prevent duplicate data
+- Automatically indexed
+- Current: `user.email`, `session.token`
+
+**Not Null Constraints:**
+- Ensure columns always have values
+- Prevent incomplete data
+- Required for primary keys and foreign keys
+
+**Check Constraints:**
+- Validate data meets specific conditions
+- Example: `email_verified IN (true, false)`
+- Example: `completed = false OR completed_at IS NOT NULL`
+
+**Default Values:**
+- Automatically populate columns on insert
+- Current: `created_at DEFAULT now()`, `completed DEFAULT false`
 
 ---
 
