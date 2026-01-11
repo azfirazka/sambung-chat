@@ -709,6 +709,131 @@ The database uses PostgreSQL with Drizzle ORM. Schemas are organized by domain:
 
 - **todo** - Example application entity (extend as needed)
 
+### Authentication Schema ERD
+
+The following detailed Entity Relationship Diagram (ERD) shows the complete authentication schema with all fields, data types, constraints, indexes, and relationships:
+
+```mermaid
+classDiagram
+    direction TB
+
+    class User {
+        +text id 🗝️ PK
+        +text name 👤 NOT NULL
+        +text email 📧 NOT NULL UK
+        +boolean emailVerified ✅ NOT NULL
+        +text image 🖼️ NULLABLE
+        +timestamp createdAt ⏰ NOT NULL DEFAULT now()
+        +timestamp updatedAt ⏰ NOT NULL AUTO-UPDATE
+    }
+
+    class Session {
+        +text id 🗝️ PK
+        +text userId 🔗 FK NOT NULL
+        +text token 🎫 NOT NULL UK
+        +timestamp expiresAt ⏰ NOT NULL
+        +timestamp createdAt ⏰ NOT NULL DEFAULT now()
+        +timestamp updatedAt ⏰ NOT NULL AUTO-UPDATE
+        +text ipAddress 🌐 NULLABLE
+        +text userAgent 🌍 NULLABLE
+        +index(userId)
+        +onDelete(CASCADE)
+    }
+
+    class Account {
+        +text id 🗝️ PK
+        +text userId 🔗 FK NOT NULL
+        +text accountId 🔑 NOT NULL
+        +text providerId 🔐 NOT NULL
+        +text accessToken 🎫 NULLABLE
+        +text refreshToken 🔄 NULLABLE
+        +text idToken 📋 NULLABLE
+        +timestamp accessTokenExpiresAt ⏰ NULLABLE
+        +timestamp refreshTokenExpiresAt ⏰ NULLABLE
+        +text scope 📝 NULLABLE
+        +text password 🔒 NULLABLE
+        +timestamp createdAt ⏰ NOT NULL DEFAULT now()
+        +timestamp updatedAt ⏰ NOT NULL AUTO-UPDATE
+        +index(userId)
+        +onDelete(CASCADE)
+    }
+
+    class Verification {
+        +text id 🗝️ PK
+        +text identifier 📧 NOT NULL
+        +text value 🔑 NOT NULL
+        +timestamp expiresAt ⏰ NOT NULL
+        +timestamp createdAt ⏰ NOT NULL DEFAULT now()
+        +timestamp updatedAt ⏰ NOT NULL AUTO-UPDATE
+        +index(identifier)
+    }
+
+    User "1" -- "0..*" Session : has >
+    User "1" -- "0..*" Account : has >
+    Note beside User "Core authentication entity<br/>One user can have multiple<br/>sessions across devices"
+    Note beside Session "Short-lived session tokens<br/>Deleted when user is deleted<br/>CASCADE delete"
+    Note beside Account "OAuth provider accounts<br/>Users can link multiple<br/>providers (Google, GitHub, etc.)<br/>Deleted when user is deleted<br/>CASCADE delete"
+    Note beside Verification "Standalone table for<br/>email verification &<br/>password reset tokens<br/>No direct foreign key to user"
+```
+
+**Relationship Details:**
+
+1. **User to Session (1:N)**
+   - **Cardinality**: One user can have zero or more sessions
+   - **Foreign Key**: `session.user_id` → `user.id`
+   - **Constraint**: `ON DELETE CASCADE` - When a user is deleted, all their sessions are automatically deleted
+   - **Index**: `session_userId_idx` on `user_id` for fast session lookups by user
+   - **Use Case**: Allows users to be logged in on multiple devices simultaneously
+
+2. **User to Account (1:N)**
+   - **Cardinality**: One user can have zero or more accounts
+   - **Foreign Key**: `account.user_id` → `user.id`
+   - **Constraint**: `ON DELETE CASCADE` - When a user is deleted, all their linked accounts are automatically deleted
+   - **Index**: `account_userId_idx` on `user_id` for fast account lookups by user
+   - **Use Case**: Users can link multiple OAuth providers (Google, GitHub, etc.) or have both OAuth and credential-based authentication
+
+3. **Verification (Standalone)**
+   - **No Direct Relationship**: The verification table has no foreign key to the user table
+   - **Index**: `verification_identifier_idx` on `identifier` for fast token lookups
+   - **Design Rationale**: Verification tokens are looked up by email/identifier, not by user ID, for security and simplicity
+   - **Use Case**: Email verification, password reset, and other temporary verification flows
+
+**Field Details:**
+
+| Table | Field | Data Type | Constraints | Purpose |
+|-------|-------|-----------|-------------|---------|
+| **user** | id | text | PRIMARY KEY | UUID identifier |
+| | email | text | NOT NULL, UNIQUE | User's unique email address |
+| | emailVerified | boolean | NOT NULL, DEFAULT: false | Email verification status |
+| **session** | userId | text | FOREIGN KEY, NOT NULL | Reference to user |
+| | token | text | UNIQUE, NOT NULL | Session token (UUID) |
+| | expiresAt | timestamp | NOT NULL | Session expiration time |
+| | ipAddress | text | NULLABLE | IP address of session creation |
+| | userAgent | text | NULLABLE | Browser/user agent string |
+| **account** | userId | text | FOREIGN KEY, NOT NULL | Reference to user |
+| | accountId | text | NOT NULL | Provider's account ID |
+| | providerId | text | NOT NULL | OAuth provider (google, github, etc.) |
+| | accessToken | text | NULLABLE | OAuth access token |
+| | refreshToken | text | NULLABLE | OAuth refresh token |
+| | password | text | NULLABLE | Hashed password (credential auth) |
+| **verification** | identifier | text | NOT NULL | Email address or user identifier |
+| | value | text | NOT NULL | Verification token/code |
+| | expiresAt | timestamp | NOT NULL | Token expiration time |
+
+**Cascade Behavior:**
+
+- **session.userId**: `ON DELETE CASCADE` - Deleting a user automatically deletes all their sessions
+- **account.userId**: `ON DELETE CASCADE` - Deleting a user automatically deletes all their linked accounts
+- **verification**: No cascade (standalone table, tokens expire naturally)
+
+**Design Patterns:**
+
+1. **UUID Primary Keys**: All auth tables use `text` type for UUIDs (security & distributed systems)
+2. **Timestamp Tracking**: All tables have `createdAt` and `updatedAt` with automatic management
+3. **Strategic Indexes**: Indexes on foreign keys (`user_id`) and lookup fields (`token`, `identifier`)
+4. **Nullable Fields**: Optional data (images, tokens, IP addresses) use nullable fields
+5. **Unique Constraints**: Ensure data integrity (unique emails, session tokens, account IDs)
+
 ### Entity Relationships
 
 ```mermaid
