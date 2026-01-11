@@ -22,10 +22,10 @@ This roadmap outlines the development milestones for Sambung Chat, an open-sourc
 - [x] Setup SvelteKit 5 + Hono + Drizzle ORM
 - [x] Configure Better Auth
 - [x] Database setup (PostgreSQL + Docker Compose)
-- [ ] Add LICENSE file (AGPL-3.0)
+- [x] Add LICENSE file (AGPL-3.0)
 - [ ] Create .github/ templates (CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md)
 - [ ] Setup CI/CD (GitHub Actions)
-- [ ] Configure ESLint, Prettier, Husky pre-commit hooks
+- [x] Configure ESLint, Prettier, Husky pre-commit hooks
 
 ### Week 3-4: Authentication & User Management
 

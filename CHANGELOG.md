@@ -5,7 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.1] - 2026-01-11
+## [Unreleased]
+
+### Added
+
+- **License**
+  - Add AGPL-3.0 license for open-source compliance
+
+- **Code Quality & Developer Experience**
+  - Setup ESLint with TypeScript and Svelte support
+  - Setup Prettier with Svelte plugin for consistent formatting
+  - Setup Husky pre-commit hooks with lint-staged
+  - Add lint and format scripts to package.json
+  - Configure automated code formatting on commit
+
+- **Documentation**
+  - Add comprehensive troubleshooting guide (TROUBLESHOOTING.md)
+  - Add UI package development guide (UI-PACKAGE-GUIDE.md)
+  - Create hierarchical AGENTS.md files for AI agents
+    - Root AGENTS.md with JIT index and quick commands
+    - packages/ui/AGENTS.md with UI-specific patterns
+    - apps/web/AGENTS.md with SvelteKit patterns
+    - apps/server/AGENTS.md with Hono patterns
+    - packages/api/AGENTS.md with ORPC patterns
+    - packages/db/AGENTS.md with Drizzle patterns
+
+- **Status Tracking**
+  - Implement file-based progress tracking system
+  - Add STATUS.md with auto-generated progress from .status/config.json
+  - Create scripts for status management (update, pending, blocked)
+  - Track 59 tasks across 12 weeks of development
+
+### Fixed
+
+- **Build Errors**
+  - Fix lucide-svelte import to use @lucide/svelte package
+  - Fix Svelte 5 runes issues (use let instead of const with $state)
+  - Replace @apply directives with CSS variables for Tailwind v4 compatibility
+  - Fix auth component export path resolution
+  - Move auth components to src/lib/components/auth for proper build scope
+  - Add tw-animate-css plugin to Tailwind config
+
+### Changed
+
+- **Documentation Structure**
+  - plan-reference/ established as source of truth for project planning
+  - docs/ for public-facing documentation
+  - Implement sync mechanism between plan-reference and docs
+
+- **Developer Workflow**
+  - Pre-commit hooks now mandatory - code must pass linting before commit
+  - TypeScript check required before build (bun run check + npx svelte-check)
+  - Auto-formatting applied to all committed files
 
 ### Added
 
