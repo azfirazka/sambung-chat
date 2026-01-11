@@ -3,22 +3,22 @@
   "spec": "002-add-visual-diagrams-to-architecture-documentation",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 3,
     "total": 29,
     "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "",
-    "id": 0,
-    "total": 0
+    "current": "phase-1",
+    "id": 1,
+    "total": 9
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 4,
     "started_at": "2026-01-11T22:04:03.842677"
   },
   "last_update": "2026-01-11T22:20:00.000000"
