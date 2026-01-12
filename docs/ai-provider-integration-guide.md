@@ -1348,11 +1348,11 @@ OPENAI_ORGANIZATION=org-abc123...
 
 #### 4.3.2 Add to Environment Schema
 
-⚠️ **Note:** As of the current implementation, the environment schema (`packages/env/src/server.ts`) does not include AI provider variables. This is planned for Phase 5.
+✅ **Note:** The environment schema has been updated in Phase 5 to include AI provider variables. See [Section 6: Environment Configuration](#6-environment-configuration) for complete details on the updated schema with support for OpenAI, Anthropic, Google, Groq, and Ollama providers.
 
-For now, the AI SDK will automatically read environment variables, so you can skip this step. However, for production use, you should add validation.
+For reference, the AI SDK automatically reads environment variables, so the schema primarily provides validation. The current schema includes comprehensive provider configuration with fallback chain support.
 
-**Current State (No Schema Validation):**
+**Current Implementation (Phase 5 - Complete):**
 
 ```typescript
 // packages/env/src/server.ts
@@ -1363,34 +1363,33 @@ export const env = createEnv({
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    // ⚠️ No AI provider variables yet
+
+    // AI Provider Configuration (Phase 5)
+    OPENAI_API_KEY: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    GOOGLE_API_KEY: z.string().optional(),
+    GROQ_API_KEY: z.string().optional(),
+    OLLAMA_BASE_URL: z.string().optional(),
+
+    // Provider selection (optional)
+    AI_PROVIDER: z.string().optional(),
+    AI_FALLBACK_PROVIDERS: z.string().optional(),
+
+    // Model defaults (optional)
+    OPENAI_MODEL: z.string().optional(),
+    ANTHROPIC_MODEL: z.string().optional(),
+    GOOGLE_MODEL: z.string().optional(),
+    GROQ_MODEL: z.string().optional(),
+    OLLAMA_MODEL: z.string().optional(),
   },
 });
+
+// Validation ensures at least one provider is configured
 ```
 
-**Recommended (Phase 5 - Future):**
+See [Section 6: Environment Configuration](#6-environment-configuration) for the complete environment schema implementation, including validation patterns and fallback chain support.
 
-```typescript
-// packages/env/src/server.ts
-export const env = createEnv({
-  server: {
-    // Existing variables...
-    DATABASE_URL: z.string().min(1),
-    BETTER_AUTH_SECRET: z.string().min(32),
-    BETTER_AUTH_URL: z.url(),
-    CORS_ORIGIN: z.url(),
-    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-
-    // AI Provider Configuration (recommended)
-    OPENAI_API_KEY: z.string().min(1).optional(),
-    ANTHROPIC_API_KEY: z.string().min(1).optional(),
-    GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
-    GROQ_API_KEY: z.string().min(1).optional(),
-  },
-});
-```
-
-**For Now:** Proceed to Step 4.3.3 and add variables directly to your `.env` files.
+Proceed to Step 4.3.3 to add variables directly to your `.env` files.
 
 #### 4.3.3 Update .env Files
 
@@ -1570,6 +1569,9 @@ app.post("/ai", async (c) => {
 });
 ```
 
+> **Note:** `convertToModelMessages` and `convertToCoreMessages` are interchangeable aliases in the AI SDK. Both perform the same function of converting UI messages to provider-specific format. This guide uses `convertToModelMessages` for consistency, but you may see `convertToCoreMessages` in other examples - they are equivalent.
+```
+
 **Pattern for Any Provider:**
 
 ```typescript
@@ -1579,6 +1581,30 @@ const model = wrapLanguageModel({
   middleware: devToolsMiddleware(),
 });
 ```
+
+**Best Practice: Use Environment Variables for Model IDs**
+
+Instead of hardcoding model IDs, use environment variables for flexibility:
+
+```typescript
+const model = wrapLanguageModel({
+  model: openai(process.env.OPENAI_MODEL || "gpt-4o-mini"),
+  middleware: devToolsMiddleware(),
+});
+```
+
+**Benefits:**
+- ✅ Easy model switching without code changes
+- ✅ Different models for development/production
+- ✅ A/B testing different models
+- ✅ Quick fallback to newer models
+
+The environment schema (Phase 5) includes optional `*_MODEL` variables for all providers:
+- `OPENAI_MODEL` (default: "gpt-4o-mini")
+- `ANTHROPIC_MODEL` (default: "claude-3-5-sonnet-20241022")
+- `GOOGLE_MODEL` (default: "gemini-2.5-flash")
+- `GROQ_MODEL` (default: "llama-3.3-70b-versatile")
+- `OLLAMA_MODEL` (default: "llama3.2")
 
 **Examples for Different Providers:**
 
