@@ -2,6 +2,44 @@
 
 This document provides comprehensive architecture documentation for the SambungChat project, including visual diagrams, component relationships, data flows, and design decisions.
 
+---
+
+## 📚 Quick Navigation
+
+**New to the project?** Start with the [Quick Start Path](#quick-start-path-90-minutes) (90 min read)
+
+**Need a specific topic?**
+- 🏗️ **System Overview** → [Overall Architecture](#overall-architecture)
+- 🗄️ **Database Design** → [Database Schema](#database-schema)
+- 🔐 **Authentication** → [Authentication Flow](#authentication-flow)
+- ⚡ **API Design** → [API Request Flow](#api-request-flow)
+- 🔧 **Development** → [Development Workflow](#development-workflow)
+
+**Essential Sections (Must Read):**
+1. [Overview](#overview) - Architecture philosophy and design goals
+2. [Technology Stack](#technology-stack) - Technologies and their purposes
+3. [System Architecture](#system-architecture) - Component relationships
+4. [Database Schema](#database-schema) - Data model and relationships
+5. [Authentication Flow](#authentication-flow) - Security and session management
+
+**Estimated Reading Time:**
+- Quick Overview: **15 minutes**
+- Essential Sections: **45 minutes**
+- Complete Documentation: **3-4 hours**
+
+---
+
+## ♿ Accessibility Note
+
+This documentation uses color coding to distinguish different layers and components. If you have color vision deficiency, please rely on:
+- **Icons** (🌐, ⚡, 🔌, 🗄️) for component identification
+- **Text labels** and descriptions
+- **Diagram legends** and keys provided in each section
+
+All diagrams include text descriptions and icon-based indicators to ensure accessibility.
+
+---
+
 ## Table of Contents
 
 1. [Overview](#overview)
@@ -431,6 +469,8 @@ stateDiagram-v2
 
 ## Overview
 
+⏱️ **Estimated reading time: 20 minutes**
+
 SambungChat is a modern full-stack application built with TypeScript, utilizing a monorepo architecture managed by Turborepo. The application demonstrates best practices for type-safe API development, authentication, and database management.
 
 ### Key Characteristics
@@ -631,6 +671,8 @@ The architecture is designed to scale in multiple dimensions:
 
 ## Technology Stack
 
+⏱️ **Estimated reading time: 15 minutes**
+
 ### Frontend Layer
 
 | Technology | Purpose | Version |
@@ -822,6 +864,8 @@ PostgreSQL → Drizzle → Business Logic → ORPC → Hono → SvelteKit → Br
 
 ## Project Structure
 
+⏱️ **Estimated reading time: 10 minutes**
+
 ### Monorepo Layout
 
 ```
@@ -984,6 +1028,8 @@ apps/server ─┘                                              (leaf)
 ---
 
 ## System Architecture
+
+⏱️ **Estimated reading time: 25 minutes**
 
 ### High-Level Architecture
 
@@ -1492,6 +1538,8 @@ Detailed sequence diagrams will be added in Phase 4 and 5.
 ---
 
 ## Database Schema
+
+⏱️ **Estimated reading time: 30 minutes**
 
 ### Schema Overview
 
@@ -2090,6 +2138,8 @@ CREATE INDEX todo_userId_priority_idx ON todo(user_id, priority, created_at DESC
 ---
 
 ## Authentication Flow
+
+⏱️ **Estimated reading time: 35 minutes**
 
 ### Authentication Architecture
 
@@ -2797,6 +2847,8 @@ Set-Cookie: session_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpO
 ---
 
 ## API Request Flow
+
+⏱️ **Estimated reading time: 40 minutes**
 
 ### ORPC Architecture
 
@@ -3936,6 +3988,8 @@ if (error) {
 ---
 
 ## Data Flow
+
+⏱️ **Estimated reading time: 25 minutes**
 
 ### System-Level Data Flow Overview
 
@@ -5288,6 +5342,8 @@ This end-to-end type safety eliminates entire classes of bugs, improves develope
 
 ## Development Workflow
 
+⏱️ **Estimated reading time: 20 minutes**
+
 ### Local Development
 
 ```mermaid
@@ -6184,6 +6240,8 @@ All external dependencies use the **catalog:** protocol for version management (
 
 ## Design Decisions
 
+⏱️ **Estimated reading time: 10 minutes**
+
 ### Technology Choices
 
 #### Why Turborepo over Nx or Lerna?
@@ -6256,6 +6314,8 @@ All external dependencies use the **catalog:** protocol for version management (
 ---
 
 ## Contributor Onboarding
+
+⏱️ **Varies by learning path (90 min to 5 hours)**
 
 Welcome to SambungChat! This section will guide you through understanding our architecture using the visual diagrams throughout this document. The diagrams are designed to accelerate your onboarding by making complex relationships easier to understand.
 
