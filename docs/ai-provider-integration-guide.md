@@ -7104,7 +7104,1586 @@ In this section, you learned:
 
 ---
 
-**Document Status:** 🚧 In Progress - Phase 6, Task 1 (Section 7 Complete)
+## 8. Troubleshooting and Common Issues
 
-**Last Updated:** 2025-01-12
+This comprehensive troubleshooting section helps you diagnose and resolve common problems when integrating AI providers into SambungChat. Issues are organized by category for quick reference.
+
+---
+
+## 8.1 Installation Issues
+
+Installation issues occur when setting up the provider packages and dependencies.
+
+### 8.1.1 Package Installation Failures
+
+**Problem:** `bun add @ai-sdk/{provider}` fails with errors
+
+**Common Symptoms:**
+```bash
+❌ error: package "@ai-sdk/anthropic" not found
+❌ error: unable to resolve dependency tree
+❌ error: network timeout
+```
+
+**Solutions:**
+
+1. **Check Bun Version Compatibility**
+   ```bash
+   # Ensure you're using a recent version of Bun
+   bun --version  # Should be 1.0.0 or higher
+
+   # Update Bun if needed
+   bun upgrade
+   ```
+
+2. **Clear Package Manager Cache**
+   ```bash
+   # Clear Bun cache
+   bun pm cache rm
+
+   # Try installation again
+   cd apps/server
+   bun add @ai-sdk/anthropic
+   ```
+
+3. **Verify Package Registry Access**
+   ```bash
+   # Test npm registry connectivity
+   bunx npm ping
+
+   # Check if you can reach the AI SDK packages
+   curl https://registry.npmjs.org/@ai-sdk/anthropic
+   ```
+
+4. **Try with npm/yarn as Fallback**
+   ```bash
+   # If Bun fails, try with npm
+   npm install @ai-sdk/anthropic
+
+   # Or with yarn
+   yarn add @ai-sdk/anthropic
+   ```
+
+5. **Check Network and Proxy Settings**
+   ```bash
+   # If behind corporate firewall, configure proxy
+   bun config set proxy http://proxy.company.com:8080
+   bun config set https-proxy http://proxy.company.com:8080
+
+   # Or set environment variable
+   export HTTP_PROXY=http://proxy.company.com:8080
+   export HTTPS_PROXY=http://proxy.company.com:8080
+   ```
+
+---
+
+### 8.1.2 Version Conflicts
+
+**Problem:** Dependency version conflicts between packages
+
+**Common Symptoms:**
+```bash
+❌ error: peer dependency mismatch
+❌ error: incompatible engine version
+❌ error: version resolution failed
+```
+
+**Solutions:**
+
+1. **Check Peer Dependencies**
+   ```bash
+   # Inspect dependency tree
+   cd apps/server
+   bun pm ls | grep ai-sdk
+
+   # Check for conflicts
+   bunx npm ls @ai-sdk/anthropic
+   ```
+
+2. **Update AI SDK to Latest Version**
+   ```bash
+   # Update all AI SDK packages
+   bun update @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/google
+
+   # Or update everything
+   bun update
+   ```
+
+3. **Use Overrides for Resolution**
+   ```json
+   // apps/server/package.json
+   {
+     "overrides": {
+       "@ai-sdk/openai": "^1.0.0",
+       "@ai-sdk/anthropic": "^1.0.0"
+     }
+   }
+   ```
+   Then run:
+   ```bash
+   bun install
+   ```
+
+4. **Delete and Reinstall**
+   ```bash
+   # Nuclear option - start fresh
+   rm -rf node_modules package-lock.json
+   bun install
+   ```
+
+---
+
+## 8.2 Configuration Issues
+
+Configuration issues relate to environment variables, API keys, and provider setup.
+
+### 8.2.1 API Key Not Recognized
+
+**Problem:** Provider returns authentication error despite setting API key
+
+**Common Symptoms:**
+```bash
+❌ Error: 401 Unauthorized
+❌ Error: Invalid API key
+❌ Error: Authentication failed
+```
+
+**Solutions:**
+
+1. **Verify Environment Variable Name (Exact Spelling)**
+   ```bash
+   # Check provider documentation for exact variable name
+   # Common mistakes:
+   ❌ OPENAI_KEY               # Missing "API"
+   ❌ Anthropic_API_KEY        # Incorrect case
+   ❌ google_api_key          # Incorrect case
+   ❌ GROQKEY                 # Missing "API" and underscore
+
+   ✅ OPENAI_API_KEY          # Correct
+   ✅ ANTHROPIC_API_KEY       # Correct
+   ✅ GOOGLE_GENERATIVE_AI_API_KEY  # Correct
+   ✅ GROQ_API_KEY            # Correct
+   ```
+
+2. **Check .env File Location**
+   ```bash
+   # .env file must be in apps/server/ directory
+   # Not in project root or other locations
+
+   # Verify location
+   ls -la apps/server/.env
+
+   # Check which .env file is being loaded
+   cd apps/server
+   pwd  # Should show /path/to/apps/server
+   ```
+
+3. **Restart Server After Updating .env**
+   ```bash
+   # Environment variables are loaded at startup
+   # You MUST restart after changes
+
+   # Stop the server (Ctrl+C)
+   # Then start again
+   cd apps/server
+   bun run dev
+   ```
+
+4. **Verify API Key Validity in Provider Console**
+   ```bash
+   # Log into provider dashboard and verify:
+   # - API key is active (not disabled/revoked)
+   # - API key has correct permissions
+   # - API key hasn't expired
+   # - Account is in good standing
+
+   # Test API key directly with curl
+   curl https://api.anthropic.com/v1/messages \
+     -H "x-api-key: $ANTHROPIC_API_KEY" \
+     -H "anthropic-version: 2023-06-01" \
+     -H "content-type: application/json" \
+     -d '{
+       "model": "claude-3-5-sonnet-20241022",
+       "max_tokens": 1024,
+       "messages": [{"role": "user", "content": "Hello"}]
+     }'
+   ```
+
+5. **Check for Extra Spaces in Key Value**
+   ```bash
+   # Common mistake: trailing spaces
+   ❌ ANTHROPIC_API_KEY=sk-ant-1234567890abcdef
+
+   # Should be:
+   ✅ ANTHROPIC_API_KEY=sk-ant-1234567890abcdef
+
+   # No quotes, no spaces, no trailing whitespace
+   ```
+
+6. **Use Server Environment Schema for Debugging**
+   ```typescript
+   // apps/server/src/index.ts
+   import { env } from "@env";
+
+   // Add temporary debugging
+   app.get("/debug-env", (c) => {
+     return c.json({
+       openai: !!env.OPENAI_API_KEY,
+       anthropic: !!env.ANTHROPIC_API_KEY,
+       google: !!env.GOOGLE_GENERATIVE_AI_API_KEY,
+       groq: !!env.GROQ_API_KEY,
+       ollama: !!env.OLLAMA_BASE_URL,
+     });
+   });
+
+   // Visit /debug-env to see which keys are loaded
+   ```
+
+---
+
+### 8.2.2 Model Not Found
+
+**Problem:** Model ID not recognized by provider
+
+**Common Symptoms:**
+```bash
+❌ Error: Model not found
+❌ Error: Invalid model
+❌ Error: Model does not exist
+```
+
+**Solutions:**
+
+1. **Verify Model ID is Correct**
+   ```bash
+   # Model IDs are case-sensitive and specific
+   # Check provider documentation for exact model IDs
+
+   # OpenAI examples:
+   ✅ gpt-4o-mini              # Correct
+   ❌ gpt-4-mini               # Incorrect
+   ❌ gpt4-mini                # Incorrect
+
+   # Anthropic examples:
+   ✅ claude-3-5-sonnet-20241022    # Correct
+   ❌ claude-3.5-sonnet             # Incorrect
+   ❌ claude-sonnet-3.5             # Incorrect
+
+   # Google examples:
+   ✅ gemini-2.5-flash          # Correct
+   ❌ gemini-2-flash            # Incorrect
+   ❌ gemini-25-flash           # Incorrect
+   ```
+
+2. **Check if Model Requires Specific API Version**
+   ```typescript
+   // Some providers require specific API versions
+   // Check provider documentation
+
+   // Example: OpenAI with specific version
+   import { createOpenAI } from '@ai-sdk/openai';
+
+   const openai = createOpenAI({
+     baseURL: 'https://api.openai.com/v1',  // Ensure correct version
+     apiKey: env.OPENAI_API_KEY,
+   });
+   ```
+
+3. **Ensure Model is Available in Your Region**
+   ```bash
+   # Some models are region-specific
+   # Check provider dashboard for availability
+
+   # For example, some EU models might not be available in US
+   # Contact provider support if needed
+   ```
+
+4. **Check Provider Documentation for Model Availability**
+   ```bash
+   # Models can be:
+   # - Deprecated
+   # - Retired
+   # - In beta only
+   # - Enterprise-only
+   # - Region-locked
+
+   # Verify current availability in provider docs:
+   # OpenAI: https://platform.openai.com/docs/models
+   # Anthropic: https://docs.anthropic.com/claude/docs/models-overview
+   # Google: https://ai.google.dev/gemini-api/docs/models
+   # Groq: https://console.groq.com/docs/models
+   ```
+
+5. **Use Model Info Endpoint to List Available Models**
+   ```bash
+   # For OpenAI:
+   curl https://api.openai.com/v1/models \
+     -H "Authorization: Bearer $OPENAI_API_KEY"
+
+   # For Anthropic (no public model list endpoint, check docs)
+
+   # For Google:
+   curl https://generativelanguage.googleapis.com/v1beta/models \
+    ?key=$GOOGLE_GENERATIVE_AI_API_KEY
+
+   # For Groq:
+   curl https://api.groq.com/openai/v1/models \
+     -H "Authorization: Bearer $GROQ_API_KEY"
+   ```
+
+---
+
+### 8.2.3 Environment Variables Not Loading
+
+**Problem:** `process.env.{VARIABLE}` is undefined in server code
+
+**Common Symptoms:**
+```bash
+❌ Cannot read property 'API_KEY' of undefined
+❌ env.OPENAI_API_KEY is undefined
+❌ Environment variables not accessible
+```
+
+**Solutions:**
+
+1. **Verify .env File Location**
+   ```bash
+   # .env file MUST be in apps/server/ directory
+   # NOT in project root
+
+   # Correct structure:
+   sambung-chat/
+   ├── apps/
+   │   └── server/
+   │       ├── .env          # ← Place .env here
+   │       ├── src/
+   │       └── package.json
+
+   # Incorrect:
+   sambung-chat/
+   ├── .env                  # ✗ Won't be loaded by apps/server
+   └── apps/
+       └── server/
+           └── src/
+   ```
+
+2. **Check Environment Schema in packages/env/src/server.ts**
+   ```typescript
+   // Verify variable is defined in schema
+   const envSchema = z.object({
+     OPENAI_API_KEY: z.string().min(1).optional(),
+     // ^^^^ Must be defined here
+   });
+
+   // If not defined, add it
+   const envSchema = z.object({
+     // ... other vars
+     YOUR_NEW_API_KEY: z.string().min(1).optional(),
+   });
+   ```
+
+3. **Ensure Variable is Properly Typed in Zod Schema**
+   ```typescript
+   // Correct type definitions
+   const envSchema = z.object({
+     // String type
+     OPENAI_API_KEY: z.string().min(1).optional(),
+
+     // Number type (e.g., for port)
+     PORT: z.number().default(3001),
+
+     // Boolean type
+     DEBUG: z.boolean().default(false),
+   });
+
+   // Access typed variables
+   import { env } from "@env";
+   const apiKey = env.OPENAI_API_KEY;  // Type: string | undefined
+   ```
+
+4. **Restart Development Server**
+   ```bash
+   # Environment variables are loaded at server startup
+   # Changes to .env require restart
+
+   # Stop server: Ctrl+C
+   # Start server:
+   cd apps/server
+   bun run dev
+   ```
+
+5. **Check for Multiple .env Files**
+   ```bash
+   # Multiple .env files can cause confusion
+   # Only one should be in apps/server/
+
+   cd apps/server
+   ls -la .env*  # List all .env files
+
+   # Keep only one (usually .env.local for development)
+   # Remove or rename others
+   ```
+
+6. **Verify Variable is Not Overridden**
+   ```bash
+   # Check if variable is set in shell environment
+   echo $OPENAI_API_KEY
+
+   # Shell environment takes precedence over .env
+   # Unset if needed
+   unset OPENAI_API_KEY
+
+   # Then restart server
+   ```
+
+---
+
+## 8.3 Runtime Issues
+
+Runtime issues occur during the execution of AI requests.
+
+### 8.3.1 Streaming Not Working
+
+**Problem:** Response returns all at once instead of streaming token by token
+
+**Common Symptoms:**
+- Entire message appears at once after long delay
+- No incremental updates in UI
+- Chat interface freezes during response generation
+
+**Solutions:**
+
+1. **Verify `streamText()` is Used (not `generateText()`)**
+   ```typescript
+   // ✅ Correct - using streamText for streaming
+   import { streamText } from 'ai';
+
+   const result = await streamText({
+     model: wrappedModel,
+     messages,
+   });
+
+   // ❌ Wrong - using generateText (no streaming)
+   import { generateText } from 'ai';
+
+   const result = await generateText({
+     model: wrappedModel,
+     messages,
+   });  // Returns full response, no stream
+   ```
+
+2. **Check `toUIMessageStreamResponse()` is Called**
+   ```typescript
+   // ✅ Correct - return UI message stream
+   app.post('/ai', async (c) => {
+     const result = await streamText({
+       model: wrappedModel,
+       messages,
+     });
+
+     return result.toUIMessageStreamResponse();
+   });
+
+   // ❌ Wrong - returning data stream (not compatible with Chat component)
+   return result.toDataStreamResponse();
+
+   // ❌ Wrong - returning JSON (no streaming)
+   return c.json({ text: result.text });
+   ```
+
+3. **Ensure Frontend Uses Chat Component Properly**
+   ```svelte
+   <!-- apps/web/src/routes/ai/+page.svelte -->
+   <script lang="ts">
+     import { Chat } from '@ai-sdk/svelte';
+     import { DefaultChatTransport } from '@ai-sdk/svelte';
+
+     // ✅ Correct - using Chat component
+     const chat = new Chat({
+       transport: new DefaultChatTransport({
+         api: `${PUBLIC_SERVER_URL}/ai`,
+       }),
+     });
+   </script>
+
+   <Chat chat={chat} />
+
+   // ❌ Wrong - manual fetch won't work with Chat component
+   const response = await fetch('/ai', { ... });
+   ```
+
+4. **Verify Transport Layer Configuration**
+   ```svelte
+   // Ensure transport URL matches server endpoint
+   const chat = new Chat({
+     transport: new DefaultChatTransport({
+       // ✅ Correct - full URL to server endpoint
+       api: 'http://localhost:3001/ai',
+
+       // ❌ Wrong - missing endpoint path
+       api: 'http://localhost:3001',
+
+       // ❌ Wrong - wrong port
+       api: 'http://localhost:3000/ai',
+     }),
+   });
+   ```
+
+5. **Check for CORS Blocking**
+   ```typescript
+   // apps/server/src/index.ts
+   import { cors } from 'hono/cors';
+
+   // ✅ Ensure CORS is configured
+   app.use('/*', cors({
+     origin: env.CORS_ORIGIN,  // e.g., 'http://localhost:5173'
+     credentials: true,
+   }));
+
+   // Test CORS with curl
+   curl -X OPTIONS http://localhost:3001/ai \
+     -H "Origin: http://localhost:5173" \
+     -H "Access-Control-Request-Method: POST" \
+     -v  # Look for Access-Control-Allow-Origin header
+   ```
+
+6. **Verify Response Content Type**
+   ```bash
+   # Server must return text/event-stream
+   curl -X POST http://localhost:3001/ai \
+     -H "Content-Type: application/json" \
+     -d '{"messages":[{"role":"user","content":"Hi"}]}' \
+     -v  # Look for: Content-Type: text/event-stream
+
+   # If you see application/json instead, streaming is not working
+   ```
+
+---
+
+### 8.3.2 Timeout Errors
+
+**Problem:** Request times out before completion
+
+**Common Symptoms:**
+```bash
+❌ Error: Request timeout
+❌ Error: ETIMEDOUT
+❌ Error: 504 Gateway Timeout
+```
+
+**Solutions:**
+
+1. **Increase Timeout in Server Configuration**
+   ```typescript
+   // apps/server/src/index.ts
+   import { serve } from '@hono/node-server';
+
+   // ✅ Increase timeout for long-running AI requests
+   const server = serve({
+     fetch: app.fetch,
+     port: env.PORT,
+     hostname: '0.0.0.0',
+   });
+
+   // Set server timeout (in milliseconds)
+   server.requestTimeout = 120000;  // 2 minutes
+
+   // Or use environment variable
+   server.requestTimeout = parseInt(process.env.REQUEST_TIMEOUT || '120000');
+   ```
+
+2. **Check Network Connectivity to Provider API**
+   ```bash
+   # Test direct connection to provider
+   time curl https://api.anthropic.com/v1/messages \
+     -H "x-api-key: $ANTHROPIC_API_KEY" \
+     -H "anthropic-version: 2023-06-01" \
+     -H "content-type: application/json" \
+     -d '{"model":"claude-3-5-sonnet-20241022","max_tokens":100,"messages":[{"role":"user","content":"Hi"}]}'
+
+   # If direct curl is slow, issue is network/provider, not your code
+   # If direct curl is fast, issue is in your implementation
+   ```
+
+3. **Verify Provider Service Status**
+   ```bash
+   # Check provider status page for outages
+   # OpenAI: https://status.openai.com/
+   # Anthropic: https://status.anthropic.com/
+   # Google: https://status.cloud.google.com/
+   # Groq: https://status.groq.com/
+
+   # Follow provider status on Twitter/X for real-time updates
+   ```
+
+4. **Consider Breaking Up Long Messages**
+   ```typescript
+   // If timeout is due to very long messages, split them
+   async function processLongMessage(messages: Message[]) {
+     const MAX_TOKENS = 4000;  // Adjust based on provider
+
+     for (const message of messages) {
+       const tokenCount = estimateTokens(message.content);
+       if (tokenCount > MAX_TOKENS) {
+         // Split message into chunks
+         const chunks = splitMessage(message.content, MAX_TOKENS);
+         for (const chunk of chunks) {
+           await streamText({
+             model: wrappedModel,
+             messages: [{ role: message.role, content: chunk }],
+           });
+         }
+       }
+     }
+   }
+   ```
+
+5. **Implement Retry Logic with Exponential Backoff**
+   ```typescript
+   async function callWithRetry(
+     fn: () => Promise<any>,
+     maxRetries = 3
+   ) {
+     for (let attempt = 0; attempt < maxRetries; attempt++) {
+       try {
+         return await fn();
+       } catch (error) {
+         if (attempt === maxRetries - 1) throw error;
+
+         const delay = Math.pow(2, attempt) * 1000;  // 1s, 2s, 4s
+         console.log(`Retry ${attempt + 1}/${maxRetries} after ${delay}ms`);
+         await new Promise(resolve => setTimeout(resolve, delay));
+       }
+     }
+   }
+   ```
+
+---
+
+### 8.3.3 Rate Limiting
+
+**Problem:** Provider returns 429 (Too Many Requests)
+
+**Common Symptoms:**
+```bash
+❌ Error: 429 Too Many Requests
+❌ Error: Rate limit exceeded
+❌ Error: quota_exceeded
+```
+
+**Solutions:**
+
+1. **Implement Exponential Backoff**
+   ```typescript
+   async function callWithBackoff(
+     fn: () => Promise<any>,
+     maxRetries = 5
+   ) {
+     for (let attempt = 0; attempt < maxRetries; attempt++) {
+       try {
+         return await fn();
+       } catch (error) {
+         if (error.status === 429 && attempt < maxRetries - 1) {
+           // Exponential backoff for rate limits
+           const delay = Math.pow(2, attempt) * 1000;
+           console.log(`Rate limited, retrying in ${delay}ms...`);
+           await new Promise(resolve => setTimeout(resolve, delay));
+           continue;
+         }
+         throw error;
+       }
+     }
+   }
+   ```
+
+2. **Add Rate Limiting on Application Level**
+   ```typescript
+   // apps/server/src/index.ts
+   import { rateLimiter } from 'hono-rate-limiter';
+
+   // Add rate limiter middleware
+   app.use('/ai', rateLimiter({
+     windowMs: 60 * 1000,  // 1 minute
+     max: 60,  // 60 requests per minute
+     standardHeaders: true,
+     legacyHeaders: false,
+   }));
+
+   // Per-user rate limiting
+   app.use('/ai', rateLimiter({
+     windowMs: 60 * 1000,
+     max: 20,  // 20 requests per minute per user
+     keyGenerator: (c) => {
+       // Use IP or user ID for rate limiting
+       return c.req.header('x-forwarded-for') || 'anonymous';
+     },
+   }));
+   ```
+
+3. **Upgrade Provider Plan for Higher Limits**
+   ```bash
+   # Check your current rate limits in provider dashboard
+   # Free tiers typically have lower limits
+
+   # OpenAI: https://platform.openai.com/account/limits
+   # Anthropic: https://console.anthropic.com/settings/limits
+   # Google: https://console.cloud.google.com/iam-admin/quotas
+   # Groq: https://console.groq.com/settings/limits
+
+   # Consider upgrading to paid tier for production use
+   ```
+
+4. **Use Multiple API Keys with Rotation**
+   ```typescript
+   // Implement API key rotation for higher throughput
+   const API_KEYS = [
+     process.env.OPENAI_API_KEY_1,
+     process.env.OPENAI_API_KEY_2,
+     process.env.OPENAI_API_KEY_3,
+   ].filter(Boolean);
+
+   let keyIndex = 0;
+
+   function getNextApiKey() {
+     const key = API_KEYS[keyIndex];
+     keyIndex = (keyIndex + 1) % API_KEYS.length;
+     return key;
+   }
+
+   const openai = createOpenAI({
+     apiKey: getNextApiKey(),
+     // ...
+   });
+   ```
+
+5. **Cache Responses to Reduce API Calls**
+   ```typescript
+   // Implement simple in-memory cache
+   const cache = new Map();
+
+   async function getCachedResponse(messages: Message[]) {
+     const cacheKey = JSON.stringify(messages);
+
+     if (cache.has(cacheKey)) {
+       console.log('Cache hit!');
+       return cache.get(cacheKey);
+     }
+
+     const result = await streamText({
+       model: wrappedModel,
+       messages,
+     });
+
+     // Cache for 5 minutes
+     cache.set(cacheKey, result);
+     setTimeout(() => cache.delete(cacheKey), 5 * 60 * 1000);
+
+     return result;
+   }
+   ```
+
+---
+
+## 8.4 Frontend Issues
+
+Frontend issues relate to the chat UI and integration with the server.
+
+### 8.4.1 Chat Component Not Rendering
+
+**Problem:** Chat UI doesn't display messages or appears broken
+
+**Common Symptoms:**
+- Chat component renders but messages don't appear
+- Blank screen where chat should be
+- Error in browser console
+
+**Solutions:**
+
+1. **Check Browser Console for Errors**
+   ```javascript
+   // Open browser DevTools (F12 or Cmd+Option+I)
+   // Check Console tab for errors
+
+   // Common errors:
+   // - "Failed to fetch"
+   // - "CORS policy error"
+   // - "Unexpected token < in JSON"
+   // - "Chat is not defined"
+   ```
+
+2. **Verify Transport URL is Correct**
+   ```svelte
+   <!-- apps/web/src/routes/ai/+page.svelte -->
+   <script lang="ts">
+     import { Chat } from '@ai-sdk/svelte';
+     import { DefaultChatTransport } from '@ai-sdk/svelte';
+
+     // ✅ Correct - full URL including protocol
+     const chat = new Chat({
+       transport: new DefaultChatTransport({
+         api: 'http://localhost:3001/ai',  // Include http:// and port
+       }),
+     });
+
+     // ❌ Wrong - missing protocol
+     api: 'localhost:3001/ai',
+
+     // ❌ Wrong - wrong port
+     api: 'http://localhost:3000/ai',  // Server is on 3001, not 3000
+
+     // ❌ Wrong - missing endpoint path
+     api: 'http://localhost:3001',
+   </script>
+   ```
+
+3. **Ensure Server is Running**
+   ```bash
+   # Check if server is running
+   curl http://localhost:3001/health  # Or your health endpoint
+
+   # Or check if port is listening
+   lsof -i :3001  # macOS/Linux
+   netstat -an | findstr :3001  # Windows
+
+   # Start server if not running
+   cd apps/server
+   bun run dev
+   ```
+
+4. **Check CORS Configuration**
+   ```typescript
+   // apps/server/src/index.ts
+   app.use('/*', cors({
+     origin: env.CORS_ORIGIN,  // Must match frontend URL
+     // e.g., 'http://localhost:5173' for Vite dev server
+     credentials: true,
+   }));
+
+   // Test CORS
+   curl -X OPTIONS http://localhost:3001/ai \
+     -H "Origin: http://localhost:5173" \
+     -H "Access-Control-Request-Method: POST" \
+     -v
+
+   # Look for: Access-Control-Allow-Origin: http://localhost:5173
+   ```
+
+5. **Verify PUBLIC_SERVER_URL Environment Variable**
+   ```bash
+   # apps/web/.env.local
+   PUBLIC_SERVER_URL=http://localhost:3001
+
+   # Ensure it's set and correct
+   echo $PUBLIC_SERVER_URL
+
+   # Restart frontend after changing
+   cd apps/web
+   bun run dev
+   ```
+
+---
+
+### 8.4.2 Messages Not Updating
+
+**Problem:** New messages don't appear in chat interface
+
+**Common Symptoms:**
+- User message appears but no AI response
+- Messages appear with long delay
+- Some messages appear, others don't
+
+**Solutions:**
+
+1. **Verify Reactive State is Properly Set Up**
+   ```svelte
+   <!-- apps/web/src/routes/ai/+page.svelte -->
+   <script lang="ts">
+     import { Chat } from '@ai-sdk/svelte';
+     import { DefaultChatTransport } from '@ai-sdk/svelte';
+
+     // ✅ Correct - use reactive declaration
+     const chat = new Chat({
+       transport: new DefaultChatTransport({
+         api: `${PUBLIC_SERVER_URL}/ai`,
+       }),
+     });
+
+     // The Chat component handles reactivity internally
+     // Don't try to manually manage state
+   </script>
+
+   <!-- ✅ Correct - bind chat instance -->
+   <Chat chat={chat} />
+
+   <!-- ❌ Wrong - don't manually manage messages -->
+   <!-- The Chat component handles this internally -->
+   ```
+
+2. **Check Message Array References**
+   ```typescript
+   // The Chat component manages its own state internally
+   // You don't need to manually update messages
+
+   // If you're trying to implement custom behavior:
+   // Use the Chat component's built-in features
+   // Don't try to bypass its state management
+   ```
+
+3. **Ensure Streaming is Working**
+   ```bash
+   # Test streaming directly with curl
+   curl -X POST http://localhost:3001/ai \
+     -H "Content-Type: application/json" \
+     -d '{"messages":[{"role":"user","content":"Hello"}]}' \
+     --no-buffer
+
+   # You should see:
+   # data: {"type":"text.delta","content":"H"}
+   # data: {"type":"text.delta","content":"e"}
+   # data: {"type":"text.delta","content":"l"}
+   # ...
+
+   # If you see the entire response at once, streaming is broken
+   # See Section 8.3.1 for streaming troubleshooting
+   ```
+
+4. **Check for JavaScript Errors**
+   ```javascript
+   // Open browser DevTools (F12)
+   // Go to Console tab
+
+   // Look for any errors that might be preventing updates
+   // Common errors:
+   // - TypeError: Cannot read property 'x' of undefined
+   // - ReferenceError: chat is not defined
+   // - NetworkError: Failed to fetch
+   ```
+
+5. **Verify Browser Compatibility**
+   ```bash
+   # The Chat component uses modern JavaScript features
+   # Ensure your browser supports:
+   # - ES2020+ features
+   # - Fetch API
+   # - ReadableStream
+   # - EventSource / Server-Sent Events
+
+   # Test in modern browsers:
+   # - Chrome 90+
+   # - Firefox 88+
+   # - Safari 14+
+   # - Edge 90+
+   ```
+
+---
+
+## 8.5 Provider-Specific Issues
+
+Each AI provider has unique issues and solutions.
+
+### 8.5.1 OpenAI Issues
+
+**Organization ID Required**
+```bash
+# Problem: Some OpenAI accounts require organization ID
+# Solution: Include organization ID in API client
+
+import { createOpenAI } from '@ai-sdk/openai';
+
+const openai = createOpenAI({
+  apiKey: env.OPENAI_API_KEY,
+  organization: env.OPENAI_ORGANIZATION_ID,  # Add this
+});
+```
+
+**Base URL Configuration for Azure Deployments**
+```typescript
+// For Azure OpenAI, use custom base URL
+const openai = createOpenAI({
+  baseURL: 'https://your-resource.openai.azure.com/openai/deployments/your-deployment',
+  apiKey: env.AZURE_OPENAI_API_KEY,
+});
+```
+
+**API Version Compatibility**
+```bash
+# OpenAI API versions can vary
+# Ensure you're using compatible versions
+
+# Check installed version
+bunx npm list @ai-sdk/openai
+
+# Update if needed
+bun add @ai-sdk/openai@latest
+```
+
+---
+
+### 8.5.2 Anthropic Issues
+
+**Strict Message Format Requirements**
+```typescript
+// Anthropic has strict message format requirements
+// Ensure messages follow the correct structure
+
+// ✅ Correct - alternating user/assistant
+const messages = [
+  { role: 'user', content: 'Hello' },
+  { role: 'assistant', content: 'Hi there!' },
+  { role: 'user', content: 'How are you?' },
+];
+
+// ❌ Wrong - consecutive messages from same role
+const messages = [
+  { role: 'user', content: 'Hello' },
+  { role: 'user', content: 'Hello again' },  // Wrong
+];
+```
+
+**Token Counting Differences**
+```bash
+# Anthropic counts tokens differently than OpenAI
+# 1 token ≈ 3.5 characters for Anthropic (vs 4 for OpenAI)
+
+# Use Anthropic's token counter for accurate estimates
+# https://docs.anthropic.com/claude/docs/token-counting
+```
+
+**Thinking Mode Configuration**
+```typescript
+// Anthropic Claude has extended thinking mode
+// Can be configured for complex reasoning
+
+import { anthropic } from '@ai-sdk/anthropic';
+
+const model = anthropic('claude-3-5-sonnet-20241022', {
+  // Enable extended thinking (beta)
+  thinking: {
+    type: 'enabled',
+    budget_tokens: 10000,  // Allocate tokens for thinking
+  },
+});
+```
+
+---
+
+### 8.5.3 Google Gemini Issues
+
+**Alternative API Key Variable Names**
+```bash
+# Google SDK accepts multiple API key variable names
+# Prefer GOOGLE_GENERATIVE_AI_API_KEY for consistency
+
+# Accepted alternatives:
+# - GOOGLE_API_KEY (also works)
+# - GEMINI_API_KEY (third-party libs)
+
+# Use this for consistency:
+GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here
+```
+
+**Regional Availability Differences**
+```bash
+# Some Gemini models are region-specific
+# Check availability for your region
+
+# Vertex AI (enterprise):
+# - US: https://us-central1-aiplatform.googleapis.com
+# - EU: https://europe-west1-aiplatform.googleapis.com
+
+# Generative AI API (consumer):
+# - Global: https://generativelanguage.googleapis.com
+```
+
+**Quota Limitations**
+```bash
+# Google has different quota tiers
+# Check your quota in Google Cloud Console
+
+# Free tier: 60 requests per minute
+# Paid tier: Higher limits based on billing
+
+# Request quota increase:
+# https://console.cloud.google.com/iam-admin/quotas
+```
+
+---
+
+### 8.5.4 Groq Issues
+
+**Very Fast Requests Can Trigger Rate Limits**
+```typescript
+// Groq is extremely fast (10-20x faster than other providers)
+// This can trigger rate limits if not careful
+
+// Implement rate limiting on your end
+import { rateLimiter } from 'hono-rate-limiter';
+
+app.use('/ai', rateLimiter({
+  windowMs: 60 * 1000,
+  max: 100,  # Adjust based on your Groq quota
+  standardHeaders: true,
+}));
+```
+
+**Model Availability Changes**
+```bash
+# Groq frequently updates available models
+# Check current models in Groq console
+
+# List available models:
+curl https://api.groq.com/openai/v1/models \
+  -H "Authorization: Bearer $GROQ_API_KEY"
+
+# Popular models:
+# - llama-3.3-70b-versatile
+# - mixtral-8x7b-32768
+# - gemma2-9b-it
+```
+
+**Token Limit Differences**
+```bash
+# Groq models have different context limits
+# Check model documentation for exact limits
+
+# Example:
+# - Llama 3.3 70B: 128K tokens
+# - Mixtral 8x7B: 32K tokens
+# - Gemma 2 9B: 8K tokens
+```
+
+---
+
+### 8.5.5 Ollama Issues
+
+**Service Not Running Locally**
+```bash
+# Problem: Ollama service is not running
+# Solution: Start Ollama service
+
+# macOS/Linux:
+ollama serve
+
+# Or start as background service:
+brew services start ollama  # macOS
+sudo systemctl start ollama  # Linux
+
+# Verify it's running:
+curl http://localhost:11434/api/tags
+```
+
+**Model Not Pulled**
+```bash
+# Problem: Model hasn't been downloaded yet
+# Solution: Pull the model
+
+ollama pull llama3.2
+
+# List available models:
+ollama list
+
+# Pull multiple models:
+ollama pull llama3.2
+ollama pull mistral
+ollama pull codellama
+```
+
+**CORS Configuration for Remote Access**
+```bash
+# Problem: Ollama blocks remote requests by default
+# Solution: Set OLLAMA_ORIGINS environment variable
+
+# macOS/Linux:
+export OLLAMA_ORIGINS="*"
+ollama serve
+
+# Or set specific origins:
+export OLLAMA_ORIGINS="http://localhost:5173,https://yourdomain.com"
+ollama serve
+
+# Windows:
+set OLLAMA_ORIGINS=*
+ollama serve
+```
+
+**Remote Ollama Server Setup**
+```typescript
+// For Ollama running on remote server
+import { ollama } from 'ollama-ai-provider';
+import { createOpenAI } from '@ai-sdk/openai';
+
+const ollamaClient = createOpenAI({
+  baseURL: 'http://your-server-ip:11434/v1',  // Remote server
+  apiKey: 'ollama',  // Required but ignored by Ollama
+});
+
+const model = ollama('llama3.2', {
+  baseURL: 'http://your-server-ip:11434/v1',
+});
+```
+
+---
+
+## 8.6 Debugging Tips
+
+### 8.6.1 Enable Debug Logging
+
+Add detailed logging to track request flow:
+
+```typescript
+// apps/server/src/index.ts
+app.post('/ai', async (c) => {
+  const body = await c.req.json();
+
+  // Debug logging
+  console.log('=== AI Request ===');
+  console.log('Messages:', body.messages);
+  console.log('Message count:', body.messages.length);
+  console.log('Using model:', modelId);
+  console.log('Timestamp:', new Date().toISOString());
+
+  const startTime = Date.now();
+
+  try {
+    const result = await streamText({
+      model: wrappedModel,
+      messages: body.messages,
+    });
+
+    console.log('Streaming started');
+
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error('AI Request failed:', error);
+    console.error('Duration:', duration, 'ms');
+
+    return c.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+});
+```
+
+---
+
+### 8.6.2 Use AI SDK DevTools
+
+Enable AI SDK DevTools for detailed debugging:
+
+```typescript
+// apps/server/src/index.ts
+import { devToolsMiddleware } from '@ai-sdk/devtools';
+import { wrapLanguageModel } from 'ai';
+
+// Wrap model with dev tools
+const model = wrapLanguageModel({
+  model: provider('model-id'),
+  middleware: devToolsMiddleware(),  // Enables debugging
+});
+
+// This enables:
+// - Request/response logging
+// - Performance metrics
+// - Error tracking
+// - Model inspection
+```
+
+Access DevTools at: `http://localhost:3001/__ai-devtools`
+
+---
+
+### 8.6.3 Network Inspection
+
+Use browser DevTools to inspect network traffic:
+
+**Chrome/Firefox DevTools:**
+1. Open DevTools (F12 or Cmd+Option+I)
+2. Go to Network tab
+3. Filter by "event-stream" or "ai"
+4. Look for the `/ai` request
+5. Click on it to inspect:
+   - Request headers (look for Authorization, Content-Type)
+   - Response headers (look for Content-Type: text/event-stream)
+   - Response preview (should show streaming chunks)
+   - Timing (check for slow requests)
+
+**What to Look For:**
+```bash
+# Request Headers:
+✅ Content-Type: application/json
+✅ Accept: text/event-stream
+
+# Response Headers:
+✅ Content-Type: text/event-stream
+✅ Cache-Control: no-cache
+✅ Connection: keep-alive
+
+# Response Preview:
+✅ Should see multiple chunks like:
+   data: {"type":"text.delta","content":"H"}
+   data: {"type":"text.delta","content":"e"}
+   data: {"type":"text.delta","content":"l"}
+   ...
+
+# Common Issues:
+❌ No /ai request (frontend not sending)
+❌ 401/403 errors (auth problem)
+❌ 404 error (wrong endpoint)
+❌ CORS errors (server configuration)
+❌ No streaming chunks (server not streaming)
+```
+
+---
+
+### 8.6.4 Check Provider Status
+
+Verify provider services are operational:
+
+```bash
+# OpenAI Status
+curl https://status.openai.com/api/v2/status.json
+
+# Anthropic Status
+curl https://status.anthropic.com/api/v2/status.json
+
+# Google Cloud Status
+curl https://status.cloud.google.com/api/v2/status.json
+
+# Groq Status
+curl https://status.groq.com/api/v2/status.json
+
+# All should show "operational"
+# If not, wait for provider to fix the issue
+```
+
+---
+
+### 8.6.5 Test with cURL
+
+Isolate issues by testing directly with cURL:
+
+```bash
+# Test server endpoint directly (no frontend)
+curl -X POST http://localhost:3001/ai \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello, can you hear me?"
+      }
+    ]
+  }' \
+  --no-buffer
+
+# Expected output:
+# data: {"type":"text.delta","content":"H"}
+# data: {"type":"text.delta","content":"i"}
+# ...
+
+# If this works, server is OK, issue is in frontend
+# If this fails, issue is in server
+```
+
+---
+
+### 8.6.6 Monitor Resource Usage
+
+Check server resources for bottlenecks:
+
+```bash
+# Check CPU usage
+top -o cpu  # macOS/Linux
+taskmgr     # Windows
+
+# Check memory usage
+top -o mem  # macOS/Linux
+
+# Check if server is responsive
+curl http://localhost:3001/health
+
+# Check for memory leaks
+node --inspect apps/server/src/index.ts
+# Then open Chrome DevTools -> Node.js icon
+```
+
+---
+
+## 8.7 Getting Help
+
+When you can't resolve issues on your own, here's how to get help:
+
+### 8.7.1 Documentation Resources
+
+**AI SDK Documentation:**
+- Official Docs: https://sdk.vercel.ai/docs
+- API Reference: https://sdk.vercel.ai/docs/reference
+- Examples: https://sdk.vercel.ai/docs/examples
+
+**Provider Documentation:**
+- OpenAI: https://platform.openai.com/docs
+- Anthropic: https://docs.anthropic.com
+- Google AI: https://ai.google.dev/docs
+- Groq: https://console.groq.com/docs
+- Ollama: https://github.com/ollama/ollama/blob/main/docs/api.md
+
+**SambungChat Resources:**
+- This Guide: `docs/ai-provider-integration-guide.md`
+- Examples: `examples/` directory
+- Issues: GitHub issue tracker
+
+---
+
+### 8.7.2 Community Forums
+
+**GitHub Discussions:**
+- Vercel AI SDK: https://github.com/vercel/ai/discussions
+- Search existing discussions before posting
+- Include error messages, code snippets, and environment details
+
+**Stack Overflow:**
+- Tag questions with `ai-sdk` and provider name (e.g., `openai-api`)
+- Include minimal reproducible example
+- Describe what you've tried so far
+
+**Provider Communities:**
+- OpenAI Community Forum: https://community.openai.com/
+- Anthropic Discord: https://discord.gg/anthropic
+- Google AI Community: https://discuss.ai.google.dev/
+
+---
+
+### 8.7.3 Creating a Bug Report
+
+When reporting issues, include:
+
+**Required Information:**
+```markdown
+## Environment
+- Node/Bun version: `node --version` or `bun --version`
+- AI SDK version: `bun list @ai-sdk/*`
+- Provider package: `bun list @ai-sdk/openai` (or relevant provider)
+- OS: macOS/Linux/Windows version
+
+## Problem Description
+Clear description of what's not working
+
+## Expected Behavior
+What should happen
+
+## Actual Behavior
+What actually happens (error messages, incorrect output, etc.)
+
+## Code Example
+Minimal code to reproduce the issue
+
+```typescript
+// Include your implementation
+```
+
+## Error Messages
+Full error stack traces
+
+## Steps to Reproduce
+1. Step 1
+2. Step 2
+3. ...
+
+## Additional Context
+Screenshots, logs, or other relevant information
+```
+
+---
+
+### 8.7.4 SambungChat Issue Tracker
+
+For SambungChat-specific issues:
+
+```bash
+# Check existing issues first
+gh issue list --repo sambunghub/sambung-chat
+
+# Create new issue
+gh issue create --repo sambunghub/sambung-chat \
+  --title "AI Provider Integration Issue: [Brief Description]" \
+  --body "Include all details from bug report template above"
+```
+
+---
+
+### 8.7.5 Quick Diagnostic Checklist
+
+Before asking for help, verify:
+
+- [ ] Environment variables are set correctly
+- [ ] API keys are valid and active
+- [ ] Packages are installed (`bun list @ai-sdk/*`)
+- [ ] Server is running (`curl http://localhost:3001/health`)
+- [ ] Direct cURL test works (isolates frontend issues)
+- [ ] Browser console has no errors
+- [ ] Network tab shows correct request/response
+- [ ] Provider status page shows "operational"
+- [ ] You've tried the solutions in this section
+- [ ] You can provide minimal reproducible example
+
+---
+
+## Summary
+
+In this section, you learned comprehensive troubleshooting for:
+
+✅ **Installation Issues**
+- Package installation failures
+- Version conflicts and dependency resolution
+
+✅ **Configuration Issues**
+- API key recognition problems
+- Model not found errors
+- Environment variable loading issues
+
+✅ **Runtime Issues**
+- Streaming configuration
+- Timeout handling
+- Rate limiting strategies
+
+✅ **Frontend Issues**
+- Chat component rendering
+- Message updating problems
+- Browser compatibility
+
+✅ **Provider-Specific Issues**
+- OpenAI: Organization ID, Azure, API versions
+- Anthropic: Message format, token counting, thinking mode
+- Google: API key names, regional availability, quotas
+- Groq: Speed vs rate limits, model availability
+- Ollama: Service management, model pulling, CORS
+
+✅ **Debugging Techniques**
+- Debug logging
+- AI SDK DevTools
+- Network inspection
+- cURL testing
+- Resource monitoring
+
+✅ **Getting Help**
+- Documentation resources
+- Community forums
+- Bug report template
+- Diagnostic checklist
+
+---
+
+**Next Steps:**
+
+> **Next:** [9. Advanced Topics](#9-advanced-topics)
+>
+> Explore advanced patterns including multi-provider architectures, fallback chains, cost optimization, and production deployment strategies.
+
+---
+
+**Document Status:** 🚧 In Progress - Phase 6, Task 3 (Section 8 Complete)
+
+**Last Updated:** 2026-01-12
 **Contributors:** SambungChat Development Team
