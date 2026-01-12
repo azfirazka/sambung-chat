@@ -268,14 +268,14 @@ Our documentation follows these principles:
 3. Implement [Testing procedures](./ai-provider-integration-guide.md#7-testing-and-validation)
 
 ### Advanced
-1. Explore [Advanced Topics](./ai-provider-integration-guide.md#9-advanced-topics)
+1. Implement multi-provider patterns (see [Multi-Provider Example](../examples/multi-provider-integration/))
 2. Implement custom middleware
 3. Optimize for cost and performance
 4. Contribute new provider examples
 
 ---
 
-**Last Updated:** 2025-01-12
+**Last Updated:** 2026-01-12
 **Documentation Version:** 1.0
 **Maintained By:** SambungChat Team
 
