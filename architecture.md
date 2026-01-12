@@ -36,6 +36,11 @@ This document provides comprehensive architecture documentation for the SambungC
    - [Middleware Flow](#middleware-flow)
    - [Type Safety Benefits](#type-safety-benefits)
    - [Error Scenarios](#error-scenarios)
+   - [CRUD Operation Sequences](#crud-operation-sequences)
+     - [Create Todo Operation](#create-todo-operation)
+     - [Read Todos Operation](#read-todos-operation)
+     - [Update Todo Operation](#update-todo-operation)
+     - [Delete Todo Operation](#delete-todo-operation)
 8. [Data Flow](#data-flow)
 9. [Development Workflow](#development-workflow)
 10. [Design Decisions](#design-decisions)
@@ -2374,6 +2379,359 @@ export const protectedProcedure = publicProcedure.use(requireAuth);
 | **Database Error** | Drizzle throws error | 500 Internal Server Error | Client shows error message |
 | **Network Error** | HTTP request fails | Network error | Client shows offline message |
 | **Procedure Not Found** | ORPC route matching fails | 404 Not Found | Client shows "Not found" message |
+
+### CRUD Operation Sequences
+
+The following sequence diagrams show the complete request/response cycle for each CRUD operation on the todo entity, demonstrating how ORPC handles different types of database operations.
+
+#### Create Todo Operation
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 🌐 SvelteKit Client
+    participant Network as 📡 HTTP/HTTPS
+    participant Hono as ⚡ Hono Server
+    participant Context as 📦 Context Creator
+    participant ORPC as 🔌 ORPC Router
+    participant Zod as ✅ Zod Validator
+    participant Handler as ⚙️ Create Handler
+    participant Drizzle as 🗃️ Drizzle ORM
+    participant PostgreSQL as 💾 PostgreSQL
+
+    Note over Client,PostgreSQL: Create Todo Request Flow
+
+    Client->>Network: api.todos.create({ text: "Buy milk" })
+    Note over Client,Network: TypeScript ensures<br/>text is string & not empty
+
+    Network->>Hono: POST /rpc/todos/create
+    Note over Hono: Request received
+
+    Hono->>Hono: Logger middleware
+    Hono->>Hono: CORS middleware
+
+    Hono->>Context: createContext({ context: HonoContext })
+    Context->>Context: Extract session (null for publicProcedure)
+    Context-->>Hono: { session: null }
+
+    Hono->>ORPC: rpcHandler.handle(request, { context })
+    ORPC->>ORPC: Match route to todos.create procedure
+
+    ORPC->>Zod: Validate input schema
+    Note over Zod: z.object({ text: z.string().min(1) })
+
+    alt Input Valid
+        Zod-->>ORPC: Validation passed
+        ORPC->>Handler: Execute handler with input
+
+        Note over Handler,Drizzle: Database INSERT Operation
+        Handler->>Drizzle: db.insert(todo).values({ text: input.text })
+
+        Drizzle->>PostgreSQL: INSERT INTO todo (text) VALUES ($1)
+        Note over PostgreSQL: Generate id (serial)<br/>Set completed = false (default)
+
+        PostgreSQL-->>Drizzle: Insert result (id, text, completed)
+        Drizzle-->>Handler: Created todo record
+
+        Handler-->>ORPC: { id: 1, text: "Buy milk", completed: false }
+        ORPC-->>Hono: JSON response
+
+        Hono-->>Network: HTTP 200 OK
+        Network-->>Client: JSON response
+        Note over Client: TypeScript knows<br/>response shape
+    else Input Invalid
+        Zod-->>ORPC: ZodValidationError
+        ORPC-->>Hono: 400 Bad Request
+        Hono-->>Network: Error details
+        Network-->>Client: Validation error
+    end
+```
+
+**Key Steps Explained:**
+
+1. **Client-Side Type Safety**: TypeScript ensures the input matches the expected schema before sending
+2. **HTTP Transport**: POST request to `/rpc/todos/create` with JSON body
+3. **Hono Middleware**: Logger and CORS middleware process the request
+4. **Context Creation**: Session extracted (null for publicProcedure, no auth required)
+5. **ORPC Routing**: Route matched to `todos.create` procedure
+6. **Zod Validation**: Runtime validation ensures `text` is a non-empty string
+7. **Handler Execution**: Calls Drizzle ORM to insert the record
+8. **Database Operation**: PostgreSQL generates `id` (serial) and sets `completed` to `false` (default)
+9. **Response Flow**: Created todo record returned with type-safe response
+
+**Database Operations:**
+- **Table**: `todo`
+- **Operation**: INSERT
+- **Generated Fields**: `id` (serial auto-increment), `completed` (boolean default: false)
+- **User Field**: `text` (from input)
+
+#### Read Todos Operation
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 🌐 SvelteKit Client
+    participant Network as 📡 HTTP/HTTPS
+    participant Hono as ⚡ Hono Server
+    participant Context as 📦 Context Creator
+    participant ORPC as 🔌 ORPC Router
+    participant Handler as ⚙️ GetAll Handler
+    participant Drizzle as 🗃️ Drizzle ORM
+    participant PostgreSQL as 💾 PostgreSQL
+
+    Note over Client,PostgreSQL: Read All Todos Request Flow
+
+    Client->>Network: api.todos.getAll()
+    Note over Client,Network: TypeScript knows<br/>no input required
+
+    Network->>Hono: POST /rpc/todos/getAll
+    Note over Hono: Request received
+
+    Hono->>Hono: Logger middleware
+    Hono->>Hono: CORS middleware
+
+    Hono->>Context: createContext({ context: HonoContext })
+    Context->>Context: Extract session (null for publicProcedure)
+    Context-->>Hono: { session: null }
+
+    Hono->>ORPC: rpcHandler.handle(request, { context })
+    ORPC->>ORPC: Match route to todos.getAll procedure
+
+    Note over ORPC,Handler: No input validation required<br/>(no input schema defined)
+
+    ORPC->>Handler: Execute handler
+    Note over Handler,Drizzle: Database SELECT Operation
+
+    Handler->>Drizzle: db.select().from(todo)
+    Drizzle->>PostgreSQL: SELECT * FROM todo
+    Note over PostgreSQL: Return all records<br/>Ordered by id (default)
+
+    PostgreSQL-->>Drizzle: Array of todo records
+    Drizzle-->>Handler: Todo[] array
+
+    Handler-->>ORPC: Array of todos
+    ORPC-->>Hono: JSON response
+
+    Hono-->>Network: HTTP 200 OK
+    Network-->>Client: JSON response
+    Note over Client: TypeScript knows<br/>response is Todo[]
+```
+
+**Key Steps Explained:**
+
+1. **No Input Required**: `getAll` procedure has no input schema
+2. **Simpler Flow**: Skips Zod validation step (no input to validate)
+3. **Handler Execution**: Calls Drizzle ORM to select all records
+4. **Database Operation**: SELECT all rows from `todo` table
+5. **Response Flow**: Returns array of todo objects
+
+**Database Operations:**
+- **Table**: `todo`
+- **Operation**: SELECT (all rows)
+- **Result**: Array of todo records
+- **Ordering**: By `id` (ascending, default)
+
+#### Update Todo Operation
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 🌐 SvelteKit Client
+    participant Network as 📡 HTTP/HTTPS
+    participant Hono as ⚡ Hono Server
+    participant Context as 📦 Context Creator
+    participant ORPC as 🔌 ORPC Router
+    participant Zod as ✅ Zod Validator
+    participant Handler as ⚙️ Toggle Handler
+    participant Drizzle as 🗃️ Drizzle ORM
+    participant PostgreSQL as 💾 PostgreSQL
+
+    Note over Client,PostgreSQL: Update Todo Request Flow
+
+    Client->>Network: api.todos.toggle({ id: 1, completed: true })
+    Note over Client,Network: TypeScript ensures<br/>id is number & completed is boolean
+
+    Network->>Hono: POST /rpc/todos/toggle
+    Note over Hono: Request received
+
+    Hono->>Hono: Logger middleware
+    Hono->>Hono: CORS middleware
+
+    Hono->>Context: createContext({ context: HonoContext })
+    Context->>Context: Extract session (null for publicProcedure)
+    Context-->>Hono: { session: null }
+
+    Hono->>ORPC: rpcHandler.handle(request, { context })
+    ORPC->>ORPC: Match route to todos.toggle procedure
+
+    ORPC->>Zod: Validate input schema
+    Note over Zod: z.object({<br/>  id: z.number(),<br/>  completed: z.boolean()<br/>})
+
+    alt Input Valid
+        Zod-->>ORPC: Validation passed
+        ORPC->>Handler: Execute handler with input
+
+        Note over Handler,Drizzle: Database UPDATE Operation
+        Handler->>Drizzle: db.update(todo).set({ completed: input.completed }).where(eq(todo.id, input.id))
+
+        Drizzle->>PostgreSQL: UPDATE todo SET completed = $1 WHERE id = $2
+        Note over PostgreSQL: Update completed field<br/>Filter by todo id
+
+        PostgreSQL-->>Drizzle: Update result (affected rows)
+        Drizzle-->>Handler: Update confirmation
+
+        Handler-->>ORPC: Success response
+        ORPC-->>Hono: JSON response
+
+        Hono-->>Network: HTTP 200 OK
+        Network-->>Client: JSON response
+        Note over Client: TypeScript knows<br/>operation succeeded
+    else Input Invalid
+        Zod-->>ORPC: ZodValidationError
+        ORPC-->>Hono: 400 Bad Request
+        Hono-->>Network: Error details
+        Network-->>Client: Validation error
+    end
+```
+
+**Key Steps Explained:**
+
+1. **Type-Safe Input**: TypeScript ensures `id` is a number and `completed` is a boolean
+2. **Zod Validation**: Runtime validation of input schema
+3. **Handler Execution**: Calls Drizzle ORM to update the record
+4. **Database Operation**: UPDATE with WHERE clause to filter by `id`
+5. **Filtering**: Uses `eq(todo.id, input.id)` to update only the specified todo
+6. **Response Flow**: Returns success confirmation
+
+**Database Operations:**
+- **Table**: `todo`
+- **Operation**: UPDATE
+- **Clause**: `WHERE id = $1` (filtered by todo id)
+- **Affected Field**: `completed` (boolean)
+- **Primary Key**: `id` (for efficient lookup)
+
+#### Delete Todo Operation
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as 🌐 SvelteKit Client
+    participant Network as 📡 HTTP/HTTPS
+    participant Hono as ⚡ Hono Server
+    participant Context as 📦 Context Creator
+    participant ORPC as 🔌 ORPC Router
+    participant Zod as ✅ Zod Validator
+    participant Handler as ⚙️ Delete Handler
+    participant Drizzle as 🗃️ Drizzle ORM
+    participant PostgreSQL as 💾 PostgreSQL
+
+    Note over Client,PostgreSQL: Delete Todo Request Flow
+
+    Client->>Network: api.todos.delete({ id: 1 })
+    Note over Client,Network: TypeScript ensures<br/>id is number
+
+    Network->>Hono: POST /rpc/todos/delete
+    Note over Hono: Request received
+
+    Hono->>Hono: Logger middleware
+    Hono->>Hono: CORS middleware
+
+    Hono->>Context: createContext({ context: HonoContext })
+    Context->>Context: Extract session (null for publicProcedure)
+    Context-->>Hono: { session: null }
+
+    Hono->>ORPC: rpcHandler.handle(request, { context })
+    ORPC->>ORPC: Match route to todos.delete procedure
+
+    ORPC->>Zod: Validate input schema
+    Note over Zod: z.object({ id: z.number() })
+
+    alt Input Valid
+        Zod-->>ORPC: Validation passed
+        ORPC->>Handler: Execute handler with input
+
+        Note over Handler,Drizzle: Database DELETE Operation
+        Handler->>Drizzle: db.delete(todo).where(eq(todo.id, input.id))
+
+        Drizzle->>PostgreSQL: DELETE FROM todo WHERE id = $1
+        Note over PostgreSQL: Delete record<br/>Filter by todo id
+
+        PostgreSQL-->>Drizzle: Delete result (affected rows)
+        Drizzle-->>Handler: Delete confirmation
+
+        Handler-->>ORPC: Success response
+        ORPC-->>Hono: JSON response
+
+        Hono-->>Network: HTTP 200 OK
+        Network-->>Client: JSON response
+        Note over Client: TypeScript knows<br/>operation succeeded
+    else Input Invalid
+        Zod-->>ORPC: ZodValidationError
+        ORPC-->>Hono: 400 Bad Request
+        Hono-->>Network: Error details
+        Network-->>Client: Validation error
+    end
+```
+
+**Key Steps Explained:**
+
+1. **Minimal Input**: Only requires `id` (number) to identify the todo
+2. **Zod Validation**: Runtime validation of input schema
+3. **Handler Execution**: Calls Drizzle ORM to delete the record
+4. **Database Operation**: DELETE with WHERE clause to filter by `id`
+5. **Filtering**: Uses `eq(todo.id, input.id)` to delete only the specified todo
+6. **Response Flow**: Returns success confirmation
+
+**Database Operations:**
+- **Table**: `todo`
+- **Operation**: DELETE
+- **Clause**: `WHERE id = $1` (filtered by todo id)
+- **Primary Key**: `id` (for efficient lookup)
+- **Cascading**: No foreign keys, so simple delete
+
+**Comparison of CRUD Operations:**
+
+| Operation | HTTP Endpoint | Input Schema | Database Operation | Validation |
+|-----------|---------------|--------------|-------------------|------------|
+| **Create** | `POST /rpc/todos/create` | `{ text: string }` | INSERT | Required (text min 1 char) |
+| **Read** | `POST /rpc/todos/getAll` | None | SELECT (all) | None |
+| **Update** | `POST /rpc/todos/toggle` | `{ id: number, completed: boolean }` | UPDATE | Required (id, completed) |
+| **Delete** | `POST /rpc/todos/delete` | `{ id: number }` | DELETE | Required (id) |
+
+**Common Patterns Across All Operations:**
+
+1. **Public Procedures**: All todo operations use `publicProcedure` (no authentication required)
+2. **Type Safety**: TypeScript ensures type-safe requests and responses
+3. **Zod Validation**: Runtime validation for all operations except `getAll` (no input)
+4. **Drizzle ORM**: Type-safe database operations with query building
+5. **HTTP POST**: All ORPC procedures use POST method (even for read operations)
+6. **Error Handling**: Consistent error responses for validation failures
+7. **Response Format**: JSON responses with type-safe structures
+
+**Security Considerations:**
+
+⚠️ **Current Implementation Notes:**
+- All todo operations are **public** (no authentication required)
+- In a production application, these should likely be **protected procedures**
+- Consider adding user ownership: `userId` foreign key to `user` table
+- Implement row-level security: users can only access their own todos
+- Add authorization middleware to check `context.session.user.id === todo.userId`
+
+**Recommended Enhancement:**
+```typescript
+// Change from publicProcedure to protectedProcedure
+export const todoRouter = {
+  create: protectedProcedure
+    .input(z.object({ text: z.string().min(1) }))
+    .handler(async ({ input, context }) => {
+      return await db.insert(todo).values({
+        text: input.text,
+        userId: context.session.user.id, // Add user ownership
+      });
+    }),
+  // ... other procedures with user filtering
+};
+```
 
 ---
 
