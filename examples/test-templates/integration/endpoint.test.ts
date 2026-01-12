@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildApp } from '../../server';
-import { request } from 'supertest';
+import request from 'supertest';
 
 const PROVIDER_NAME = 'openai';
 const BASE_URL = 'http://localhost:3001';

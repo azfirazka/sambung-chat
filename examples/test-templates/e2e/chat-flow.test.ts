@@ -141,7 +141,7 @@ describe(`${PROVIDER_NAME} Chat Flow E2E`, () => {
 
   describe('Receive Response', () => {
     it('should display AI response', async () => {
-      await page.goto(`${BASE_URL}/ai}`);
+      await page.goto(`${BASE_URL}/ai`);
 
       await page.waitForSelector('[data-testid="chat-input"]');
 
@@ -374,7 +374,7 @@ describe(`${PROVIDER_NAME} Chat Flow E2E`, () => {
     });
 
     it('should announce messages to screen readers', async () => {
-      await page.goto(`${BASE_URL}/ai');
+      await page.goto(`${BASE_URL}/ai`);
 
       await page.waitForSelector('[data-testid="chat-input"]');
 

@@ -194,16 +194,36 @@ As of January 2026, GitHub supports:
 
 ## Conclusion
 
-All 35 Mermaid diagrams in `architecture.md` have been thoroughly validated and verified to render correctly on GitHub. The diagrams demonstrate:
+**⚠️ BLOCKED - Requires Investigation**
 
-- ✅ **Correct syntax** - No structural or syntax errors
-- ✅ **Full compatibility** - All features supported by GitHub's Mermaid renderer
-- ✅ **High quality** - Well-structured, clearly labeled, and consistently styled
-- ✅ **Ready for production** - No fixes or modifications required
+The automated validation reports indicate discrepancies that must be resolved before marking this documentation as production-ready:
 
-The architecture documentation with its comprehensive visual diagrams is ready to be committed and will render beautifully on GitHub.
+### Status Summary
+
+| Check               | Result                    |
+| ------------------- | ------------------------- |
+| Manual Verification | Claims all diagrams valid |
+| Automated Report    | `githubCompatible: false` |
+| Errors Detected     | 8 errors reported         |
+| Warnings            | 2 warnings                |
+
+### Discrepancy Details
+
+The [github-compatibility-report.json](github-compatibility-report.json) reports **8 errors** related to "Unclosed subgraph" issues in diagrams #6, #8, #9, #10, #11, #18, #29, and #30. However, the manual verification section of this document claims these same diagrams are "properly closed."
+
+### Next Steps Required
+
+1. **Re-run validation** with corrected regex patterns to verify if errors are false positives
+2. **Manual spot-check** each of the 8 diagrams flagged in the report
+3. **Reconcile findings** between manual verification and automated reports
+4. **Regenerate reports** once discrepancies are resolved
+
+### Current State
+
+The diagrams cannot be marked as "Ready for commit" until the automated report shows `githubCompatible: true` with 0 errors, OR the validation scripts are confirmed to have false-positive bugs and the reports are regenerated with corrected logic.
 
 ---
 
 **Verified by:** auto-claude (automated validation + manual verification)
-**Status:** ✅ PASSED - Ready for commit
+**Status:** ⚠️ BLOCKED - Requires Investigation
+**Reference:** See [github-compatibility-report.json](github-compatibility-report.json) for detailed error list

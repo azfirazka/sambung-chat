@@ -111,9 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Track 59 tasks across 12 weeks of development
 
 - **Code Quality & Developer Experience**
-  - Setup ESLint with TypeScript and Svelte support
-  - Setup Prettier with Svelte plugin for consistent formatting
-  - Setup Husky pre-commit hooks with lint-staged
+  - Set up ESLint with TypeScript and Svelte support
+  - Set up Prettier with Svelte plugin for consistent formatting
+  - Set up Husky pre-commit hooks with lint-staged
   - Add lint and format scripts to package.json
   - Configure automated code formatting on commit
 

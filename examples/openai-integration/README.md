@@ -21,11 +21,11 @@ This example demonstrates how to:
 
 ## Installation
 
-### Step 1: Install the OpenAI Provider Package
+### Step 1: Install the OpenAI-Compatible Provider Package
 
 ```bash
 cd apps/server
-npm install @ai-sdk/openai
+npm install @ai-sdk/openai-compatible
 ```
 
 ### Step 2: Configure Environment Variables
@@ -63,7 +63,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 // AI SDK imports
-import { openai } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { streamText, convertToCoreMessages } from "ai";
 import { wrapLanguageModel } from "ai";
 import { devToolsMiddleware } from "@ai-sdk/devtools";
@@ -79,6 +79,13 @@ app.use("*", cors({
   origin: ["http://localhost:5173", "http://localhost:3000"],
   credentials: true,
 }));
+
+// Create OpenAI-compatible client
+const openai = createOpenAICompatible({
+  name: 'openai-compatible',
+  baseURL: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+  apiKey: process.env.OPENAI_API_KEY ?? '',
+});
 
 // Health check endpoint
 app.get("/health", (c) => {
@@ -114,13 +121,7 @@ app.post("/ai", async (c) => {
 
     // Create model instance with middleware
     const model = wrapLanguageModel({
-      model: openai(modelId, {
-        apiKey,
-        // Optional: Add organization ID
-        organization: process.env.OPENAI_ORGANIZATION,
-        // Optional: Custom base URL (for proxies or Azure deployments)
-        baseURL: process.env.OPENAI_BASE_URL,
-      }),
+      model: openai(modelId),
       middleware: devToolsMiddleware(),
     });
 
@@ -432,11 +433,11 @@ OPENAI_MODEL=gpt-4o
 
 ## Troubleshooting
 
-### "Cannot find module '@ai-sdk/openai'"
+### "Cannot find module '@ai-sdk/openai-compatible'"
 
 **Solution:** Install the package:
 ```bash
-npm install @ai-sdk/openai
+npm install @ai-sdk/openai-compatible
 ```
 
 ### "OPENAI_API_KEY not found"
