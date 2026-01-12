@@ -18,4 +18,4 @@ export {
   CardFooter,
 } from './lib/components/ui/card';
 
-export { default as Header } from './components/Header.svelte';
+export { default as Header } from './components/layout/Header.svelte';

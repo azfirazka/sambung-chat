@@ -3,7 +3,7 @@
   import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
   import '../../app.css';
   import '@sambung-chat/ui/styles.css';
-  import { queryClient } from '$lib/orpc';
+  import { queryClient } from '../../lib/orpc';
   import { AuthLayout } from '@sambung-chat/ui';
 
   const { children } = $props();

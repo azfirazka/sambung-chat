@@ -3,7 +3,6 @@
   import { Button } from '../ui/button';
   import { Plus, Search } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
-  import type { HTMLInputElement } from 'svelte/elements';
 
   export interface SecondarySidebarProps {
     context?: 'chat' | 'prompts' | 'settings';
@@ -15,8 +14,6 @@
     footer?: Snippet;
   }
 
-  interface Props extends SecondarySidebarProps {}
-
   let {
     context = 'chat',
     searchQuery = '',
@@ -25,8 +22,9 @@
     class: className = '',
     content,
     footer,
-  }: Props = $props();
+  }: SecondarySidebarProps = $props();
 
+  // @ts-expect-error - searchInput is used for bind:this only
   let searchInput = $state<HTMLInputElement | undefined>(undefined);
   let isTablet = $state(false);
 

@@ -1,70 +1,70 @@
 # @sambung-chat/ui
 
-Package UI untuk SambungChat menggunakan **shadcn-svelte** dan **Svelte 5**.
+UI package for SambungChat using **shadcn-svelte** and **Svelte 5**.
 
-## 📁 Struktur Folder
+## 📁 Folder Structure
 
 ```
 packages/ui/
 ├── src/
 │   ├── lib/
 │   │   ├── components/
-│   │   │   ├── ui/          # ⚠️ JANGAN EDIT - Komponen shadcn-svelte (generated)
-│   │   │   └── ...          # Komponen custom lainnya (aman di-edit)
-│   │   ├── utils.ts         # Utility functions (cn, dll)
-│   │   └── index.ts         # Export publik
+│   │   │   ├── ui/          # ⚠️ DO NOT EDIT - shadcn-svelte components (generated)
+│   │   │   └── ...          # Other custom components (safe to edit)
+│   │   ├── utils.ts         # Utility functions (cn, etc)
+│   │   └── index.ts         # Public exports
 │   ├── styles/
 │   │   ├── tokens.css       # Design tokens (OKLCH colors)
 │   │   └── index.css        # Global styles & Tailwind imports
-│   └── components/          # Legacy components (akan di-migrate)
-├── components.json          # Konfigurasi shadcn-svelte CLI
-├── tailwind.config.js       # Konfigurasi Tailwind
-└── tsconfig.json            # Konfigurasi TypeScript
+│   └── components/          # Legacy components (will be migrated)
+├── components.json          # shadcn-svelte CLI configuration
+├── tailwind.config.js       # Tailwind configuration
+└── tsconfig.json            # TypeScript configuration
 ```
 
-## ⚠️ Aturan Penting
+## ⚠️ Important Rules
 
-### 🚫 JANGAN EDIT: `src/lib/components/ui/`
+### 🚫 DO NOT EDIT: `src/lib/components/ui/`
 
-Folder ini berisi komponen yang di-generate langsung oleh **shadcn-svelte CLI**. Jangan edit manual karena:
+This folder contains components generated directly by **shadcn-svelte CLI**. Do not edit manually because:
 
-1. Perubahan akan **timpa** saat menjalankan `npx shadcn-svelte add` lagi
-2. Komponen mengikuti pattern dari shadcn-svelte repository
-3. Updates dari shadcn-svelte akan lebih mudah tanpa conflict
+1. Changes will be **overwritten** when running `npx shadcn-svelte add` again
+2. Components follow patterns from shadcn-svelte repository
+3. Updates from shadcn-svelte will be easier without conflicts
 
-### ✅ AMAN DI-EDIT:
+### ✅ SAFE TO EDIT:
 
 - `src/lib/utils.ts` - Utility functions
-- `src/styles/` - Design tokens dan custom styles
-- `src/lib/components/` (luar folder `ui/`) - Komponen custom
+- `src/styles/` - Design tokens and custom styles
+- `src/lib/components/` (outside `ui/` folder) - Custom components
 - `src/components/` - Legacy components
-- `components.json` - Konfigurasi CLI
+- `components.json` - CLI configuration
 - `tailwind.config.js` - Tailwind configuration
 
-## 🎨 Menambah Komponen Baru dengan shadcn-svelte CLI
+## 🎨 Adding New Components with shadcn-svelte CLI
 
-### Prasyarat
+### Prerequisites
 
-Pastikan sudah memiliki file `components.json` di root package UI.
+Make sure you have `components.json` file in the UI package root.
 
-### Cara Menambah Komponen
+### How to Add Components
 
 ```bash
-# Dari root project
+# From project root
 cd packages/ui
 
-# Tambah komponen (contoh: dialog, dropdown-menu)
+# Add component (example: dialog, dropdown-menu)
 npx shadcn-svelte@latest add dialog
 npx shadcn-svelte@latest add dropdown-menu
 npx shadcn-svelte@latest add select
 
-# Tambah multiple komponen sekaligus
+# Add multiple components at once
 npx shadcn-svelte@latest add dialog dropdown-menu select
 ```
 
-### Setelah Menambah Komponen
+### After Adding Components
 
-Setelah CLI selesai, komponen akan otomatis ada di `src/lib/components/ui/`:
+After CLI finishes, components will automatically be in `src/lib/components/ui/`:
 
 ```
 src/lib/components/ui/
@@ -77,9 +77,9 @@ src/lib/components/ui/
     └── ...
 ```
 
-## 🔧 Menggunakan Komponen di Aplikasi
+## 🔧 Using Components in App
 
-### Import Komponen
+### Import Components
 
 ```svelte
 <script>
@@ -92,13 +92,13 @@ src/lib/components/ui/
 <Card>
   <CardHeader>
     <CardTitle>Login</CardTitle>
-    <CardDescription>Masuk ke akun Anda</CardDescription>
+    <CardDescription>Sign in to your account</CardDescription>
   </CardHeader>
   <CardContent>
     <form>
       <Input type="email" placeholder="Email" />
-      <Textarea placeholder="Pesan" />
-      <Button>Kirim</Button>
+      <Textarea placeholder="Message" />
+      <Button>Send</Button>
     </form>
   </CardContent>
 </Card>
@@ -106,13 +106,13 @@ src/lib/components/ui/
 
 ### Import Styles
 
-Di `apps/web/src/app.html` atau entry point aplikasi:
+In `apps/web/src/app.html` or app entry point:
 
 ```html
 <link rel="stylesheet" href="@sambung-chat/ui/styles.css" />
 ```
 
-Atau import di Svelte file:
+Or import in Svelte file:
 
 ```svelte
 <script>
@@ -122,14 +122,14 @@ Atau import di Svelte file:
 
 ## 🎨 Design Tokens
 
-Warna menggunakan format **OKLCH** (standard shadcn-svelte):
+Colors use **OKLCH** format (shadcn-svelte standard):
 
-| Warna           | Hex     | OKLCH                    |
+| Color           | Hex     | OKLCH                    |
 | --------------- | ------- | ------------------------ |
 | Primary (Teal)  | #208B8D | `oklch(0.58 0.10 181.5)` |
 | Accent (Orange) | #E67E50 | `oklch(0.65 0.15 21)`    |
 
-### Menggunakan Design Tokens di Tailwind
+### Using Design Tokens in Tailwind
 
 ```html
 <button class="bg-primary text-primary-foreground hover:bg-primary/90">Button</button>
@@ -145,20 +145,20 @@ bun run check
 bun run build
 ```
 
-## 📦 Komponen yang Tersedia
+## 📦 Available Components
 
-Komponen shadcn-svelte yang sudah ditambahkan:
+shadcn-svelte components that have been added:
 
-- ✅ `Button` - Dengan variants: default, destructive, outline, secondary, ghost, link
+- ✅ `Button` - With variants: default, destructive, outline, secondary, ghost, link
 - ✅ `Input` - Text input field
 - ✅ `Textarea` - Multi-line text input
-- ✅ `Card` - Card container dengan Header, Title, Description, Content, Footer
+- ✅ `Card` - Card container with Header, Title, Description, Content, Footer
 
-### Daftar Komponen shadcn-svelte yang Tersedia untuk Ditambahkan
+### List of Available shadcn-svelte Components to Add
 
 [https://shadcn-svelte.com/docs/components](https://shadcn-svelte.com/docs/components)
 
-Populer:
+Popular:
 
 - `Dialog` - Modal dialog
 - `DropdownMenu` - Dropdown menu
@@ -174,7 +174,7 @@ Populer:
 
 ### Module not found: $lib/utils
 
-Pastikan `tsconfig.json` memiliki path aliases:
+Make sure `tsconfig.json` has path aliases:
 
 ```json
 {
@@ -187,23 +187,23 @@ Pastikan `tsconfig.json` memiliki path aliases:
 }
 ```
 
-### Styles tidak berfungsi
+### Styles not working
 
-Pastikan:
+Make sure:
 
-1. `styles.css` sudah di-import di aplikasi
-2. `tailwind.config.js` sudah dikonfigurasi dengan content path yang benar
+1. `styles.css` is imported in the app
+2. `tailwind.config.js` is configured with correct content path
 
 ### Build error
 
-Jalankan:
+Run:
 
 ```bash
 bun install
 bun run check
 ```
 
-## 📚 Referensi
+## 📚 References
 
 - [shadcn-svelte Documentation](https://shadcn-svelte.com)
 - [Svelte 5 Documentation](https://svelte.dev/docs)

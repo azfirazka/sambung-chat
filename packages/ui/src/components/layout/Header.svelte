@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-  import UserMenu from '../auth/UserMenu.svelte';
+  import UserMenu from '../../lib/components/auth/UserMenu.svelte';
 
   type Props = import('./Header.svelte').Props;
 
