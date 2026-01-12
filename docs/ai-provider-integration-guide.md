@@ -398,17 +398,23 @@ For comprehensive coverage, refer to:
 - **[Testing and Validation](#7-testing-and-validation)** - Testing procedures and validation checklists
 - **[Troubleshooting and Common Issues](#8-troubleshooting-and-common-issues)** - Common problems and solutions
 
+
+[⬆ Back to Top](#table-of-contents)
 ---
 
 ---
 
 ## 2. Understanding the AI SDK Architecture
 
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 1](#1-introduction-and-overview) → **Section 2**
+
 > **Note:** This section will be added in Phase 3, Task 3. Please proceed to [Section 3: Current Implementation Analysis](#3-current-implementation-analysis) for detailed analysis of the existing Google Gemini integration.
 
 ---
 
 ## 3. Current Implementation Analysis
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 2](#2-understanding-the-ai-sdk-architecture) → **Section 3**
 
 This section provides a comprehensive walkthrough of SambungChat's current Google Gemini integration. Understanding this implementation is crucial before adding new providers, as it establishes the pattern that should be followed for consistency.
 
@@ -1090,9 +1096,13 @@ const model = wrapLanguageModel({
 - Proceed to [Section 4: Step-by-Step Integration Guide](#4-step-by-step-integration-guide) for detailed instructions on adding new providers
 - See [Section 5: Provider-Specific Configurations](#5-provider-specific-configurations) for setup details for each major provider
 
+[⬆ Back to Top](#table-of-contents)
+
 ---
 
 ## 4. Step-by-Step Integration Guide
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 3](#3-current-implementation-analysis) → **Section 4**
 
 This section provides detailed, step-by-step instructions for integrating a new AI provider into SambungChat. Each step includes code examples, explanations, and best practices to ensure a successful integration.
 
@@ -2420,12 +2430,16 @@ const recentMessages = messages.slice(-10);  // Keep last 10 messages
 
 - Check provider documentation
 - Review AI SDK troubleshooting guide
+
+[⬆ Back to Top](#table-of-contents)
 - Search existing GitHub issues
 - Ask for help in community forums
 
 ---
 
 ## 5. Provider-Specific Configurations
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 4](#4-step-by-step-integration-guide) → **Section 5**
 
 This section provides detailed setup instructions and configuration guides for specific AI providers. Each provider includes installation steps, environment configuration, code examples, model selection guidance, and best practices.
 
@@ -4198,6 +4212,8 @@ Based on the current implementation and analysis:
 2. **Secondary Options:**
    - **OpenAI** (gpt-4o-mini) - For general-purpose use
    - **Groq** (llama-3.3-70b) - For ultra-low latency
+
+[⬆ Back to Top](#table-of-contents)
    - **Anthropic** (claude-3-5-sonnet) - For complex reasoning
 
 3. **Local Development:**
@@ -4206,6 +4222,8 @@ Based on the current implementation and analysis:
 ---
 
 ## 6. Environment Configuration
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 5](#5-provider-specific-configurations) → **Section 6**
 
 This section covers everything you need to know about configuring environment variables for AI providers in SambungChat. You'll learn about naming patterns, validation strategies, complete provider references, ready-to-use templates, and security best practices.
 
@@ -5652,6 +5670,8 @@ function auditLog(provider: string, model: string, userId: string) {
     userId,
     timestamp: new Date().toISOString(),
     // Don't log sensitive data
+
+[⬆ Back to Top](#table-of-contents)
   });
 }
 
@@ -5701,6 +5721,8 @@ In this section, you learned:
 ---
 
 # 7. Testing and Validation
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 6](#6-environment-configuration) → **Section 7**
 
 Comprehensive testing procedures for validating AI provider integrations and ensuring production readiness.
 
@@ -7040,6 +7062,8 @@ return result.toUIMessageStreamResponse();
 
 // Frontend: Use Chat component
 import { Chat } from '@ai-sdk/svelte';
+
+[⬆ Back to Top](#table-of-contents)
 import { DefaultChatTransport } from '@ai-sdk/svelte';
 
 <Chat
@@ -7105,6 +7129,8 @@ In this section, you learned:
 ---
 
 ## 8. Troubleshooting and Common Issues
+
+> 📍 **Navigation:** [Table of Contents](#table-of-contents) → [Section 7](#7-testing-and-validation) → **Section 8**
 
 This comprehensive troubleshooting section helps you diagnose and resolve common problems when integrating AI providers into SambungChat. Issues are organized by category for quick reference.
 
@@ -8617,6 +8643,8 @@ gh issue create --repo sambunghub/sambung-chat \
 
 Before asking for help, verify:
 
+
+[⬆ Back to Top](#table-of-contents)
 - [ ] Environment variables are set correctly
 - [ ] API keys are valid and active
 - [ ] Packages are installed (`bun list @ai-sdk/*`)
