@@ -3,10 +3,11 @@
   import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
   import '../app.css';
   import '@sambung-chat/ui/styles.css';
-  import { queryClient } from '$lib/orpc';
+  import { queryClient } from '../lib/orpc';
   import { LayoutHeader } from '@sambung-chat/ui';
-  import { authClient } from '$lib/auth-client';
-  import { goto, page } from '$app/navigation';
+  import { authClient } from '../lib/auth-client';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
 
   const { children } = $props();
 

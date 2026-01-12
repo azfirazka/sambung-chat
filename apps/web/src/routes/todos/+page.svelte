@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { orpc } from '$lib/orpc';
+  import { orpc } from '../../lib/orpc';
   import { createQuery, createMutation } from '@tanstack/svelte-query';
 
   let newTodoText = $state('');

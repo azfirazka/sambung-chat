@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { authClient } from '$lib/auth-client';
-  import { orpc } from '$lib/orpc';
+  import { authClient } from '../../lib/auth-client';
+  import { orpc } from '../../lib/orpc';
   import { createQuery } from '@tanstack/svelte-query';
 
   const sessionQuery = authClient.useSession();

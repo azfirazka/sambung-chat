@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SignInForm, SignUpForm } from '@sambung-chat/ui';
-  import { authClient } from '$lib/auth-client';
+  import { authClient } from '../../../lib/auth-client';
   import { goto } from '$app/navigation';
 
   let showSignUp = $state(true);

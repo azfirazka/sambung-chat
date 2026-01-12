@@ -11,9 +11,12 @@
     userMenu?: import('svelte').Snippet;
   }
 
-  interface Props extends NavigationRailProps {}
-
-  let { currentPath = '/', onNavigate, class: className = '', userMenu }: Props = $props();
+  let {
+    currentPath = '/',
+    onNavigate,
+    class: className = '',
+    userMenu,
+  }: NavigationRailProps = $props();
 
   interface NavItem {
     id: string;
@@ -47,7 +50,8 @@
             )}
             onclick={() => onNavigate?.(item.path)}
           >
-            <svelte:component this={item.icon} class="w-5 h-5" />
+            {@const Icon = item.icon}
+            <Icon class="w-5 h-5" />
           </Button>
         </Tooltip.Trigger>
         <Tooltip.Content side="right">

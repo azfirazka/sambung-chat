@@ -1,1 +1,56 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Pre-commit checks started..."
+echo ""
+
+# 1. Run lint-staged for formatting and quick checks
+echo "1️⃣  Running lint-staged (formatting)..."
 bunx lint-staged
+echo "   ✅ lint-staged passed"
+echo ""
+
+# 2. Run full ESLint check
+echo "2️⃣  Running ESLint..."
+bun run lint
+if [ $? -ne 0 ]; then
+  echo "   ❌ ESLint failed - fix errors before committing"
+  exit 1
+fi
+echo "   ✅ ESLint passed"
+echo ""
+
+# 3. Run svelte-check for UI package
+echo "3️⃣  Running svelte-check on UI package..."
+cd packages/ui && bun run check
+if [ $? -ne 0 ]; then
+  echo "   ❌ svelte-check failed - fix type errors before committing"
+  exit 1
+fi
+cd ../..
+echo "   ✅ svelte-check passed"
+echo ""
+
+# 4. Run svelte-check for web app
+echo "4️⃣  Running svelte-check on web app..."
+cd apps/web && bun run check
+if [ $? -ne 0 ]; then
+  echo "   ❌ svelte-check failed - fix type errors before committing"
+  exit 1
+fi
+cd ../..
+echo "   ✅ svelte-check passed"
+echo ""
+
+# 5. Run full build to ensure everything compiles
+echo "5️⃣  Running build..."
+bun run build
+if [ $? -ne 0 ]; then
+  echo "   ❌ Build failed - fix build errors before committing"
+  exit 1
+fi
+echo "   ✅ Build passed"
+echo ""
+
+echo "✅ All pre-commit checks passed! Safe to commit."
+echo ""

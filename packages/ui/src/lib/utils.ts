@@ -10,7 +10,7 @@ export type { VariantProps };
 export { tv };
 
 // Type utilities for shadcn-svelte components
-export type WithElementRef<T extends Record<string, unknown>> = T & {
+export type WithElementRef<T> = T & {
   ref?: HTMLElement | null;
 };
 
