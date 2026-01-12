@@ -77,6 +77,23 @@ This document provides comprehensive architecture documentation for the SambungC
    - [Package Dependency Graph](#package-dependency-graph)
 11. [Design Decisions](#design-decisions)
 12. [Contributor Onboarding](#contributor-onboarding)
+   - [How to Use This Guide](#how-to-use-this-guide)
+   - [Quick Start Path (90 minutes)](#quick-start-path-90-minutes)
+   - [Diagram-First Approach (2 hours)](#diagram-first-approach-2-hours)
+     - [Phase 1: Foundation Diagrams](#phase-1-foundation-diagrams-30-min)
+     - [Phase 2: Data Flow Diagrams](#phase-2-data-flow-diagrams-40-min)
+     - [Phase 3: Authentication Diagrams](#phase-3-authentication-diagrams-30-min)
+     - [Phase 4: Database Diagrams](#phase-4-database-diagrams-30-min)
+     - [Phase 5: Development Workflow Diagrams](#phase-5-development-workflow-diagrams-20-min)
+   - [Frontend Developer Path (3 hours)](#frontend-developer-path-3-hours)
+   - [Backend Developer Path (3 hours)](#backend-developer-path-3-hours)
+   - [Full-Stack Developer Path (5 hours)](#full-stack-developer-path-5-hours)
+   - [Learning Objectives by Role](#learning-objectives-by-role)
+   - [Additional Resources](#additional-resources)
+   - [Study Tips](#study-tips)
+   - [Self-Assessment Checklist](#self-assessment-checklist)
+   - [Getting Help](#getting-help)
+   - [Next Steps](#next-steps)
 
 ## Diagram Legend and Conventions
 
@@ -5388,58 +5405,797 @@ All external dependencies use the **catalog:** protocol for version management (
 
 ## Contributor Onboarding
 
-### Quick Start Path
+Welcome to SambungChat! This section will guide you through understanding our architecture using the visual diagrams throughout this document. The diagrams are designed to accelerate your onboarding by making complex relationships easier to understand.
 
-Follow these steps to understand the architecture:
+### 📋 How to Use This Guide
 
-1. **Read This Document** (15 min)
-   - Get familiar with the tech stack
-   - Understand the project structure
+This guide offers **multiple learning paths** based on your role and learning style:
 
-2. **Explore the Database Schema** (15 min)
-   - See [Database Schema](#database-schema) section
-   - Open Drizzle Studio: `bun run db:studio`
+- **🚀 Quick Start Path** (90 min) - Fast-track overview for everyone
+- **🎨 Frontend Developer Path** (3 hours) - Focus on UI and client-side architecture
+- **⚙️ Backend Developer Path** (3 hours) - Focus on server, API, and database
+- **🔧 Full-Stack Developer Path** (5 hours) - Complete architecture understanding
+- **📊 Diagram-First Approach** (2 hours) - Learn by exploring diagrams in order
 
-3. **Run the Application** (10 min)
-   - Follow setup instructions in README.md
-   - Explore the running application
+Each diagram in this guide includes:
+- ⏱️ **Time Estimate**: How long to spend studying it
+- 🎯 **Learning Objectives**: What you'll understand
+- 👀 **Key Things to Notice**: Important details to look for
+- 🔗 **Related Diagrams**: Connected diagrams to explore next
 
-4. **Trace a Request** (20 min)
-   - Open [API Request Flow](#api-request-flow) diagrams
-   - Follow the code: frontend → ORPC → backend → database
-   - Add a breakpoint and step through a request
+---
 
-5. **Review Authentication** (15 min)
-   - Read [Authentication Flow](#authentication-flow) section
-   - Create a test account and observe session creation
+## 🚀 Quick Start Path (90 minutes)
 
-6. **Make a Simple Change** (30 min)
-   - Add a field to a database table
-   - Update the schema
-   - Run migration
-   - Update UI to display new field
+Perfect for getting oriented quickly. Follow this path before diving into your role-specific tracks.
 
-### Recommended Reading Order
+### Step 1: Understand the Big Picture (15 min)
 
-1. **High-Level Overview**
-   - [Overview](#overview)
-   - [Technology Stack](#technology-stack)
-   - [Project Structure](#project-structure)
+**Read**: [Overview](#overview) → [Technology Stack](#technology-stack)
 
-2. **How Data Flows**
-   - [System Architecture](#system-architecture)
-   - [Data Flow](#data-flow)
-   - [API Request Flow](#api-request-flow)
+**What You'll Learn:**
+- Overall architecture philosophy and layered design
+- Key technologies and why we chose them
+- How components work together at a high level
 
-3. **Authentication & Security**
-   - [Authentication Flow](#authentication-flow)
+**Key Diagrams to Review:**
+- Tech Stack Layers Diagram
+- Overall Architecture Flow
 
-4. **Database Understanding**
-   - [Database Schema](#database-schema)
+**Action Item**: After reading, write down the 4 main layers in our architecture (Presentation, API, Business Logic, Data).
 
-5. **Development Practices**
-   - [Development Workflow](#development-workflow)
-   - [Design Decisions](#design-decisions)
+---
+
+### Step 2: Explore the Project Structure (15 min)
+
+**Read**: [Project Structure](#project-structure)
+
+**What You'll Learn:**
+- Turborepo workspace organization
+- Where apps and packages live
+- How packages depend on each other
+
+**Key Diagrams to Review:**
+- Monorepo Structure Diagram
+- Package Dependency Graph
+
+**Action Item**: Open the project in your IDE and navigate to each package mentioned in the diagram. Create a mental map of where things are.
+
+---
+
+### Step 3: Trace a Request End-to-End (20 min)
+
+**Read**: [System Architecture](#system-architecture) → Component Interaction Flow Diagram
+
+**What You'll Learn:**
+- How a request flows from user interface to database
+- The role of each layer in processing requests
+- How responses return to the client
+
+**Key Diagrams to Review:**
+- Component Interaction Flow Diagram (spend 10 minutes here)
+- System-Level Data Flow Diagram
+
+**Action Item**: Follow the path with your finger: Browser → SvelteKit → ORPC → Hono → Drizzle → PostgreSQL. Notice where validation happens.
+
+---
+
+### Step 4: Understand Authentication (15 min)
+
+**Read**: [Authentication Flow](#authentication-flow) → Login Flow (Detailed)
+
+**What You'll Learn:**
+- How users sign in and create sessions
+- How sessions are validated on protected routes
+- The session lifecycle
+
+**Key Diagrams to Review:**
+- Login Flow Sequence Diagram
+- Session Management Flow Diagram
+
+**Action Item**: Create a test account in the running app. Use browser DevTools → Application → Cookies to see the session cookie created.
+
+---
+
+### Step 5: Explore the Database (15 min)
+
+**Read**: [Database Schema](#database-schema)
+
+**What You'll Learn:**
+- Core database tables and their relationships
+- How Drizzle ORM maps to SQL
+- Foreign keys and cascade behaviors
+
+**Key Diagrams to Review:**
+- Authentication Schema ERD
+- Application Schema ERD
+
+**Action Item**: Run `bun run db:studio` to open Drizzle Studio. Explore the tables and add some test data to see relationships in action.
+
+---
+
+### Step 6: Make Your First Change (10 min)
+
+**Read**: [Development Workflow](#development-workflow)
+
+**What You'll Learn:**
+- How to build and run the project
+- Where to make changes based on what you want to modify
+- The development workflow
+
+**Action Item**: Make a simple change (e.g., update a button label) and see it hot-reload. Follow the Complete Development Workflow diagram.
+
+---
+
+## 📊 Diagram-First Approach (2 hours)
+
+Learn by systematically studying each diagram in order. This approach builds understanding progressively.
+
+### Phase 1: Foundation Diagrams (30 min)
+
+These diagrams establish the foundational knowledge you'll need.
+
+#### 1. Tech Stack Layers Diagram
+⏱️ **5 min** | 📍 [Technology Stack → Tech Stack Layers](#tech-stack-layers)
+
+🎯 **Learning Objectives:**
+- Identify the 4 architectural layers
+- Understand which technologies belong to each layer
+- See how requests and responses flow between layers
+
+👀 **Key Things to Notice:**
+- Solid arrows (request flow) vs dotted arrows (response flow)
+- Color coding: Blue (Frontend), Purple (API), Orange (Business Logic), Green (Data)
+- How each layer has a specific responsibility
+
+🔗 **Next**: Review Component Interaction Flow Diagram
+
+---
+
+#### 2. Component Interaction Flow Diagram
+⏱️ **10 min** | 📍 [System Architecture → Component Interaction Flow](#system-architecture)
+
+🎯 **Learning Objectives:**
+- Trace the complete request path from browser to database
+- Understand where authentication happens
+- See how type safety is maintained throughout
+
+👀 **Key Things to Notice:**
+- 8 distinct layers with clear boundaries
+- Error handling paths at each layer
+- Where Zod validation occurs (before business logic)
+- How Drizzle provides type-safe database access
+
+🔗 **Next**: Review Monorepo Structure Diagram
+
+---
+
+#### 3. Monorepo Structure Diagram
+⏱️ **5 min** | 📍 [Project Structure → Monorepo Structure](#project-structure)
+
+🎯 **Learning Objectives:**
+- Understand the apps/ vs packages/ directory structure
+- See workspace dependencies between packages
+- Know where to find code for each layer
+
+👀 **Key Things to Notice:**
+- `apps/web` depends on multiple packages
+- `apps/server` is the API backend
+- `packages/api` contains business logic routers
+- All packages can import from `packages/db`
+
+🔗 **Next**: Review Package Dependency Graph
+
+---
+
+#### 4. Package Dependency Graph
+⏱️ **10 min** | 📍 [Development Workflow → Package Dependency Graph](#package-dependency-graph)
+
+🎯 **Learning Objectives:**
+- Understand the dependency hierarchy
+- Know which packages are standalone vs dependent
+- See the build order for compilation
+
+👀 **Key Things to Notice:**
+- Level 0: Base packages (env, config, ui) have no dependencies
+- Level 5: apps/web is at the top, depends on everything
+- Solid arrows = runtime dependencies, dotted = dev dependencies
+- Circular dependencies are prevented
+
+---
+
+### Phase 2: Data Flow Diagrams (40 min)
+
+These diagrams show how data moves through the system.
+
+#### 5. System-Level Data Flow Diagram
+⏱️ **10 min** | 📍 [Data Flow → System-Level Data Flow Overview](#system-level-data-flow-overview)
+
+🎯 **Learning Objectives:**
+- Understand data transformations at each layer
+- See where data is stored vs processed
+- Learn DFD notation (circles = processes, rectangles = entities, database cylinders = storage)
+
+👀 **Key Things to Notice:**
+- 9 numbered data transformation processes (1.0-9.0)
+- How data flows from User → Client State → through layers → PostgreSQL
+- Bidirectional flow: request steps 1-12, response steps 13-22
+
+🔗 **Next**: Review Type Safety Flow Diagram
+
+---
+
+#### 6. Type Safety Flow Diagram
+⏱️ **15 min** | 📍 [Data Flow → Type Safety Flow](#type-safety-flow)
+
+🎯 **Learning Objectives:**
+- Understand end-to-end type safety from schema to frontend
+- See how Zod schemas drive TypeScript types
+- Learn how ORPC provides type inference
+
+👀 **Key Things to Notice:**
+- Zod schema definition → TypeScript type inference
+- ORPC derives input/output types from router
+- Frontend gets autocomplete for API calls
+- Compile-time AND runtime type checking
+
+🔗 **Next**: Review ORPC Request Lifecycle Diagrams
+
+---
+
+#### 7. ORPC Request Lifecycle (Protected Procedure)
+⏱️ **10 min** | 📍 [API Request Flow → ORPC Request Lifecycle (Protected)](#orpc-request-lifecycle-protected-procedure)
+
+🎯 **Learning Objectives:**
+- See the complete protected API call sequence
+- Understand middleware chain execution order
+- Learn where auth, validation, and business logic happen
+
+👀 **Key Things to Notice:**
+- Context creation happens before routing
+- requireAuth middleware checks session before handler
+- Zod validation happens before business logic
+- Error handling at each step
+
+🔗 **Next**: Review CRUD Operation Sequence Diagrams
+
+---
+
+#### 8. CRUD Operation Sequence Diagrams
+⏱️ **5 min** | 📍 [API Request Flow → CRUD Operation Sequences](#crud-operation-sequences)
+
+🎯 **Learning Objectives:**
+- Understand each CRUD operation flow
+- See how INSERT, SELECT, UPDATE, DELETE work
+- Learn which operations use which SQL clauses
+
+👀 **Key Things to Notice:**
+- Create: db.insert() with generated id
+- Read: db.select() with no input validation
+- Update: db.update().set().where() for filtering
+- Delete: db.delete().where() for filtering
+
+---
+
+### Phase 3: Authentication Diagrams (30 min)
+
+These diagrams explain the authentication and authorization system.
+
+#### 9. Login Flow Sequence Diagram
+⏱️ **10 min** | 📍 [Authentication Flow → Login Flow (Detailed)](#login-flow-detailed)
+
+🎯 **Learning Objectives:**
+- Trace the complete login process from form submit to session creation
+- Understand error handling for invalid credentials
+- See how Better-Auth creates sessions
+
+👀 **Key Things to Notice:**
+- Multiple alt blocks for error paths (invalid input, user not found, wrong password)
+- Database writes to session table
+- Session token returned as HTTP-only cookie
+- 25 detailed steps in the happy path
+
+🔗 **Next**: Review Protected Route Access Sequence
+
+---
+
+#### 10. Protected Route Access Sequence
+⏱️ **10 min** | 📍 [Authentication Flow → Protected Route Access Sequence](#protected-route-access-sequence)
+
+🎯 **Learning Objectives:**
+- See how protected routes validate sessions
+- Understand the requireAuth middleware
+- Learn what happens when sessions expire
+
+👀 **Key Things to Notice:**
+- Session token extracted from cookie
+- Database lookup validates session exists
+- User lookup ensures user still exists
+- requireAuth middleware throws 401 if no session
+- Protected handler gets typed context.user
+
+🔗 **Next**: Review Session Management Flow
+
+---
+
+#### 11. Session Management Flow Diagrams
+⏱️ **10 min** | 📍 [Authentication Flow → Session Management Flow](#session-management-flow)
+
+🎯 **Learning Objectives:**
+- Understand the complete session lifecycle
+- See state transitions from creation to destruction
+- Learn session security features
+
+👀 **Key Things to Notice:**
+- Flowchart: Creation → Validation → Destruction phases
+- State diagram: NoSession → Creating → Active → Validating → Expired → Destroying
+- Security: HTTP-only, Secure, SameSite cookies
+- Cascade deletes: user deletion removes all sessions
+
+---
+
+### Phase 4: Database Diagrams (30 min)
+
+These diagrams show the database structure and relationships.
+
+#### 12. Authentication Schema ERD
+⏱️ **10 min** | 📍 [Database Schema → Authentication Schema ERD](#authentication-schema-erd)
+
+🎯 **Learning Objectives:**
+- Understand the 4 auth tables (user, session, account, verification)
+- See relationships and cardinality (1:N, 1:1)
+- Learn which fields are PK, FK, indexed, or nullable
+
+👀 **Key Things to Notice:**
+- user table is central (PK id)
+- session.userId FK with ON DELETE CASCADE
+- account.userId FK for OAuth connections
+- verification is standalone (no user relationship yet)
+- Indexes on userId (sessions, accounts) and identifier (accounts)
+
+🔗 **Next**: Review Application Schema ERD
+
+---
+
+#### 13. Application Schema ERD
+⏱️ **5 min** | 📍 [Database Schema → Application Schema ERD](#application-schema-erd)
+
+🎯 **Learning Objectives:**
+- See current minimal todo table structure
+- Understand recommended enhancements (user relationship, timestamps)
+- Learn the migration path
+
+👀 **Key Things to Notice:**
+- Current: id, text, completed fields only
+- Recommended: Add user_id FK, created_at, updated_at, priority, due_date
+- Recommended indexes for query performance
+- Migration SQL script provided
+
+🔗 **Next**: Review Drizzle Relations and Constraints
+
+---
+
+#### 14. Drizzle Relations and Constraints
+⏱️ **15 min** | 📍 [Database Schema → Drizzle Relations and Constraints](#drizzle-relations-and-constraints)
+
+🎯 **Learning Objectives:**
+- Understand how Drizzle relations work
+- Learn about cascade deletes and why we use them
+- See how indexes improve query performance
+
+👀 **Key Things to Notice:**
+- Relations: user→sessions (1:N), user→accounts (1:N)
+- Cascade deletes: Deleting user removes all sessions/accounts
+- Indexes: 10-100x faster queries on indexed fields
+- Constraints: PK, FK, UNIQUE, NOT NULL ensure data integrity
+
+---
+
+### Phase 5: Development Workflow Diagrams (20 min)
+
+These diagrams show how to work with the codebase.
+
+#### 15. Complete Development Workflow
+⏱️ **10 min** | 📍 [Development Workflow → Complete Development Workflow](#complete-development-workflow)
+
+🎯 **Learning Objectives:**
+- Understand the complete development lifecycle
+- See error handling at each stage
+- Learn the build and deployment process
+
+👀 **Key Things to Notice:**
+- 7 phases: Edit → Build → Type Check → Migration → Test → Quality → Commit
+- Decision diamonds (diamonds) show error recovery paths
+- Turborepo caching speeds up rebuilds
+- Type checking catches errors before runtime
+
+🔗 **Next**: Review Error Handling Flow
+
+---
+
+#### 16. Error Handling Flow Diagram
+⏱️ **10 min** | 📍 [API Request Flow → Error Handling Flow](#error-handling-flow)
+
+🎯 **Learning Objectives:**
+- Understand how errors propagate through the system
+- Learn the 7 error detection points
+- See appropriate HTTP status codes for each error type
+
+👀 **Key Things to Notice:**
+- Error detection at Network, Session, Route, Auth, Validation, Business Logic, Database layers
+- HTTP status codes: 400 (client errors), 401 (unauthorized), 404 (not found), 500 (server errors)
+- ORPC error response format with code, message, details
+- Client-side handling patterns
+
+---
+
+## 🎨 Frontend Developer Path (3 hours)
+
+Focus on understanding the UI, client-side architecture, and how to integrate with backend APIs.
+
+### Part 1: Frontend Architecture (45 min)
+
+**Diagrams to Study:**
+1. Tech Stack Layers Diagram (Frontend Layer) - 5 min
+2. Component Interaction Flow Diagram (Frontend layers) - 10 min
+3. Type Safety Flow Diagram (Frontend type inference) - 15 min
+4. Package Dependency Graph (apps/web dependencies) - 5 min
+5. System-Level Data Flow (Client-side transformations) - 10 min
+
+**What You'll Learn:**
+- How SvelteKit organizes routes and components
+- Where client-side state is managed
+- How ORPC client provides type-safe API calls
+- How TypeScript types flow from backend to frontend
+
+**Hands-On Exercises:**
+- ✅ Open `apps/web/src/routes/+page.svelte` and trace how it loads data
+- ✅ Find where ORPC client is configured (`apps/web/src/lib/orpc.ts`)
+- ✅ Create a simple component that calls an API and see autocomplete in action
+- ✅ Use browser DevTools to inspect the session cookie
+
+---
+
+### Part 2: API Integration (60 min)
+
+**Diagrams to Study:**
+1. ORPC Request Lifecycle (Public Procedure) - 10 min
+2. CRUD Operation Sequences (Read operation) - 10 min
+3. Error Handling Flow (Client-side error handling) - 15 min
+4. Type Safety and Validation Flow (Frontend validation) - 15 min
+5. Key Steps Explained (Client-Side Type Safety) - 10 min
+
+**What You'll Learn:**
+- How to call API procedures from the frontend
+- How to handle API errors gracefully
+- How Zod schemas provide runtime validation
+- How TypeScript ensures type safety
+
+**Hands-On Exercises:**
+- ✅ Call `api.todo.getAll()` from a page and log the result
+- ✅ Add error handling for when the API is unreachable
+- ✅ Create a form that calls `api.todo.create()` with type-safe input
+- ✅ Intentionally pass invalid data and see Zod validation errors
+
+---
+
+### Part 3: Authentication from the Frontend (45 min)
+
+**Diagrams to Study:**
+1. Login Flow Sequence Diagram (Frontend steps) - 15 min
+2. Protected Route Access Sequence (Frontend request) - 15 min
+3. Session Management Flow (Cookie handling) - 10 min
+4. Authentication Architecture (Frontend auth client) - 5 min
+
+**What You'll Learn:**
+- How Better-Auth client handles sign in/sign out
+- How session cookies are stored and sent
+- How to protect routes requiring authentication
+- Session validation and refresh
+
+**Hands-On Exercises:**
+- ✅ Sign in and use DevTools to inspect the session cookie
+- ✅ Access a protected route and see the authentication flow
+- ✅ Sign out and verify the cookie is cleared
+- ✅ Check the AuthClient instance to see available methods
+
+---
+
+### Part 4: UI Components and Styling (30 min)
+
+**Diagrams to Study:**
+1. Package Dependency Graph (packages/ui) - 10 min
+2. Tech Stack Layers (shadcn/ui integration) - 10 min
+3. Component Interaction Flow (UI rendering) - 10 min
+
+**What You'll Learn:**
+- How to use components from `packages/ui`
+- How TailwindCSS provides utility-first styling
+- How shadcn/ui components are integrated
+- Component composition patterns
+
+**Hands-On Exercises:**
+- ✅ Import and use a Button component from `@sambunghub/ui`
+- ✅ Create a new component in `packages/ui` and export it
+- ✅ Style a component using Tailwind utility classes
+- ✅ Explore existing components to understand patterns
+
+---
+
+## ⚙️ Backend Developer Path (3 hours)
+
+Focus on server-side architecture, API implementation, and database operations.
+
+### Part 1: Backend Architecture (45 min)
+
+**Diagrams to Study:**
+1. Tech Stack Layers Diagram (Backend layers) - 10 min
+2. Component Interaction Flow (Backend side) - 15 min
+3. Monorepo Structure Diagram (apps/server) - 5 min
+4. Package Dependency Graph (server dependencies) - 10 min
+5. System-Level Data Flow (Server transformations) - 5 min
+
+**What You'll Learn:**
+- How Hono server handles HTTP requests
+- Where middleware runs in the request chain
+- How apps/server integrates with packages/api
+- Backend dependency structure
+
+**Hands-On Exercises:**
+- ✅ Open `apps/server/src/index.ts` and trace the middleware chain
+- ✅ Find where ORPC router is mounted to Hono
+- ✅ Add a simple logging middleware to see requests
+- ✅ Explore the Hono app instance and available methods
+
+---
+
+### Part 2: API Implementation with ORPC (60 min)
+
+**Diagrams to Study:**
+1. ORPC Request Lifecycle (Protected Procedure) - 20 min
+2. CRUD Operation Sequences (All 4 operations) - 15 min
+3. Middleware Flow (Context creation, requireAuth) - 10 min
+4. Error Handling Flow (Server-side error handling) - 15 min
+
+**What You'll Learn:**
+- How to define ORPC procedures with Zod schemas
+- How to create protected vs public procedures
+- How middleware works in the ORPC chain
+- How to handle errors and return appropriate responses
+
+**Hands-On Exercises:**
+- ✅ Create a new public procedure in `packages/api/src/routers/todo.ts`
+- ✅ Add input validation using Zod schema
+- ✅ Create a protected procedure using `protectedProcedure`
+- ✅ Test error handling by throwing an ORPC error
+
+---
+
+### Part 3: Database Operations (60 min)
+
+**Diagrams to Study:**
+1. Authentication Schema ERD - 15 min
+2. Application Schema ERD - 10 min
+3. Drizzle Relations and Constraints - 20 min
+4. CRUD Operation Sequences (Database operations) - 15 min
+
+**What You'll Learn:**
+- How to read ERD diagrams and understand relationships
+- How Drizzle ORM maps TypeScript to SQL
+- How to use relations in queries (joins)
+- How indexes improve query performance
+
+**Hands-On Exercises:**
+- ✅ Write a query using db.select() with a where clause
+- ✅ Use a relation to join user and session tables
+- ✅ Create a new table schema with Drizzle
+- ✅ Generate and run a migration using `bun run db:generate` and `bun run db:push`
+
+---
+
+### Part 4: Authentication Implementation (15 min)
+
+**Diagrams to Study:**
+1. Login Flow Sequence Diagram (Server steps) - 10 min
+2. Better-Auth Implementation (Backend integration) - 5 min
+
+**What You'll Learn:**
+- How Better-Auth handles authentication endpoints
+- How sessions are created and stored
+- How to access authenticated user in procedures
+
+**Hands-On Exercises:**
+- ✅ Access `context.session.user` in a protected procedure
+- ✅ Create a procedure that returns user-specific data
+- ✅ Explore the Better-Auth configuration in `packages/auth`
+
+---
+
+## 🔧 Full-Stack Developer Path (5 hours)
+
+Comprehensive understanding of the entire architecture from frontend to database.
+
+### Recommended Approach
+
+1. **Complete Frontend Path** (3 hours)
+   - Gain solid understanding of client-side architecture
+   - Learn how UI integrates with APIs
+
+2. **Complete Backend Path** (3 hours)
+   - Deep dive into server-side implementation
+   - Master database operations and ORM
+
+3. **Integration Focus** (1 hour)
+   - Trace complete request/response cycles
+   - Understand type safety end-to-end
+   - Practice full-stack features
+
+### Full-Stack Hands-On Projects
+
+**Project 1: Add a New Feature (2 hours)**
+- Add a new database table (e.g., "categories" for todos)
+- Create API procedures (create, read, update, delete)
+- Build UI components to manage categories
+- Implement authentication (users own their categories)
+- Test the complete feature
+
+**Project 2: Debug a Request (1 hour)**
+- Set breakpoints in frontend (ORPC client call)
+- Set breakpoints in backend (procedure handler)
+- Set breakpoints in database (Drizzle query)
+- Trace a single request through all layers
+- Document each transformation step
+
+**Project 3: Optimize Performance (1 hour)**
+- Identify slow queries using EXPLAIN ANALYZE
+- Add appropriate indexes
+- Implement response caching where appropriate
+- Measure and document improvements
+
+---
+
+## 🎯 Learning Objectives by Role
+
+### Frontend Developers Should Be Able To:
+
+✅ Explain how SvelteKit handles routing and SSR
+✅ Call any API procedure with full type safety
+✅ Handle authentication state in the UI
+✅ Display loading and error states appropriately
+✅ Use components from packages/ui
+✅ Trace a request from button click to API response
+✅ Understand type inference from backend schemas
+
+### Backend Developers Should Be Able To:
+
+✅ Create new ORPC procedures with Zod validation
+✅ Implement protected vs public procedures
+✅ Write efficient database queries with Drizzle
+✅ Design database schemas with proper relationships
+✅ Create and run database migrations
+✅ Implement middleware for logging, auth, etc.
+✅ Handle errors and return appropriate HTTP codes
+
+### Full-Stack Developers Should Be Able To:
+
+✅ All frontend and backend objectives above, plus:
+✅ Design complete features from database to UI
+✅ Optimize performance across all layers
+✅ Debug issues across frontend and backend
+✅ Understand security implications at each layer
+✅ Make informed architecture decisions
+✅ Review PRs across the entire stack
+
+---
+
+## 📚 Additional Resources
+
+### Diagram Legend and Conventions
+
+Before diving deep, review [Diagram Legend and Conventions](#diagram-legend-and-conventions) to understand:
+- Color coding by layer
+- Emoji icons and their meanings
+- Arrow types and their meanings
+- ERD notation (PK, FK, relationships)
+- Sequence diagram conventions
+
+This will help you quickly interpret any diagram in this document.
+
+---
+
+## 💡 Study Tips
+
+### Active Learning
+
+- **Don't just read diagrams—trace them**. Follow the paths with your finger or cursor.
+- **Test your understanding** by explaining a diagram to someone else (or rubber duck).
+- **Look at the code** while studying diagrams. Find the actual implementation.
+
+### Progressive Difficulty
+
+- Start with high-level diagrams (System Architecture, Tech Stack)
+- Move to detailed diagrams (Sequence diagrams, ERDs)
+- End with specific flows (CRUD operations, Error handling)
+
+### Ask Questions
+
+As you study each diagram, ask:
+- What is the INPUT at each step?
+- What is the OUTPUT at each step?
+- What happens if something FAILS here?
+- How does this connect to the NEXT diagram?
+
+### Build Mental Models
+
+- Draw your own simplified diagrams after studying
+- Create a "map" of how diagrams relate to each other
+- Note which diagrams are "zoomed in" views of others
+
+---
+
+## 🎓 Self-Assessment Checklist
+
+After completing your learning path, you should be able to:
+
+### Architecture Fundamentals
+- [ ] Name the 4 architectural layers
+- [ ] Explain the monorepo structure (apps vs packages)
+- [ ] Trace a request from browser to database
+- [ ] Describe how ORPC provides type safety
+
+### Database
+- [ ] Read an ERD diagram and explain relationships
+- [ ] Write a basic Drizzle query
+- [ ] Explain cascade deletes and why we use them
+- [ ] Know which tables have indexes and why
+
+### Authentication
+- [ ] Explain the login flow step-by-step
+- [ ] Describe how sessions are validated
+- [ ] Know where session cookies are stored
+- [ ] Implement a protected procedure
+
+### API Development
+- [ ] Create a new ORPC procedure
+- [ ] Add Zod validation for input
+- [ ] Handle errors appropriately
+- [ ] Use requireAuth middleware
+
+### Frontend Integration
+- [ ] Call API procedures from SvelteKit
+- [ ] Display API errors to users
+- [ ] Access authentication state
+- [ ] Use components from packages/ui
+
+### Development Workflow
+- [ ] Run the development servers
+- [ ] Create and run a migration
+- [ ] Build the project successfully
+- [ ] Make a simple change end-to-end
+
+---
+
+## 🆘 Getting Help
+
+If you're stuck after studying the diagrams:
+
+1. **Check the Documentation** - Each section has detailed text explanations
+2. **Look at Code Examples** - Refer to existing procedures and components
+3. **Ask in Team Channels** - Someone else may have the same question
+4. **Create a Diagram** - Sometimes drawing it yourself helps understanding
+
+---
+
+## 📝 Next Steps
+
+After completing your onboarding path:
+
+1. **Pick a Simple Issue** - Start with a good first issue
+2. **Join Code Reviews** - Learn from others' changes
+3. **Ask for a Buddy** - Pair program with experienced contributors
+4. **Contribute to Docs** - Improve this guide based on your experience
+
+Welcome to the team! 🎉
 
 ### Key Concepts to Understand
 
