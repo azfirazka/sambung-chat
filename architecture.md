@@ -3172,7 +3172,189 @@ if (error) {
 
 ### System-Level Data Flow Overview
 
-The following diagram provides a high-level view of how data flows through the SambungChat application, showing the bidirectional movement of data between frontend, API, authentication, and database layers.
+This section provides comprehensive diagrams showing how data flows through the SambungChat application. The following Data Flow Diagram (DFD) illustrates the movement and transformation of data between frontend, API, authentication, and database layers.
+
+#### Data Flow Diagram (DFD)
+
+The DFD below shows how data moves through the system, emphasizing **data transformations** and **storage** at each layer. This complements the component interaction diagram by focusing specifically on data flow rather than component communication.
+
+```mermaid
+flowchart LR
+    %% External Entity
+    User[👤 User<br/>External Entity]
+
+    %% Frontend Processes and Data Store
+    subgraph Frontend ["Frontend Layer"]
+        direction TB
+        P1[1.0 Validate Input<br/>Process: Client-side validation<br/>Tool: Zod schemas]
+        DS1[(Client State<br/>Data Store: Svelte stores<br/>Type: Session, UI state)]
+        P2[2.0 Prepare Request<br/>Process: Type serialization<br/>Tool: ORPC client]
+    end
+
+    %% Network Process
+    subgraph Network ["Network Layer"]
+        P3[3.0 Transmit Data<br/>Process: HTTPS encryption<br/>Security: TLS/SSL]
+    end
+
+    %% Backend Processes
+    subgraph Backend ["Backend Layer"]
+        direction TB
+        P4[4.0 Parse Request<br/>Process: HTTP → Context<br/>Tool: Hono middleware]
+        P5[5.0 Route & Validate<br/>Process: Match procedure<br/>Tool: ORPC router + Zod]
+        P6[6.0 Check Authorization<br/>Process: Session validation<br/>Tool: Better-Auth]
+        P7[7.0 Execute Business Logic<br/>Process: Domain operations<br/>Tool: Procedure handlers]
+    end
+
+    %% Database Process and Data Store
+    subgraph Database ["Data Layer"]
+        direction TB
+        P8[8.0 Build Query<br/>Process: TypeScript → SQL<br/>Tool: Drizzle ORM]
+        DS2[(PostgreSQL<br/>Data Store: Relational database<br/>Tables: user, session, todo)]
+        P9[9.0 Execute Transaction<br/>Process: ACID operations<br/>Engine: SQL engine]
+    end
+
+    %% Request Flow (Left to Right)
+    User -->|"1. Input data<br/>(forms, clicks)"| P1
+    P1 -->|"2. Validated data"| P2
+    P2 -.->|"Read state"| DS1
+    DS1 -->|"3. Session token"| P2
+    P2 -->|"4. JSON request<br/>Type-safe payload"| P3
+    P3 -->|"5. Encrypted data"| P4
+    P4 -->|"6. HTTP context"| P5
+    P5 -->|"7. Route + input"| P6
+    P6 -->|"8. Auth check"| P6
+    P6 -->|"9. Authorized request"| P7
+    P7 -->|"10. Query parameters<br/>(filters, data)"| P8
+    P8 -->|"11. SQL query<br/>Type-safe"| P9
+    P9 -->|"12. Execute<br/>INSERT/SELECT/UPDATE/DELETE"| DS2
+
+    %% Response Flow (Right to Left) - Dashed lines for return path
+    DS2 -.->|"13. Query results<br/>Raw data"| P9
+    P9 -->|"14. Transaction results<br/>Typed data"| P8
+    P8 -->|"15. ORM objects<br/>Type-safe entities"| P7
+    P7 -->|"16. Response data<br/>Business objects"| P5
+    P5 -->|"17. JSON response<br/>Validated output"| P4
+    P4 -->|"18. HTTP response<br/>Status + JSON"| P3
+    P3 -->|"19. Decrypted response"| P2
+    P2 -->|"20. Typed response<br/>Deserialized"| DS1
+    DS1 -->|"21. State update<br/>Reactive update"| P1
+    P1 -->|"22. Display data<br/>UI render"| User
+
+    %% Direct Auth Flow (Login/Logout) - Dotted lines
+    User -.->|"Credentials<br/>(email, password)"| P4
+    P4 -.->|"Auth request"| P6
+    P6 -.->|"User lookup"| P8
+    P8 -.->|"SELECT user<br/>Verify password"| DS2
+
+    %% Styling
+    classDef entityStyle fill:#ef4444,stroke:#dc2626,color:#fff,stroke-width:3px
+    classDef processStyle fill:#3b82f6,stroke:#1d4ed8,color:#fff,stroke-width:2px
+    classDef datastoreStyle fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
+
+    class User entityStyle
+    class P1,P2,P3,P4,P5,P6,P7,P8,P9 processStyle
+    class DS1,DS2 datastoreStyle
+```
+
+**DFD Notation Key:**
+
+- **👤 External Entity (Red)**: User - External actor interacting with the system
+- **1.0-9.0 Processes (Blue)**: Numbered circles showing data transformation steps
+- **[(...)] Data Stores (Green)**: Databases and client-side state storage
+- **Solid arrows (→)**: Request flow (user action to database)
+- **Dashed arrows (-.-→)**: Response flow (database to user)
+- **Dotted arrows (.->)**: Direct authentication flow (login/logout)
+
+#### Data Transformation Process Details
+
+The DFD above shows **9 numbered processes** that transform data as it flows through the system. Each process performs specific operations on the data:
+
+| Process | Transformation | Input | Output | Tool |
+|---------|---------------|-------|--------|------|
+| **1.0 Validate Input** | User input → Validated data | Raw user input (text, clicks) | Validated data (type-safe) | Zod schemas |
+| **2.0 Prepare Request** | Validated data → JSON payload | Validated data + Session token | JSON request (type-safe) | ORPC client |
+| **3.0 Transmit Data** | JSON → Encrypted bytes | JSON request | Encrypted HTTPS request | TLS/SSL |
+| **4.0 Parse Request** | HTTP → Context object | HTTP request + Headers | ORPC context (session, user) | Hono middleware |
+| **5.0 Route & Validate** | Context → Routed call | Context + Procedure name | Matched procedure + Validated input | ORPC router + Zod |
+| **6.0 Check Authorization** | Context → Auth decision | Context (session token) | Authorized context (with user) | Better-Auth |
+| **7.0 Execute Business Logic** | Auth context → Query parameters | Authorized context + Input | Database query parameters | Procedure handlers |
+| **8.0 Build Query** | TS parameters → SQL query | Query parameters (type-safe) | SQL query (string) | Drizzle ORM |
+| **9.0 Execute Transaction** | SQL query → Raw data | SQL query | Raw database results | SQL engine (PostgreSQL) |
+
+#### Data Store Specifications
+
+The DFD shows **2 data stores** where data persists:
+
+| Data Store | Type | Data Stored | Access Pattern | Technology |
+|------------|------|-------------|----------------|------------|
+| **Client State** | In-memory | Session tokens, UI state, User data cache | Read/Write, Ephemeral | Svelte stores (reactive) |
+| **PostgreSQL** | Persistent relational | User accounts, Sessions, Todos, Application data | CRUD operations, ACID transactions | PostgreSQL + Drizzle ORM |
+
+#### Bidirectional Data Flow Analysis
+
+**Request Path (Steps 1-12):**
+1. **User → Process 1.0**: Raw input validated (Zod schemas check constraints)
+2. **Process 1.0 → Process 2.0**: Data prepared for transmission (ORPC serialization)
+3. **Process 2.0 ↔ Data Store 1**: Session token read from client state
+4. **Process 2.0 → Process 3.0**: Data encrypted for network transmission
+5. **Process 3.0 → Process 4.0**: Encrypted data transmitted via HTTPS
+6. **Process 4.0 → Process 5.0**: HTTP parsed into ORPC context
+7. **Process 5.0 → Process 6.0**: Authorization checked (session validation)
+8. **Process 6.0 → Process 7.0**: Business logic executes with auth context
+9. **Process 7.0 → Process 8.0**: Query parameters converted to SQL
+10. **Process 8.0 → Process 9.0**: Type-safe SQL generated
+11. **Process 9.0 → Data Store 2**: SQL executed against PostgreSQL
+
+**Response Path (Steps 13-22):**
+12. **Data Store 2 → Process 9.0**: Query results returned (raw rows)
+13. **Process 9.0 → Process 8.0**: Results mapped to ORM objects (type-safe)
+14. **Process 8.0 → Process 7.0**: ORM entities used in business logic
+15. **Process 7.0 → Process 5.0**: Response data prepared and validated
+16. **Process 5.0 → Process 4.0**: JSON response generated
+17. **Process 4.0 → Process 3.0**: HTTP response created
+18. **Process 3.0 → Process 2.0**: Response decrypted
+19. **Process 2.0 → Data Store 1**: Client state updated reactively
+20. **Data Store 1 → Process 1.0**: State change triggers UI update
+21. **Process 1.0 → User**: Updated data displayed to user
+
+#### Data Flow Security Layers
+
+| Layer | Security Mechanism | Protection Against |
+|-------|-------------------|-------------------|
+| **Process 1.0** | Client-side validation | Invalid input, type errors |
+| **Data Store 1** | Secure storage (HttpOnly cookies) | XSS token theft |
+| **Process 3.0** | TLS/SSL encryption | Man-in-the-middle attacks |
+| **Process 6.0** | Session validation | Unauthorized access |
+| **Process 9.0** | ACID transactions | Data corruption, race conditions |
+| **Data Store 2** | Row-level security (user filtering) | Data leakage between users |
+
+#### Type Safety Throughout the Data Flow
+
+```typescript
+// Process 1.0: Client-side validation
+const input = todoInputSchema.parse({ text: "Buy groceries" }) // z.string().min(1)
+
+// Process 2.0: Type-safe request preparation
+const request = orpc.todos.create.mutate({ text: "Buy groceries" }) // TypeScript autocomplete
+
+// Process 4.0: Typed context creation
+const context = createContext() // Context { session?: Session, user?: User }
+
+// Process 6.0: Guaranteed auth context in protected procedures
+const user = context.session.user // User type (guaranteed to exist in protectedProcedure)
+
+// Process 8.0: Type-safe query building
+const todos = await db.select().from(todo).where(eq(todo.userId, user.id)) // Todo[] type
+
+// Process 9.0: Database returns typed results
+console.log(todos[0].text) // TypeScript knows this is a string
+```
+
+This end-to-end type safety ensures that data maintains its integrity and structure throughout the entire flow from user input to database storage and back.
+
+#### Component Interaction Flowchart
+
+The following diagram provides a detailed view of component relationships and communication patterns within each layer.
 
 ```mermaid
 flowchart TB
