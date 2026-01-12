@@ -13,29 +13,38 @@ This document provides comprehensive architecture documentation for the SambungC
    - [Technology Choice Rationale](#technology-choice-rationale)
    - [Architecture Patterns](#architecture-patterns)
    - [Scalability Considerations](#scalability-considerations)
-2. [Technology Stack](#technology-stack)
+2. [Diagram Legend and Conventions](#diagram-legend-and-conventions)
+   - [Color Coding by Layer/Function](#color-coding-by-layerfunction)
+   - [Emoji Icons and Their Meanings](#emoji-icons-and-their-meanings)
+   - [Arrow Types and Their Meanings](#arrow-types-and-their-meanings)
+   - [ERD Diagram Notation Conventions](#erd-diagram-notation-conventions)
+   - [Sequence Diagram Conventions](#sequence-diagram-conventions)
+   - [Flowchart Conventions](#flowchart-conventions)
+   - [State Diagram Conventions](#state-diagram-conventions)
+   - [General Best Practices](#general-best-practices)
+3. [Technology Stack](#technology-stack)
    - [Frontend Layer](#frontend-layer)
    - [Backend Layer](#backend-layer)
    - [Authentication & Authorization](#authentication--authorization)
    - [Data Layer](#data-layer)
    - [Build & Development Tools](#build--development-tools)
    - [Tech Stack Layers](#tech-stack-layers)
-3. [Project Structure](#project-structure)
-4. [System Architecture](#system-architecture)
-5. [Database Schema](#database-schema)
+4. [Project Structure](#project-structure)
+5. [System Architecture](#system-architecture)
+6. [Database Schema](#database-schema)
    - [Schema Overview](#schema-overview)
    - [Authentication Schema ERD](#authentication-schema-erd)
    - [Application Schema ERD](#application-schema-erd)
    - [Entity Relationships](#entity-relationships)
    - [Drizzle Relations and Constraints](#drizzle-relations-and-constraints)
-6. [Authentication Flow](#authentication-flow)
+7. [Authentication Flow](#authentication-flow)
    - [Authentication Architecture](#authentication-architecture)
    - [Login Flow (Detailed)](#login-flow-detailed)
    - [Protected Route Access Sequence](#protected-route-access-sequence)
    - [Session Management Flow](#session-management-flow)
    - [Authentication Features](#authentication-features)
    - [Security Considerations](#security-considerations)
-7. [API Request Flow](#api-request-flow)
+8. [API Request Flow](#api-request-flow)
    - [ORPC Architecture](#orpc-architecture)
    - [ORPC Request Lifecycle (Protected Procedure)](#orpc-request-lifecycle-protected-procedure)
    - [ORPC Request Lifecycle (Public Procedure)](#orpc-request-lifecycle-public-procedure)
@@ -50,7 +59,7 @@ This document provides comprehensive architecture documentation for the SambungC
      - [Update Todo Operation](#update-todo-operation)
      - [Delete Todo Operation](#delete-todo-operation)
    - [Error Handling Flow](#error-handling-flow)
-8. [Data Flow](#data-flow)
+9. [Data Flow](#data-flow)
    - [System-Level Data Flow Overview](#system-level-data-flow-overview)
    - [Data Flow Layers Explained](#data-flow-layers-explained)
    - [Bidirectional Data Flow Summary](#bidirectional-data-flow-summary)
@@ -59,15 +68,347 @@ This document provides comprehensive architecture documentation for the SambungC
    - [Data Integrity Layers](#data-integrity-layers)
    - [Data Flow Best Practices](#data-flow-best-practices)
    - [Type Safety Flow](#type-safety-flow)
-9. [Development Workflow](#development-workflow)
+10. [Development Workflow](#development-workflow)
    - [Local Development](#local-development)
    - [Development Scripts](#development-scripts)
    - [Database Workflow](#database-workflow)
    - [Turborepo Build Optimization](#turborepo-build-optimization)
    - [Complete Development Workflow](#complete-development-workflow)
    - [Package Dependency Graph](#package-dependency-graph)
-10. [Design Decisions](#design-decisions)
-11. [Contributor Onboarding](#contributor-onboarding)
+11. [Design Decisions](#design-decisions)
+12. [Contributor Onboarding](#contributor-onboarding)
+
+## Diagram Legend and Conventions
+
+This section documents the symbols, colors, and conventions used consistently throughout all diagrams in this architecture documentation. Understanding these conventions will help you quickly interpret any diagram in this document.
+
+### Color Coding by Layer/Function
+
+Colors are used consistently across all flowcharts to represent different system layers:
+
+| Layer/Function | Color | Hex Code | Usage |
+|----------------|-------|----------|-------|
+| **Presentation/Frontend** | Blue | `#3b82f6` (stroke: `#1d4ed8`) | SvelteKit, Components, UI, Browser |
+| **API/Backend** | Purple | `#8b5cf6` (stroke: `#6d28d9`) | Hono, ORPC Router, Middleware |
+| **Business Logic** | Orange | `#f59e0b` (stroke: `#d97706`) | packages/api, packages/auth, Validation |
+| **Data Layer** | Green | `#10b981` (stroke: `#059669`) | Drizzle ORM, PostgreSQL |
+| **Data Store** | Red | `#ef4444` (stroke: `dc2626`) | Database storage, persistent data |
+| **Success/Completed** | Green | `#10b981` | Successful operations, completed states |
+| **Error/Failed** | Red | `#ef4444` | Error conditions, failed operations |
+| **Warning/In Progress** | Yellow | `#f59e0b` | Pending states, warnings |
+
+**Example in Mermaid:**
+```mermaid
+flowchart LR
+    classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef backend fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef business fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef data fill:#10b981,stroke:#059669,color:#fff
+
+    A[SvelteKit]:::frontend --> B[Hono]:::backend
+    B --> C[packages/api]:::business
+    C --> D[(PostgreSQL)]:::data
+```
+
+### Emoji Icons and Their Meanings
+
+Icons are used throughout diagrams to provide visual context and quickly identify component types:
+
+#### Component & Layer Icons
+| Icon | Meaning | Usage |
+|------|---------|-------|
+| 🌐 | Web/Browser | Frontend applications, web browsers |
+| ⚡ | Fast/Dynamic | SvelteKit, Hono (performance) |
+| 🚀 | Server/Backend | Backend servers, API servers |
+| 🔌 | Connection/Router | ORPC, routers, connectors |
+| 📡 | Network/API | API layer, network communication |
+| 🛡️ | Protection/Security | Middleware, security layers |
+| 💼 | Business | Business logic layer |
+| 🗃️ | Database/ORM | Drizzle ORM, data access |
+| 💾 | Database/Storage | PostgreSQL, persistent storage |
+| 🐘 | PostgreSQL | Database-specific icon |
+| 📦 | Package/Module | Packages, modules, components |
+| 🧩 | Component | UI components, small pieces |
+| 🎨 | Design/Styling | CSS, styling, UI design |
+| ✅ | Validation/Check | Zod validation, checked items |
+| 📝 | Text/Note | Text fields, notes, descriptions |
+| 📄 | Document/Page | Pages, routes, documents |
+| 🔐 | Security/Auth | Authentication, encryption |
+| 🔦 | Guide/Light | Better-Auth handler, guides |
+| 🔑 | Key/Token | Keys, tokens, identifiers |
+| 🎫 | Ticket/Token | Session tokens, access tokens |
+| 🔄 | Refresh | Token refresh, updates |
+| 📋 | Clipboard/List | Lists, migrations, tasks |
+| 📊 | Data/Metrics | Data flow, metrics |
+
+#### Field & Property Icons (ERD Diagrams)
+| Icon | Meaning | Usage |
+|------|---------|-------|
+| 🗝️ | Primary Key | Primary key fields (id) |
+| 🔗 | Foreign Key | Foreign key fields (userId) |
+| 👤 | User/Name | User-related fields, names |
+| 📧 | Email | Email fields |
+| 🔒 | Password/Secure | Passwords, secure data |
+| ✅ | Boolean | Boolean fields, flags |
+| ⏰ | Timestamp | Date/time fields, timestamps |
+| 🖼️ | Image | Image URLs, avatars |
+| 🌐 | IP/Network | IP addresses, network data |
+| 🌍 | Location/Agent | User agent, location data |
+| 🔢 | Number | Numeric fields, counters |
+| 📅 | Date | Date fields, due dates |
+| 📄 | Description | Text descriptions, long text |
+| 🔢 | Priority | Priority levels, integers |
+| 📁 | File/Path | File paths, directories |
+
+### Arrow Types and Their Meanings
+
+Different arrow styles indicate different types of relationships and data flows:
+
+| Arrow Style | Mermaid Syntax | Meaning | Usage |
+|-------------|----------------|---------|-------|
+| **Solid Line** | `A --> B` or `A -->|label| B` | Direct synchronous flow | Primary request flow, direct calls |
+| **Dotted Line** | `A -.-> B` or `A -.->|label| B` | Indirect/return flow | Response data, indirect relationships |
+| **Dashed Line** | `A -.-→ B` | Alternative flow | Alternative paths, optional steps |
+| **Thick Line** | `A ==> B` | Strong relationship | Composition, strong ownership |
+| **Return Arrow** | `B -->> A` | Return message | Response in sequence diagrams |
+| **Bilateral Arrow** | `A <--> B` | Bidirectional | Two-way communication |
+
+**Example in Mermaid:**
+```mermaid
+flowchart LR
+    A[Client] -->|HTTP Request| B[Server]
+    B -.->|JSON Response| A
+    B -.->|Alternative| C[Cache]
+```
+
+### ERD Diagram Notation Conventions
+
+Entity Relationship Diagrams (using Mermaid class diagrams) follow these conventions:
+
+#### Field Type Notation
+```
++<type> <fieldName> <icon> <constraints>
+```
+
+**Example:**
+```
++text id 🗝️ PK
++text email 📧 NOT NULL UK
++boolean completed ✅ NOT NULL DEFAULT: false
++timestamp createdAt ⏰ NOT NULL DEFAULT now()
+```
+
+#### Constraint Indicators
+| Constraint | Notation | Meaning |
+|------------|----------|---------|
+| **Primary Key** | `PK` or `PRIMARY KEY` | Unique identifier, indexed |
+| **Foreign Key** | `FK` or `FOREIGN KEY` | References another table |
+| **Unique** | `UK` or `UNIQUE` | Must be unique, indexed |
+| **Not Null** | `NOT NULL` | Required field |
+| **Nullable** | `NULLABLE` | Optional field |
+| **Default** | `DEFAULT: <value>` | Default value if not specified |
+| **Auto-Increment** | `AUTO-INCREMENT` | Automatically increments |
+| **Auto-Update** | `AUTO-UPDATE` | Updates on every modification |
+
+#### Relationship Cardinality
+| Cardinality | Notation | Meaning |
+|-------------|----------|---------|
+| One to One | `"1" -- "1"` | Exactly one related record |
+| One to Many | `"1" -- "*"` | One parent, many children |
+| One to Optional Many | `"1" -- "0..*"` | One parent, zero or more children |
+| Many to Many | `"*" -- "*"` | Many parents, many children |
+
+#### Index and Cascade Notation
+```
++index(fieldName)                    -- Single column index
++index(field1, field2)               -- Composite index
++onDelete(CASCADE)                   -- Cascade delete behavior
+```
+
+**Complete ERD Example:**
+```mermaid
+classDiagram
+    class User {
+        +text id 🗝️ PK
+        +text email 📧 NOT NULL UK
+        +timestamp createdAt ⏰ NOT NULL DEFAULT now()
+    }
+
+    class Session {
+        +text id 🗝️ PK
+        +text userId 🔗 FK NOT NULL
+        +text token 🎫 NOT NULL UK
+        +index(userId)
+        +onDelete(CASCADE)
+    }
+
+    User "1" -- "0..*" Session : has >
+```
+
+### Sequence Diagram Conventions
+
+Sequence diagrams use Mermaid's `sequenceDiagram` type with these conventions:
+
+#### Participant Naming
+```
+actor <Name> as <Icon> <Display Name>
+participant <Name> as <Icon> <Display Name>
+```
+
+**Example:**
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 User
+    participant Frontend as 🌐 SvelteKit
+    participant API as 🔌 ORPC
+    participant DB as 💾 PostgreSQL
+```
+
+#### Message Types
+| Message | Syntax | Meaning |
+|---------|--------|---------|
+| **Synchronous Call** | `A ->> B: message` | Direct call, waits for response |
+| **Return Message** | `B -->> A: response` | Return value, response data |
+| **Self Call** | `A ->> A: operation` | Internal method call |
+| **Async Message** | `A -) B: message` | Asynchronous, fire-and-forget |
+
+#### Control Structures
+| Structure | Syntax | Usage |
+|-----------|--------|-------|
+| **Alternative** | `alt Condition ... else ... end` | If/else logic branches |
+| **Optional** | `opt Condition ... end` | Optional step |
+| **Loop** | `loop Condition ... end` | Repeated operations |
+| **Parallel** | `par ... and ... end` | Concurrent execution |
+| **Critical Region** | `region Label ... end` | Group related steps |
+
+**Complete Sequence Example:**
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 User
+    participant Web as 🌐 SvelteKit
+    participant API as 🔌 ORPC
+
+    User->>Web: Click login
+    Web->>API: POST /auth/login
+
+    alt Valid Credentials
+        API-->>Web: { success: true, token }
+        Web-->>User: Redirect to dashboard
+    else Invalid Credentials
+        API-->>Web: { success: false, error }
+        Web-->>User: Show error
+    end
+```
+
+### Flowchart Conventions
+
+Flowcharts use Mermaid's `flowchart` type with these conventions:
+
+#### Direction Specifiers
+| Direction | Syntax | Usage |
+|-----------|--------|-------|
+| Top to Bottom | `flowchart TB` | Hierarchical, top-down flow |
+| Left to Right | `flowchart LR` | Sequential, horizontal flow |
+| Bottom to Top | `flowchart BT` | Bottom-up growth |
+| Right to Left | `flowchart RL` | Right-to-left languages |
+
+#### Subgraph Usage
+```
+subgraph <ID> ["<Title> 🎨"]
+    direction <LR|TB>
+    <nodes>
+end
+```
+
+Subgraphs are used to:
+- Group related components
+- Represent system layers
+- Organize complex diagrams
+- Add visual boundaries
+
+**Complete Flowchart Example:**
+```mermaid
+flowchart TB
+    subgraph Frontend["🌐 Frontend Layer"]
+        Browser[👤 Browser]
+        SvelteKit[⚡ SvelteKit]
+    end
+
+    subgraph Backend["⚙️ Backend Layer"]
+        Hono[🚀 Hono]
+        ORPC[🔌 ORPC]
+    end
+
+    Browser --> SvelteKit
+    SvelteKit -->|HTTP| Hono
+    Hono --> ORPC
+```
+
+### State Diagram Conventions
+
+State diagrams use Mermaid's `stateDiagram-v2` type with these conventions:
+
+#### State Transitions
+```
+<FromState> --> <ToState>: <Event>
+```
+
+#### State Notation
+| Notation | Meaning |
+|----------|---------|
+| `[*]` | Start/End state |
+| `-->` | State transition |
+| `note right of <State>` | Detailed state information |
+
+**Example:**
+```mermaid
+stateDiagram-v2
+    [*] --> Unauthenticated
+
+    Unauthenticated --> LoggingIn: Submit credentials
+    LoggingIn --> Authenticated: Valid credentials
+
+    Authenticated --> [*]: Logout
+
+    note right of Authenticated
+        User has valid session
+        Can access protected routes
+    end note
+```
+
+### General Best Practices
+
+1. **Consistent Styling**: Use the same colors and icons for similar components across all diagrams
+2. **Descriptive Labels**: Arrow labels should clearly indicate what data/commands are being passed
+3. **Visual Hierarchy**: Use subgraphs and grouping to organize complex diagrams
+4. **Error Handling**: Show both success and error paths using `alt/else` blocks
+5. **Annotations**: Use `Note over`, `Note right`, and `Note left` to provide additional context
+6. **Autonumber**: Use `autonumber` in complex sequence diagrams for easy reference
+7. **Readable Names**: Use clear, descriptive names for participants and nodes
+8. **Color Balance**: Use colors purposefully, not randomly - each color should have meaning
+
+### Quick Reference Card
+
+**For快速查看, here's a condensed reference:**
+
+| Visual Element | Convention |
+|----------------|------------|
+| **Blue nodes** | Frontend/Presentation layer |
+| **Purple nodes** | API/Backend layer |
+| **Orange nodes** | Business logic |
+| **Green nodes** | Data layer |
+| **Red nodes** | Data storage/errors |
+| **Solid arrows** | Direct flow/calls |
+| **Dotted arrows** | Return data/indirect |
+| **🗝️** | Primary key |
+| **🔗** | Foreign key |
+| **⏰** | Timestamp |
+| **✅** | Boolean/validation |
+| **autonumber** | Sequence step tracking |
+| **alt/else** | Conditional paths |
+| **subgraph** | Component grouping |
 
 ---
 
