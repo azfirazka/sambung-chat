@@ -5,6 +5,14 @@ This document provides comprehensive architecture documentation for the SambungC
 ## Table of Contents
 
 1. [Overview](#overview)
+   - [Architecture Philosophy](#architecture-philosophy)
+   - [Overall Architecture](#overall-architecture)
+   - [Architecture Layers](#architecture-layers)
+   - [How Components Work Together](#how-components-work-together)
+   - [Design Goals](#design-goals)
+   - [Technology Choice Rationale](#technology-choice-rationale)
+   - [Architecture Patterns](#architecture-patterns)
+   - [Scalability Considerations](#scalability-considerations)
 2. [Technology Stack](#technology-stack)
    - [Frontend Layer](#frontend-layer)
    - [Backend Layer](#backend-layer)
@@ -83,6 +91,183 @@ The architecture follows these core principles:
 2. **Type Safety First**: Leverage TypeScript and ORPC for compile-time guarantees
 3. **Developer Experience**: Optimized for rapid development and maintenance
 4. **Scalability**: Modular design allows easy extension and modification
+
+### Overall Architecture
+
+SambungChat employs a **layered monorepo architecture** that combines the best practices of modern full-stack development. The system is organized into distinct layers, each with specific responsibilities, while maintaining clear communication channels through type-safe APIs.
+
+#### Architecture Layers
+
+The application consists of four primary layers:
+
+**1. Presentation Layer (Frontend)**
+- Built with **SvelteKit**, a modern web framework that compiles components to highly efficient JavaScript
+- Uses **TailwindCSS** for utility-first styling, enabling rapid UI development
+- Integrates **shadcn/ui** components for consistent, accessible design patterns
+- Communicates with the backend through the **ORPC client**, which provides full type safety and autocomplete
+
+**2. API Layer (Backend)**
+- Powered by **Hono**, an ultra-fast web framework optimized for edge deployment
+- Exposes endpoints through **ORPC**, which creates a type-safe RPC layer between frontend and backend
+- Handles cross-origin requests with CORS middleware for cookie-based authentication
+- Routes incoming requests to appropriate business logic handlers
+
+**3. Business Logic Layer**
+- Organized into **shared packages** within the monorepo
+- **packages/api** contains router definitions, procedures, and business logic
+- **packages/auth** manages authentication configuration and session handling
+- Uses **Zod schemas** for runtime validation and type inference
+- Implements authorization checks via middleware (protected vs. public procedures)
+
+**4. Data Layer**
+- **Drizzle ORM** provides a TypeScript-first query interface
+- **PostgreSQL** stores persistent data with ACID transaction guarantees
+- Migrations managed through **Drizzle Kit** for schema version control
+- Session data stored securely with HTTP-only, Secure cookies
+
+#### How Components Work Together
+
+When a user interacts with SambungChat, the request flows through these layers:
+
+1. **User Action**: A user clicks a button in the SvelteKit frontend
+2. **Type-Safe API Call**: The frontend calls an ORPC procedure with full TypeScript type checking
+3. **HTTP Request**: The ORPC client sends an HTTP POST request to the Hono backend
+4. **Middleware Chain**: Hono processes the request through middleware (CORS, logging)
+5. **Context Creation**: ORPC creates a context object, extracting session information from cookies
+6. **Authentication**: Protected procedures validate the session via Better-Auth
+7. **Input Validation**: Zod schemas validate and coerce request data
+8. **Business Logic**: The procedure handler executes domain logic with type-safe inputs
+9. **Database Operations**: Drizzle ORM executes type-safe SQL queries against PostgreSQL
+10. **Response Flow**: Data flows back through each layer, with type safety maintained throughout
+
+This layered approach provides several benefits:
+
+- **Clear Boundaries**: Each layer has a well-defined responsibility, making the codebase easier to understand and maintain
+- **Type Safety**: TypeScript types flow from database schemas through API procedures to frontend code, ensuring end-to-end type safety
+- **Testability**: Layers can be tested independently with mock dependencies
+- **Scalability**: New features can be added by extending existing layers without major refactoring
+- **Developer Experience**: The monorepo structure enables code sharing, atomic commits, and consistent tooling
+
+#### Design Goals
+
+The architecture was designed to achieve these goals:
+
+| Goal | Implementation | Benefit |
+|------|----------------|---------|
+| **Type Safety** | TypeScript + ORPC + Zod + Drizzle | Catch errors at compile time, self-documenting APIs |
+| **Performance** | Hono + Bun + Drizzle + PostgreSQL | Fast startup, low latency, efficient queries |
+| **Developer Experience** | Turborepo + Hot Reload + Autocomplete | Rapid development, less boilerplate, better debugging |
+| **Security** | Better-Auth + HttpOnly Cookies + Validation | Session-based auth, XSS protection, input sanitization |
+| **Maintainability** | Monorepo + Modular Packages + Migrations | Shared code, atomic changes, versioned schema |
+| **Scalability** | Layered Architecture + Type-Safe APIs | Easy to extend, refactor, and add features |
+
+#### Technology Choice Rationale
+
+Each technology in the stack was chosen after careful consideration of alternatives:
+
+**Why TypeScript?**
+- Static typing catches bugs before runtime
+- Excellent IDE support with autocomplete and inline documentation
+- Industry standard for modern JavaScript development
+- Enables type-safe APIs with ORPC
+
+**Why Monorepo (Turborepo)?**
+- Share code between frontend and backend (types, utilities, validation schemas)
+- Ensure version consistency across packages
+- Atomic commits across related changes
+- Optimized builds with intelligent caching and parallel execution
+
+**Why SvelteKit over Next.js?**
+- Smaller bundle sizes and better runtime performance
+- Simpler mental model with fewer abstractions
+- Built-in state management without external libraries
+- Better developer experience with less boilerplate
+
+**Why Hono over Express?**
+- Modern API with better TypeScript support
+- Faster performance with smaller bundle size
+- Edge-ready for deployment platforms like Cloudflare Workers
+- Cleaner middleware patterns
+
+**Why ORPC over tRPC?**
+- Built-in OpenAPI specification generation for API documentation
+- Better type inference for complex schemas
+- Framework-agnostic design (works with any TypeScript framework)
+- More active development with modern patterns
+
+**Why Better-Auth over NextAuth?**
+- Framework-agnostic (works with SvelteKit, Hono, Next.js)
+- More flexible configuration options
+- Native Drizzle ORM adapter
+- Type-safe authentication with TypeScript
+
+**Why Drizzle over Prisma?**
+- SQL-like API that's familiar to database developers
+- No query engine overhead (direct SQL execution)
+- Better performance for serverless deployments
+- Explicit migration files with full control over schema changes
+- Smaller bundle size
+
+**Why PostgreSQL over MongoDB?**
+- ACID transaction guarantees for data integrity
+- Relational model fits structured business data
+- Powerful query capabilities with JOINs and aggregates
+- Better tooling and monitoring ecosystem
+- Proven reliability at scale
+
+#### Architecture Patterns
+
+The architecture implements several proven software patterns:
+
+**1. Repository Pattern**
+- Drizzle ORM acts as a repository, abstracting database access
+- Business logic doesn't depend directly on database implementation
+- Easy to swap database implementations or add caching
+
+**2. Dependency Injection**
+- ORPC context provides dependencies (session, database) to procedures
+- Makes testing easier with mock contexts
+- Centralizes dependency management
+
+**3. Middleware Pattern**
+- Hono and ORPC use middleware for cross-cutting concerns (auth, logging, error handling)
+- Separates business logic from infrastructure concerns
+- Composable middleware chain
+
+**4. Schema-Driven Development**
+- Zod schemas define the shape of data
+- Schemas drive validation, type inference, and API contracts
+- Single source of truth for data structures
+
+**5. Separation of Concerns**
+- Frontend (apps/web) focuses on UI and user interactions
+- Backend (apps/server) handles HTTP and routing
+- Business logic (packages/api) contains domain rules
+- Data layer (packages/db) manages persistence
+
+#### Scalability Considerations
+
+The architecture is designed to scale in multiple dimensions:
+
+**Horizontal Scaling**
+- Stateless API server (Hono) can run multiple instances behind a load balancer
+- Session storage in PostgreSQL allows any instance to handle requests
+- Database connection pooling manages concurrent connections efficiently
+
+**Vertical Scaling**
+- Efficient data structures and algorithms minimize resource usage
+- Database indexes optimize query performance
+- Lazy loading and code splitting reduce initial bundle size
+
+**Team Scaling**
+- Monorepo structure allows multiple developers to work in parallel
+- Clear package boundaries prevent coupling and conflicts
+- Shared packages reduce code duplication and enforce consistency
+
+**Feature Scaling**
+- Modular router system makes adding new features straightforward
+- Type-safe APIs prevent breaking changes when adding features
+- Migration system ensures database schema evolves safely
 
 ---
 
