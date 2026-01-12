@@ -16,9 +16,13 @@
       "@orpc/zod": "^1.12.2",
       "better-auth": "^1.4.9",
       "ai": "^6.0.3",
+      "@ai-sdk/openai-compatible": "^2.0.3",
       "@orpc/client": "^1.12.2",
       "drizzle-orm": "^0.45.1",
-      "@types/pg": "^8.15.6"
+      "@types/pg": "^8.15.6",
+      "clsx": "^2.1.1",
+      "tailwind-merge": "^3.2.5",
+      "@tanstack/svelte-form": "^1.19.2"
     }
   },
   "type": "module",
@@ -26,6 +30,10 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "check-types": "turbo check-types",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F server dev",
@@ -36,18 +44,32 @@
     "db:start": "turbo -F @sambung-chat/db db:start",
     "db:watch": "turbo -F @sambung-chat/db db:watch",
     "db:stop": "turbo -F @sambung-chat/db db:stop",
-    "db:down": "turbo -F @sambung-chat/db db:down"
+    "db:down": "turbo -F @sambung-chat/db db:down",
+    "status:update": "bun run scripts/update-status.ts",
+    "status:pending": "bun run scripts/status-pending.ts",
+    "status:blocked": "bun run scripts/status-blocked.ts",
+    "prepare": "husky"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.4",
     "@sambung-chat/env": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@sambung-chat/config": "workspace:*",
     "@types/bun": "catalog:",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "prettier-plugin-svelte": "^3.4.1",
     "turbo": "^2.6.3",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.52.0"
   },
   "packageManager": "bun@1.2.23"
 }

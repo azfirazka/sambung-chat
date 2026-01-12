@@ -19,6 +19,7 @@
     "@sambung-chat/api": "workspace:*",
     "@sambung-chat/auth": "workspace:*",
     "@sambung-chat/env": "workspace:*",
+    "@sambung-chat/ui": "workspace:*",
     "@tanstack/svelte-form": "^1.19.2",
     "@tanstack/svelte-query": "^5.85.3",
     "ai": "catalog:",
