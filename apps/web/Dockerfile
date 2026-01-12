@@ -29,7 +29,9 @@ EXPOSE 5173
 ENV NODE_ENV=development
 ENV PORT=5173
 
-# Run dev server with host=0.0.0.0 for Docker compatibility
+# Change to web app directory and run dev server with host=0.0.0.0
+# This bypasses turbo and runs vite directly with correct args
+WORKDIR /app/apps/web
 CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # ============================================
