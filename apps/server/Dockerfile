@@ -29,8 +29,9 @@ EXPOSE 3000
 ENV NODE_ENV=development
 ENV PORT=3000
 
-# Run dev server with hot reload
-CMD ["bun", "run", "dev"]
+# Change to server app directory and run dev server with hot reload
+WORKDIR /app/apps/server
+CMD ["bun", "run", "--hot", "src/index.ts"]
 
 # ============================================
 # Builder stage - Build for production

@@ -1,5 +1,6 @@
 # Docker Compose for SambaChat Development
-# Usage: docker-compose up
+# Usage: docker compose up
+# Environment variables are loaded from .env file in the root
 
 services:
   # PostgreSQL Database
@@ -8,15 +9,15 @@ services:
     container_name: sambungchat-db-dev
     restart: unless-stopped
     environment:
-      POSTGRES_USER: sambungchat
-      POSTGRES_PASSWORD: sambungchat_dev
-      POSTGRES_DB: sambungchat_dev
+      POSTGRES_USER: ${POSTGRES_USER:-sambungchat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sambungchat_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-sambungchat_dev}
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U sambungchat -d sambungchat_dev']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-sambungchat} -d ${POSTGRES_DB:-sambungchat_dev}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,11 +33,19 @@ services:
     container_name: sambungchat-server-dev
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${SERVER_PORT:-3000}:3000'
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
-      DATABASE_URL: postgresql://sambungchat:sambungchat_dev@postgres:5432/sambungchat_dev
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sambungchat:sambungchat_dev@postgres:5432/sambungchat_dev}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-sambungchat-dev-secret-key-at-least-32-chars-long}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      # AI Provider Configuration
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     volumes:
       - .:/app
       - node_modules:/app/node_modules
@@ -56,11 +65,11 @@ services:
     container_name: sambungchat-web-dev
     restart: unless-stopped
     ports:
-      - '5173:5173'
+      - '${WEB_PORT:-5173}:5173'
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 5173
-      PUBLIC_API_URL: http://localhost:3000
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
     volumes:
       - .:/app
       - node_modules:/app/node_modules
