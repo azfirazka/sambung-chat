@@ -39,7 +39,7 @@ This document outlines a **backend-first development approach** for SambungChat 
 
 ### Current State
 
-The [UI-UX-DESIGN.md](./UI-UX-DESIGN.md) document provides:
+The [ui-ux-design.md](./ui-ux-design.md) document provides:
 
 | Section                                  | Status             | Quality     |
 | ---------------------------------------- | ------------------ | ----------- |
@@ -1186,7 +1186,7 @@ bun test
 
 ## Related Documents
 
-- [UI/UX Design Document](./UI-UX-DESIGN.md) - Visual design and components
+- [UI/UX Design Document](./ui-ux-design.md) - Visual design and components
 - [ROADMAP](./ROADMAP.md) - Development timeline
 - [ORPC Implementation Reference](./generated/orpc-todo-reference.md) - ORPC patterns
 - [API Reference](../docs/api-reference.md) - API documentation

@@ -85,13 +85,13 @@ bun run format           # Format with Prettier
 ```
 sambung-chat/
 ├── apps/
-│   ├── web/                 # SvelteKit frontend → apps/web/AGENTS.md
-│   └── server/              # Hono backend → apps/server/AGENTS.md
+│   ├── web/                 # SvelteKit frontend → apps/web/agents.md
+│   └── server/              # Hono backend → apps/server/agents.md
 ├── packages/
-│   ├── ui/                  # shadcn-svelte components → packages/ui/AGENTS.md ⚠️
-│   ├── api/                 # ORPC routers → packages/api/AGENTS.md
+│   ├── ui/                  # shadcn-svelte components → packages/ui/agents.md ⚠️
+│   ├── api/                 # ORPC routers → packages/api/agents.md
 │   ├── auth/                # Better Auth config
-│   ├── db/                  # Drizzle ORM schemas → packages/db/AGENTS.md
+│   ├── db/                  # Drizzle ORM schemas → packages/db/agents.md
 │   ├── env/                 # Environment validation
 │   └── config/              # Shared TypeScript configs
 ├── docs/                    # Public documentation
@@ -110,7 +110,7 @@ sambung-chat/
 └── plan-reference/          # Planning docs
     ├── ROADMAP.md           # Development timeline
     ├── STATUS.md            # Current development status
-    └── AGENTS.md            # Root AI agent reference
+    └── agents.md            # Root AI agent reference
 ```
 
 ### Key Architectural Patterns
@@ -162,7 +162,7 @@ export const router = {
 
 ### packages/ui - shadcn-svelte Components
 
-**CRITICAL:** Read `packages/ui/AGENTS.md` and `docs/ui-package-guide.md` before any changes.
+**CRITICAL:** Read `packages/ui/agents.md` and `docs/ui-package-guide.md` before any changes.
 
 **Golden Rules:**
 
@@ -276,7 +276,7 @@ Before considering a task complete:
 If you encounter build errors:
 
 1. **Check `docs/TROUBLESHOOTING.md`** - Common errors and solutions
-2. **Read sub-folder AGENTS.md** - Location-specific patterns
+2. **Read sub-folder agents.md** - Location-specific patterns
 3. **Run TypeScript check** - `bun run check:types`
 4. **Check imports** - Ensure `@lucide/svelte` not `lucide-svelte`
 5. **Verify CSS usage** - No `@apply` with custom colors

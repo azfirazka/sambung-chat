@@ -180,8 +180,8 @@ sambung-chat/
 ├── plan-reference/          # Project documentation
 │   ├── PRD-OpenSource.md    # Product requirements
 │   ├── ROADMAP.md           # Development timeline
-│   ├── UI-UX-DESIGN.md      # Frontend design
-│   └── AGENTS.md            # AI agent reference
+│   ├── ui-ux-design.md      # Frontend design
+│   └── agents.md            # AI agent reference
 │
 ├── docs/                    # Public documentation
 ├── examples/                # AI provider integration examples
@@ -232,8 +232,8 @@ sambung-chat/
 | [Architecture](./docs/architecture.md)                                   | System architecture overview with diagrams  |
 | [PRD](plan-reference/PRD-OpenSource.md)                                  | Product Requirements Document               |
 | [Roadmap](plan-reference/ROADMAP.md)                                     | Development timeline and milestones         |
-| [UI/UX Design](plan-reference/UI-UX-DESIGN.md)                           | Frontend design system and components       |
-| [Agents Reference](plan-reference/AGENTS.md)                             | Guide for AI agents working on this project |
+| [UI/UX Design](plan-reference/ui-ux-design.md)                           | Frontend design system and components       |
+| [Agents Reference](plan-reference/agents.md)                             | Guide for AI agents working on this project |
 
 ---
 

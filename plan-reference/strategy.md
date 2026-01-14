@@ -496,8 +496,8 @@ bun run db:studio           # Open database GUI
 - [ROADMAP](./ROADMAP.md) - Development timeline
 - [STATUS](./STATUS.md) - Current progress
 - [PRD-OpenSource](./PRD-OpenSource.md) - Product requirements
-- [UI-UX-DESIGN](./UI-UX-DESIGN.md) - Design specifications
-- [BACKEND-FIRST-DEVELOPMENT](./BACKEND-FIRST-DEVELOPMENT.md) - Implementation guide
+- [UI-UX-DESIGN](./ui-ux-design.md) - Design specifications
+- [BACKEND-FIRST-DEVELOPMENT](./backend-first-development.md) - Implementation guide
 
 ---
 

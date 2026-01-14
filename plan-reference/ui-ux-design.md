@@ -1,8 +1,8 @@
 # SAMBUNG CHAT: UI/UX Design Document
 
-**Version:** 1.0
-**Last Updated:** January 11, 2026
-**Status:** Ready for Implementation
+**Version:** 2.0
+**Last Updated:** January 15, 2026
+**Status:** Ready for Implementation (with Team Workspace Support)
 
 ---
 
@@ -10,10 +10,13 @@
 
 1. [Design System](#design-system)
 2. [Page Structure & Routes](#page-structure--routes)
-3. [Component Hierarchy](#component-hierarchy)
-4. [Layout Specifications](#layout-specifications)
-5. [User Flows](#user-flows)
-6. [Component Specifications](#component-specifications)
+3. [Layout Specifications](#layout-specifications)
+4. [Component Hierarchy](#component-hierarchy)
+5. [Component Specifications](#component-specifications)
+6. [Responsive Behavior](#responsive-behavior)
+7. [State Management & Data Flow](#state-management--data-flow)
+8. [User Flows](#user-flows)
+9. [Implementation Priority](#implementation-priority)
 
 ---
 
@@ -105,14 +108,16 @@ Tailwind's default spacing scale: 4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 
 
 ## Page Structure & Routes
 
+### Route Structure (Personal + Team Workspaces)
+
 ```
 apps/web/src/routes/
-├── (app)/                    # Main app layout with sidebar
+├── (app)/                    # Personal workspace
 │   ├── chat/
-│   │   ├── +page.svelte              # Chat list / home
+│   │   ├── +page.svelte              # New personal chat
 │   │   ├── [id]/
 │   │   │   └── +page.svelte          # Individual chat view
-│   │   └── +page.svelte              # New chat
+│   │   └── +page.svelte              # Chat list / home
 │   ├── prompts/
 │   │   ├── +page.svelte              # Prompt templates library
 │   │   └── new/+page.svelte          # Create new prompt
@@ -120,7 +125,26 @@ apps/web/src/routes/
 │   │   ├── +page.svelte              # General settings
 │   │   ├── api-keys/+page.svelte     # API key management
 │   │   └── appearance/+page.svelte   # Theme, font size
-│   └── +layout.svelte                # App layout (sidebar + main)
+│   └── +layout.svelte                # Personal workspace layout
+│
+├── (team)/                   # Team workspace
+│   ├── [slug]/
+│   │   ├── chat/
+│   │   │   ├── +page.svelte          # New team chat
+│   │   │   ├── [id]/
+│   │   │   │   └── +page.svelte      # Individual team chat
+│   │   │   └── +page.svelte          # Team chat list / home
+│   │   ├── prompts/
+│   │   │   ├── +page.svelte          # Team prompts
+│   │   │   └── new/+page.svelte      # Create team prompt
+│   │   ├── members/
+│   │   │   └── +page.svelte          # Team members management
+│   │   ├── settings/
+│   │   │   └── +page.svelte          # Team settings
+│   │   ├── +page.svelte              # Redirects to /chat
+│   │   └── +layout.svelte            # Team workspace layout
+│   └── create/
+│       └── +page.svelte              # Create new team
 │
 ├── (auth)/                   # Authentication routes
 │   ├── login/
@@ -134,10 +158,172 @@ apps/web/src/routes/
 
 ### Route Groups
 
-| Route Group | Layout         | Purpose                         |
-| ----------- | -------------- | ------------------------------- |
-| `(app)`     | Sidebar + Main | Protected routes, requires auth |
-| `(auth)`    | Centered card  | Public auth routes              |
+| Route Group | Layout                                | Purpose            | Workspace Type |
+| ----------- | ------------------------------------- | ------------------ | -------------- |
+| `(app)`     | Header + Nav Rail + Secondary Sidebar | Personal workspace | Personal       |
+| `(team)`    | Header + Nav Rail + Secondary Sidebar | Team collaboration | Team           |
+| `(auth)`    | Centered card                         | Public auth routes | -              |
+
+### URL Patterns
+
+| Workspace Type | URL Pattern      | Example                                             |
+| -------------- | ---------------- | --------------------------------------------------- |
+| Personal       | `/app/*`         | `/app/chat`, `/app/prompts`                         |
+| Team           | `/team/[slug]/*` | `/team/engineering/chat`, `/team/marketing/prompts` |
+
+---
+
+## Layout Specifications
+
+### Overall Layout Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Header (60px)                                                       │
+│  [Logo SambungChat]                                                  │  ← Logo only (clean header)
+├────┬────────────────────────────────┬────────────────────────────────┤
+│Nav │    Secondary Sidebar (280px)   │   Content Area (flex-1)        │
+│Rail│    Collapsible, Context-Aware  │   Scrollable                   │
+│64px│  ┌──────────────────────────┐ │                                │
+│    │  │ [+ New Chat]             │ │   ┌──────────────────────────┐ │
+│ 💬 │  │ ──────────────────────── │ │   │  Search: [Context-aware] │ │  ← Search in content
+│    │  │ 📄 Project Notes    2m   │ │   └──────────────────────────┘ │
+│ ✨ │  │ 📄 Python Tutorial   1h   │ │                                │
+│    │  │ [Search chats...]         │ │   Main Content:                │
+│ ⚙️ │  └──────────────────────────┘ │   • Chat Interface              │
+│    │                              │   • Prompts Library             │
+│    │                              │   • Settings                    │
+│────┼──────────────────────────────┼─────────────────────────────────┤
+│    │                              │                                 │
+│ 👤 │  ← User Profile / Avatar     │                                 │
+│    │  (Click → User Menu)         │                                 │
+│ ───┼──────────────────────────────┼─────────────────────────────────┤
+│[Pers│                              │                                 │
+│ onal│  ← Workspace Switcher       │                                 │
+│  ▼] │                              │                                 │
+└────┴──────────────────────────────┴─────────────────────────────────┘
+```
+
+### Layout Dimensions
+
+| Component             | Width                               | Height             | Position         |
+| --------------------- | ----------------------------------- | ------------------ | ---------------- |
+| **Header**            | 100%                                | 60px               | Fixed top        |
+| **Navigation Rail**   | 64px                                | 100vh              | Fixed left       |
+| **Secondary Sidebar** | 280px (expanded) / 48px (collapsed) | calc(100vh - 60px) | Left of content  |
+| **Content Area**      | flex-1                              | calc(100vh - 60px) | Right of sidebar |
+
+### Navigation Rail Structure
+
+```
+┌────┐
+│ 💬 │  ← Navigation Items (Top → Bottom, by frequency)
+│ ✨ │     • Chat (most frequent)
+│ 📝 │     • Prompts
+│ ⚙️ │     • Settings
+│ 👥 │     • Members (team workspace only)
+─────┼─── Separator (1px border)
+│ 📚 │  ← Utility & Help (Bottom → Top)
+│ ❓ │     • Documentation
+│ 👤 │     • Help
+│    │     • User Menu & Workspace Switcher (bottom)
+└────┘
+```
+
+### Navigation Items by Workspace
+
+| Workspace    | Nav Items                        | Icons       |
+| ------------ | -------------------------------- | ----------- |
+| **Personal** | Chat, Prompts, Settings          | 💬 ✨ ⚙️    |
+| **Team**     | Chat, Prompts, Members, Settings | 💬 ✨ 👥 ⚙️ |
+
+### Utility Icons (Bottom of Nav Rail)
+
+| Icon | Label         | Action                             |
+| ---- | ------------- | ---------------------------------- |
+| 📚   | Documentation | Opens docs in new tab              |
+| ❓   | Help          | Help center, shortcuts, feedback   |
+| 👤   | User Menu     | Opens profile & workspace switcher |
+
+### User Menu Popup
+
+```
+┌─────────────────────────────────────┐
+│ 👤 John Doe                         │
+│ john@example.com                    │
+├─────────────────────────────────────┤
+│ 🏠 Workspace: ▼                     │  ← Workspace Switcher
+│ ├─ ✅ Personal                      │
+│ ├─ ✅ Engineering Team    [👥 3]   │
+│ ├─ ✅ Marketing Team      [👥 1]   │
+│ ├────────────────────────────────── │
+│ └─ ➕ Create New Team               │
+├─────────────────────────────────────┤
+│ ⚙️ Account Settings                 │
+│ 🔑 API Keys & Providers             │
+│ 🌐 Language: 🇺🇸 English            │
+│ 🎨 Theme: 🌙 Dark                  │
+├─────────────────────────────────────┤
+│ 🚪 Logout                           │
+└─────────────────────────────────────┘
+```
+
+### Secondary Sidebar Content (Context-Aware)
+
+**Chat Page:**
+
+```
+┌─────────────────────────────┐
+│ [+ New Chat]        Button  │
+├─────────────────────────────┤
+│ Recent Chats                │
+│ ─────────────────────────   │
+│ 📄 Project Notes      2m    │
+│ 📄 Python Tutorial     1h    │
+│ [Search chats...]      Input │
+│                             │
+│ Folders (collapse)          │
+│ ├─ 📁 Work (3)              │
+│ └─ 📁 Personal (5)          │
+└─────────────────────────────┘
+```
+
+**Prompts Page:**
+
+```
+┌─────────────────────────────────────┐
+│ [+ Create Prompt]           Button  │
+├─────────────────────────────────────┤
+│ My Prompts                  Section │
+│ ────────────────────────────       │
+│ ✨ All My Prompts                   │
+│ 📝 Code Generation                  │
+│ ✍️ Writing                          │
+├─────────────────────────────────────┤
+│ Team Prompts (if team)    Section │  ← Team workspace only
+│ ────────────────────────────       │
+│ 👥 Shared by Team Members           │
+├─────────────────────────────────────┤
+│ 🌍 Marketplace              Badge    │  ← Curated by admin
+│ ────────────────────────────       │
+│ 🔥 Trending                        │
+│ ⭐ Featured                        │
+│ 🆕 New This Week                   │
+│ 💡 Contribute your prompt!          │
+└─────────────────────────────────────┘
+```
+
+**Settings Page:**
+
+- Secondary sidebar hidden by default
+- Full-width content for settings panels
+
+**Team Workspace Differences:**
+
+- Header text: "Team Chats" instead of "Recent Chats"
+- Button label: "[+ New Team Chat]"
+- Shows team member activity indicators
+- Shared folders/categories section
 
 ---
 
@@ -147,14 +333,26 @@ apps/web/src/routes/
 SambungChat Components
 │
 ├── Layout Components
-│   ├── AppLayout                 # Main app layout with sidebar
-│   │   ├── Sidebar
-│   │   │   ├── ChatList
-│   │   │   ├── NewChatButton
-│   │   │   └── UserMenu
-│   │   └── MainContent
+│   ├── AppLayout                 # Main app layout
+│   │   ├── Header                # Logo only
+│   │   ├── NavigationRail        # Icon-based nav rail
+│   │   │   ├── NavItem          # Navigation item
+│   │   │   ├── UserMenu         # User menu popup
+│   │   │   │   ├── WorkspaceSwitcher
+│   │   │   │   └── UserMenuItem
+│   │   │   └── Separator        # Visual divider
+│   │   └── SecondarySidebar      # Context-aware sidebar
+│   │       ├── ChatList         # For chat pages
+│   │       ├── PromptsCategories # For prompts page
+│   │       ├── MembersList      # For team pages
+│   │       └── CollapseToggle   # Expand/collapse button
 │   │
 │   └── AuthLayout                # Centered auth layout
+│
+├── Workspace Components
+│   ├── WorkspaceSwitcher         # Switch between personal/team
+│   ├── TeamBadge                 # Team indicator
+│   └── MemberList                # Team members list
 │
 ├── Chat Components
 │   ├── ChatInterface
@@ -176,7 +374,9 @@ SambungChat Components
 │   ├── PromptLibrary
 │   │   ├── PromptCard
 │   │   ├── PromptSearch
-│   │   └── CategoryFilter
+│   │   ├── CategoryFilter
+│   │   ├── MarketplaceSection    # Curated prompts
+│   │   └── TeamPromptsSection    # Team-shared prompts
 │   ├── PromptEditor              # Create/edit prompt
 │   └── PromptVariableForm        # Variable substitution
 │
@@ -202,302 +402,284 @@ SambungChat Components
 
 ---
 
-## Layout Specifications
-
-### 1. App Layout (Dual Sidebar: Navigation Rail + Context Sidebar)
-
-**Desktop (> 1024px):**
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Header (Logo, Search, User Menu)                                           │
-├──────┬───────────────────────────────────────────────────────────────────────┤
-│ Nav  │        Content Area                                                   │
-│ Rail │  ┌─────────────────────────────────────────────────────────────────┐  │
-│(64px)│  │                                                                 │  │
-│      │  │         Chat Interface / Prompts / Settings                      │  │
-│ ┌──┐ │  │                                                                 │  │
-│ │💬│ │  │                                                                 │  │
-│ ├──┤ │  │                                                                 │  │
-│ │✨│ │  │                                                                 │  │
-│ ├──┤ │  │                                                                 │  │
-│ │⚙️│ │  │                                                                 │  │
-│ └──┘ │  └─────────────────────────────────────────────────────────────────┘  │
-│      │                                                                       │
-├──────┼───────────────────────────────────────────────────────────────────────┤
-│      │       Secondary Sidebar (Context-Aware)                               │
-│      │  ┌─────────────────────────────────────────────────────────────────┐  │
-│      │  │  [+ New Chat]                                                   │  │
-│      │  │  ────────────────────────────────────────────────────────────   │  │
-│      │  │  📄 Chat: Meaning of Life                     2m ago        │  │
-│      │  │  📄 Chat: Python Tutorial                       1h ago        │  │
-│      │  │  📄 Chat: React vs Svelte                      3h ago        │  │
-│      │  │                                                                 │  │
-│      │  │  [Search chats...]                                               │  │
-│      │  └─────────────────────────────────────────────────────────────────┘  │
-└──────┴───────────────────────────────────────────────────────────────────────┘
-```
-
-**Tablet (768px - 1024px):**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Header (Logo, Search, User Menu)                       │
-├──────┬──────────────────────────────────────────────────┤
-│ Nav  │        Content Area                               │
-│ Rail │  (Secondary sidebar expands on hover)            │
-│(64px)│                                                   │
-│ ┌──┐ │                                                   │
-│ │💬│ │                                                   │
-│ ├──┤ │                                                   │
-│ │✨│ │                                                   │
-│ ├──┤ │                                                   │
-│ │⚙️│ │                                                   │
-│ └──┘ │                                                   │
-└──────┴──────────────────────────────────────────────────┘
-```
-
-**Mobile (< 768px):**
-
-```
-┌─────────────────────────────┐
-│  Header (Menu, Title)       │
-├─────────────────────────────┤
-│                             │
-│     Main Content Area       │
-│                             │
-│                             │
-│                             │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│  💬  ✨  ⚙️  (Bottom Nav)   │
-└─────────────────────────────┘
-```
-
-### Layout Components Breakdown
-
-**Navigation Rail (64px)** - Always visible:
-
-- Icon-only navigation items
-- Active state indicator
-- Tooltips on hover
-- Consistent across all pages
-
-**Secondary Sidebar (280px)** - Context-aware content:
-
-- Chats page: Shows chat list
-- Prompts page: Shows prompt categories
-- Settings page: Shows settings navigation
-- Collapsible on tablet
-- Hidden on mobile (drawer)
-
-**Responsive Behavior**:
-| Screen Size | Nav Rail | Secondary Sidebar |
-|-------------|----------|-------------------|
-| > 1024px (Desktop) | Always visible (64px) | Always visible (280px) |
-| 768-1024px (Tablet) | Always visible (64px) | Collapsed (64px), expands on hover |
-| < 768px (Mobile) | Hidden (bottom nav instead) | Hidden (slide-in drawer) |
-
-### 2. Chat Interface Layout
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  ← Back to Chat List    Chat Title        ⚙️ Model ▼   │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌────────────────────────────────────────────────┐    │
-│  │                                                │    │
-│  │  Messages Area (scrollable)                    │    │
-│  │                                                │    │
-│  │  ┌──────────────────────────────────────┐     │    │
-│  │  │ User: What is the meaning of life?   │     │    │
-│  │  └──────────────────────────────────────┘     │    │
-│  │                                                │    │
-│  │  ┌──────────────────────────────────────┐     │    │
-│  │  │ Assistant: [Streaming response...]   │     │    │
-│  │  └──────────────────────────────────────┘     │    │
-│  │                                                │    │
-│  └────────────────────────────────────────────────┘    │
-│                                                          │
-├─────────────────────────────────────────────────────────┤
-│  Model: GPT-4 ▼          Stop              Copy | Delete │
-├─────────────────────────────────────────────────────────┤
-│  ┌────────────────────────────────────────────────┐    │
-│  │ [Message input textarea...]              │    │
-│  └────────────────────────────────────────────────┘    │
-│                                                    📎    │
-│                                    Send 📤              │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 3. Auth Layout (Login/Register)
-
-**Centered Card Layout:**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                                                          │
-│                                                          │
-│              ┌─────────────────────────┐                │
-│              │                         │                │
-│              │      Sambung Chat       │                │
-│              │        Logo             │                │
-│              │                         │                │
-│              ├─────────────────────────┤                │
-│              │                         │                │
-│              │  [Email Input]          │                │
-│              │                         │                │
-│              │  [Password Input]       │                │
-│              │                         │                │
-│              │  [Login Button]         │                │
-│              │                         │                │
-│              │  Don't have an account? │                │
-│              │  [Sign up]              │                │
-│              │                         │                │
-│              └─────────────────────────┘                │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## User Flows
-
-### 1. Authentication Flow
-
-```
-┌─────────┐
-│ Landing │
-│  Page   │
-└────┬────┘
-     │
-     ├─→ Already logged in? ──→ Redirect to /chat
-     │
-     └─→ Not logged in
-          │
-          ├─→ Go to /login
-          │     │
-          │     ├─→ Enter credentials
-          │     ├─→ Click "Login"
-          │     └─→ Success → Redirect to /chat
-          │
-          └─→ Go to /register
-                │
-                ├─→ Enter email, password, name
-                ├─→ Click "Sign Up"
-                └─→ Success → Redirect to /chat
-```
-
-### 2. Chat Creation Flow
-
-```
-┌─────────────┐
-│   Sidebar   │
-└──────┬──────┘
-       │
-       ├─→ Click "New Chat"
-       │     │
-       │     └─→ Open chat interface
-       │           │
-       │           ├─→ Select model (default: last used)
-       │           └─→ Ready for input
-       │
-       └─→ Click existing chat
-             │
-             └─→ Open chat history
-```
-
-### 3. Sending Message Flow
-
-```
-┌──────────────────┐
-│  Chat Interface  │
-└─────────┬────────┘
-          │
-          ├─→ Type message in textarea
-          │     │
-          │     ├─→ (Optional) Select different model
-          │     ├─→ (Optional) Attach file (future)
-          │     └─→ Click "Send" / Press Enter
-          │           │
-          │           ├─→ Show user message immediately
-          │           ├─→ Show streaming indicator
-          │           ├─→ Stream AI response
-          │           └─→ Save to chat history
-          │
-          └─→ Edit prompt (future)
-                │
-                └─→ Regenerate response
-```
-
-### 4. API Key Management Flow
-
-```
-┌──────────────┐
-│   Settings   │
-└──────┬───────┘
-       │
-       └─→ Go to "API Keys"
-             │
-             ├─→ View existing keys (masked)
-             │     │
-             │     ├─→ Click "Add Key"
-             │     │     │
-             │     │     ├─→ Select provider (OpenAI, etc.)
-             │     │     ├─→ Enter API key
-             │     │     ├─→ (Optional) Test connection
-             │     │     └─→ Save
-             │     │
-             │     └─→ Delete key
-             │
-             └─→ Key stored encrypted in database
-```
-
----
-
 ## Component Specifications
 
-### 1. Sidebar Component
+### 1. Header Component
 
-**File:** `apps/web/src/components/Sidebar.svelte`
+**Location:** `apps/web/src/components/layout/Header.svelte`
 
 **Props:**
 
 ```typescript
 interface Props {
-  chats: Chat[];
-  currentChatId?: string;
-  onNewChat: () => void;
-  onSelectChat: (id: string) => void;
-  onDeleteChat: (id: string) => void;
+  workspace?: {
+    type: 'personal' | 'team';
+    name: string;
+    slug?: string;
+  };
 }
 ```
 
 **Features:**
 
-- New Chat button (primary action)
-- Chat list with search
-- Chat item: title, last message preview, timestamp
-- Pin/unpin chat
-- Delete chat (with confirmation)
-- Navigation to Prompts, Settings
-
-**Responsive:**
-
-- Desktop: Always visible (280px width)
-- Mobile: Hidden behind hamburger menu
+- Logo (left-aligned or centered)
+- Fixed height: 60px
+- Clean, minimal design
+- No navigation items (moved to Nav Rail)
+- No user menu (moved to Nav Rail bottom)
 
 ---
 
-### 2. ChatInterface Component
+### 2. NavigationRail Component
 
-**File:** `apps/web/src/components/chat/ChatInterface.svelte`
+**Location:** `packages/ui/src/lib/components/layout/NavigationRail.svelte`
+
+**Props:**
+
+```typescript
+interface Props {
+  currentPath: string;
+  workspaceType: 'personal' | 'team';
+  onNavigate: (path: string) => void;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  teams: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    memberCount: number;
+    onlineCount: number;
+  }>;
+}
+```
+
+**Features:**
+
+- Fixed position: left, full height
+- Width: 64px
+- Icon-based navigation
+- Active state indicator
+- Tooltips on hover
+- User menu at bottom
+- Workspace switcher integrated
+
+**Navigation Items:**
+
+```typescript
+const getNavItems = (workspaceType: 'personal' | 'team') => {
+  const items = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare, path: '/chat' },
+    { id: 'prompts', label: 'Prompts', icon: Sparkles, path: '/prompts' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  ];
+
+  if (workspaceType === 'team') {
+    items.splice(2, 0, {
+      id: 'members',
+      label: 'Members',
+      icon: Users,
+      path: '/members',
+    });
+  }
+
+  return items;
+};
+```
+
+---
+
+### 3. UserMenu Component
+
+**Location:** `packages/ui/src/lib/components/layout/UserMenu.svelte`
+
+**Props:**
+
+```typescript
+interface Props {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  currentWorkspace: {
+    type: 'personal' | 'team';
+    id: string;
+    name: string;
+    slug?: string;
+  };
+  teams: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    avatar?: string;
+    memberCount: number;
+    onlineCount: number;
+  }>;
+  onWorkspaceChange: (workspace: Workspace) => void;
+  onCreateTeam: () => void;
+  onLogout: () => void;
+}
+```
+
+**Features:**
+
+- Opens as popover above avatar
+- User info header
+- Workspace switcher dropdown
+- Account settings links
+- Logout action
+
+**File Structure:**
+
+```
+packages/ui/src/lib/components/layout/
+├── UserMenu.svelte
+└── user-menu/
+    ├── WorkspaceSwitcher.svelte
+    └── UserMenuItem.svelte
+```
+
+---
+
+### 4. WorkspaceSwitcher Component
+
+**Location:** `packages/ui/src/lib/components/layout/user-menu/WorkspaceSwitcher.svelte`
+
+**Props:**
+
+```typescript
+interface Props {
+  currentWorkspace: Workspace;
+  teams: Team[];
+  onWorkspaceChange: (workspace: Workspace) => void;
+  onCreateTeam: () => void;
+}
+```
+
+**UI States:**
+
+**Collapsed (in UserMenu):**
+
+```
+🏠 Workspace: ▼
+```
+
+**Expanded:**
+
+```
+┌────────────────────────────────┐
+│ ✅ Personal                    │
+│ ├─ [Your Avatar] You           │
+│                                │
+│ ✅ Engineering Team            │
+│ ├─ [Team Avatar] 3 online     │
+│                                │
+│ ✅ Marketing Team              │
+│ ├─ [Team Avatar] 1 online     │
+│ ├───────────────────────────── │
+│ ➕ Create New Team             │
+└────────────────────────────────┘
+```
+
+**Keyboard Navigation:**
+
+- `Arrow Up/Down` - Navigate options
+- `Enter` - Select workspace
+- `Escape` - Close dropdown
+- Type-ahead search for team names
+
+---
+
+### 5. SecondarySidebar Component
+
+**Location:** `packages/ui/src/lib/components/layout/SecondarySidebar.svelte`
+
+**Props:**
+
+```typescript
+interface Props {
+  currentPage: 'chat' | 'prompts' | 'settings' | 'members';
+  workspaceType: 'personal' | 'team';
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+```
+
+**Features:**
+
+- Context-aware content based on `currentPage`
+- Collapsible (280px → 48px)
+- Keyboard shortcut: `Cmd/Ctrl + B`
+- Dynamic content loading via Svelte 5 `$derived`
+
+**Collapse Behavior:**
+| State | Width | Behavior |
+|-------|-------|----------|
+| Expanded | 280px | Full content with labels |
+| Collapsed | 48px | Icon-only view with tooltips |
+| Settings | Hidden | Full-width content |
+
+**Content Components:**
+
+- `ChatList.svelte` - For chat pages
+- `PromptsCategories.svelte` - For prompts page
+- `MembersList.svelte` - For team members page
+
+---
+
+### 6. PromptLibrary Component (Enhanced)
+
+**Location:** `apps/web/src/components/prompts/PromptLibrary.svelte`
+
+**Props:**
+
+```typescript
+interface Props {
+  workspaceType: 'personal' | 'team';
+  myPrompts: Prompt[];
+  teamPrompts?: Prompt[];
+  marketplacePrompts: Prompt[];
+  categories: PromptCategory[];
+  onUsePrompt: (prompt: Prompt) => void;
+  onCreatePrompt: () => void;
+  onEditPrompt: (id: string) => void;
+  onSubmitToMarketplace: (id: string) => void;
+}
+```
+
+**Features:**
+
+- **My Prompts** - Personal prompt library
+- **Team Prompts** (team workspace only) - Shared within team
+- **Marketplace** - Curated public prompts
+- Grid/list view toggle
+- Search and filter
+- "Publish to Marketplace" toggle (requires admin approval)
+
+**Marketplace Model:**
+
+- Curated only (admin-approved prompts)
+- Categories: Code Generation, Writing, Data Analysis, Productivity, Education, Creative
+- Submission flow: User → Pending Review → Admin Approval → Public
+
+---
+
+### 7. ChatInterface Component
+
+**Location:** `apps/web/src/components/chat/ChatInterface.svelte`
 
 **Props:**
 
 ```typescript
 interface Props {
   chatId?: string;
+  workspaceType: 'personal' | 'team';
+  teamId?: string;
   initialModel?: Model;
 }
 ```
@@ -511,311 +693,487 @@ interface Props {
 - Chat input with auto-resize textarea
 - Send button (disabled when empty/streaming)
 - Stop generation button
-- Attach file button (future)
+- Workspace-aware (personal vs team chats)
 
 ---
 
-### 3. Message Component
+## Responsive Behavior
 
-**File:** `apps/web/src/components/chat/Message.svelte`
-
-**Props:**
+### Breakpoint System
 
 ```typescript
-interface Props {
-  role: 'user' | 'assistant';
-  content: string;
-  model?: string;
-  provider?: string;
-  timestamp: Date;
-  metadata?: MessageMetadata;
-  isStreaming?: boolean;
-}
+const breakpoints = {
+  sm: '640px', // Mobile landscape
+  md: '768px', // Tablet
+  lg: '1024px', // Laptop
+  xl: '1280px', // Desktop
+  '2xl': '1536px', // Large desktop
+};
 ```
 
-**Features:**
+### Desktop (≥1024px) - Full Layout
 
-- Markdown rendering (using `marked` or similar)
-- Syntax highlighting for code blocks
-- Copy button for code blocks
-- Token count (for assistant messages)
-- Latency display
-- Cost estimation (future)
+All three columns visible:
 
----
+- Navigation Rail (64px) - Icon-only
+- Secondary Sidebar (280px) - Full content
+- Content Area (flex-1) - Remaining space
 
-### 4. ModelSelector Component
+### Tablet (768px - 1023px) - Collapsible Sidebar
 
-**File:** `apps/web/src/components/chat/ModelSelector.svelte`
+- Navigation Rail: Visible (64px)
+- Secondary Sidebar: Collapsed by default (48px)
+- Toggle button to expand overlay
+- Swipe from left edge → Open sidebar
+- Tap outside → Close sidebar
 
-**Props:**
+### Mobile (<768px) - Bottom Navigation
+
+**Transformations:**
+
+| Desktop                      | Mobile                       |
+| ---------------------------- | ---------------------------- |
+| Navigation Rail (64px, left) | Bottom Nav Bar (56px)        |
+| Header (60px)                | Header (48px)                |
+| Secondary Sidebar (280px)    | Off-canvas drawer (slide-up) |
+
+**Bottom Navigation Items:**
+
+- 💬 Chat (leftmost)
+- ✨ Prompts
+- ⚙️ Settings
+- 👤 User Menu (rightmost)
+
+**Mobile-Specific Interactions:**
+
+- Hamburger menu → Utility drawer (Docs, Help)
+- Workspace switcher via User Menu
+- Secondary sidebar via slide-up drawer
+
+### Responsive State Management
 
 ```typescript
-interface Props {
-  models: Model[];
-  selectedModel: Model;
-  onSelectModel: (model: Model) => void;
-}
-```
+// stores/useResponsive.svelte.ts
+import { writable, derived } from 'svelte/store';
 
-**Features:**
+function createResponsive() {
+  const width = writable(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
-- Dropdown with provider icons
-- Group by provider
-- Show model name & description
-- Indicate if API key is configured
-- Filter/search models
-
----
-
-### 5. PromptLibrary Component
-
-**File:** `apps/web/src/components/prompts/PromptLibrary.svelte`
-
-**Props:**
-
-```typescript
-interface Props {
-  prompts: Prompt[];
-  categories: string[];
-  onUsePrompt: (prompt: Prompt) => void;
-  onEditPrompt: (id: string) => void;
-  onDeletePrompt: (id: string) => void;
-}
-```
-
-**Features:**
-
-- Grid/list view toggle
-- Search prompts
-- Filter by category
-- Prompt card: name, description, tags
-- "Use" button (opens in new chat or applies to current)
-- Edit/delete (for own prompts)
-- Create new prompt button
-
----
-
-### 6. APIKeyManager Component
-
-**File:** `apps/web/src/components/settings/APIKeyManager.svelte`
-
-**Props:**
-
-```typescript
-interface Props {
-  apiKeys: APIKey[];
-  onAddKey: (provider: string, key: string) => void;
-  onDeleteKey: (id: string) => void;
-}
-```
-
-**Features:**
-
-- List of configured keys
-- Provider icon/name
-- Masked key display (show/hide toggle)
-- Last 4 digits visible
-- Test connection button
-- Add new key dialog
-- Delete key (with confirmation)
-
----
-
-### 7. SettingsNav Component
-
-**File:** `apps/web/src/components/settings/SettingsNav.svelte`
-
-**Props:**
-
-```typescript
-interface Props {
-  currentPath: string;
-}
-```
-
-**Navigation Items:**
-
-- General (language, auto-save)
-- Appearance (theme, font size, sidebar width)
-- API Keys
-- Privacy (telemetry toggle)
-- Account (email change, password)
-- About (version, license)
-
----
-
-## Responsive Breakpoints
-
-```css
-/* Mobile First Approach */
-
-/* Default: < 640px (Mobile) */
-/* Single column, bottom nav */
-
-/* sm: 640px - 768px (Tablet) */
-/* Sidebar as drawer */
-
-/* md: 768px - 1024px (Small Desktop) */
-/* Sidebar always visible */
-
-/* lg: 1024px - 1280px (Desktop) */
-/* Full layout */
-
-/* xl: > 1280px (Large Desktop) */
-/* Max content width */
-```
-
----
-
-## Animation & Transitions
-
-### Using Svelte Transitions
-
-```svelte
-<script>
-  import { fade, slide, scale } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
-</script>
-
-<!-- Message appears with fade + slide up -->
-<div transition:fade|slide={{ duration: 300 }}>
-  {content}
-</div>
-
-<!-- Modal scales in -->
-<div transition:scale|quintOut={{ duration: 200 }}>
-  {modalContent}
-</div>
-```
-
-### Loading States
-
-- Skeleton screens for chat list
-- Pulse animation for streaming indicator
-- Spinner for button loading states
-
----
-
-## Accessibility (WCAG 2.1 AA)
-
-### Keyboard Navigation
-
-- `Tab` - Navigate through interactive elements
-- `Enter` - Submit form, send message
-- `Escape` - Close modal, clear search
-- `Ctrl/Cmd + K` - Focus search input
-- `Ctrl/Cmd + N` - New chat
-- Arrow keys - Navigate lists
-
-### ARIA Labels
-
-All interactive elements must have `aria-label` or accessible text.
-
-### Focus Management
-
-- Visible focus indicators (ring)
-- Logical tab order
-- Focus trap in modals
-- Return focus after closing modals
-
-### Screen Reader Support
-
-- Live regions for streaming responses
-- Announce model changes
-- Announce errors
-
----
-
-## Icon Library
-
-Using [Lucide Svelte](https://lucide.dev/) (already in project)
-
-Common icons:
-
-- `MessageSquare` - Chat
-- `Plus` - New chat
-- `Settings` - Settings
-- `Key` - API keys
-- `Sparkles` - AI/Prompts
-- `User` - User menu
-- `LogOut` - Logout
-- `Moon` / `Sun` - Theme toggle
-- `Send` - Send message
-- `Square` - Stop generation
-- `Copy` - Copy message
-- `Trash2` - Delete
-- `Search` - Search
-- `ChevronDown` - Dropdown
-- `Menu` - Mobile menu
-
----
-
-## Integration with Existing Code
-
-### Using @sambung-chat/ui Components
-
-```svelte
-<script>
-  import { Button, Input, Card } from '@sambung-chat/ui';
-</script>
-
-<Card>
-  <Input placeholder="Type a message..." />
-  <Button>Send</Button>
-</Card>
-```
-
-### API Integration
-
-```svelte
-<script>
-  import { onMount } from 'svelte';
-  import { orpc } from '@sambung-chat/api'; // ORPC client
-
-  let chats = [];
-
-  onMount(async () => {
-    chats = await orpc.chats.list();
+  const breakpoint = derived(width, ($width) => {
+    if ($width < 768) return 'mobile';
+    if ($width < 1024) return 'tablet';
+    return 'desktop';
   });
-</script>
+
+  return {
+    width,
+    breakpoint,
+    isMobile: derived(breakpoint, ($bp) => $bp === 'mobile'),
+    isTablet: derived(breakpoint, ($bp) => $bp === 'tablet'),
+    isDesktop: derived(breakpoint, ($bp) => $bp === 'desktop'),
+  };
+}
+
+export const responsive = createResponsive();
+```
+
+---
+
+## State Management & Data Flow
+
+### Application State Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Application Layer                         │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Page State  │  │ Server State │  │  Global State│      │
+│  │  (route)     │  │  (load fn)   │  │  (stores)    │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│         │                  │                  │              │
+│         └──────────────────┴──────────────────┘              │
+│                            │                                 │
+│                   ┌──────────────────┐                       │
+│                   │  Component State │  ← Svelte 5 Runes    │
+│                   │  ($state, $props)│                       │
+│                   └──────────────────┘                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Global Stores
+
+**Location:** `apps/web/src/lib/stores/`
+
+```typescript
+// stores/workspace.svelte.ts
+import { writable, derived } from 'svelte/store';
+
+interface Workspace {
+  type: 'personal' | 'team';
+  id: string;
+  name: string;
+  slug?: string;
+}
+
+function createWorkspaceStore() {
+  const { subscribe, set, update } = writable<Workspace>({
+    type: 'personal',
+    id: 'personal',
+    name: 'Personal',
+  });
+
+  return {
+    subscribe,
+    setWorkspace: (workspace: Workspace) => set(workspace),
+    switchToTeam: (team: Team) =>
+      set({
+        type: 'team',
+        id: team.id,
+        name: team.name,
+        slug: team.slug,
+      }),
+    switchToPersonal: () =>
+      set({
+        type: 'personal',
+        id: 'personal',
+        name: 'Personal',
+      }),
+  };
+}
+
+export const workspace = createWorkspaceStore();
+
+// Derived store for workspace-aware routes
+export const workspaceBasePath = derived(workspace, ($workspace) =>
+  $workspace.type === 'team' ? `/team/${$workspace.slug}` : '/app'
+);
+```
+
+### Route Loading Strategy
+
+**Personal Workspace (`/app/*`):**
+
+```typescript
+// (app)/+layout.server.ts
+export const load: PageServerLoad = async ({ locals }) => {
+  const user = locals.user;
+
+  const [chats, prompts, folders] = await Promise.all([
+    db.query.chats.findMany({
+      where: eq(chats.userId, user.id),
+      orderBy: [desc(chats.updatedAt)],
+      limit: 50,
+    }),
+    db.query.prompts.findMany({
+      where: eq(prompts.userId, user.id),
+      orderBy: [desc(prompts.createdAt)],
+    }),
+    db.query.folders.findMany({
+      where: eq(folders.userId, user.id),
+    }),
+  ]);
+
+  return {
+    user,
+    workspace: {
+      type: 'personal',
+      name: 'Personal',
+    },
+    initialData: { chats, prompts, folders },
+  };
+};
+```
+
+**Team Workspace (`/team/[slug]/*`):**
+
+```typescript
+// (team)/[slug]/+layout.server.ts
+export const load: PageServerLoad = async ({ params, locals }) => {
+  const { slug } = params;
+  const user = locals.user;
+
+  // Validate team exists and user is member
+  const team = await db.query.teams.findFirst({
+    where: eq(teams.slug, slug),
+    with: {
+      members: {
+        where: eq(teamMembers.userId, user.id),
+      },
+    },
+  });
+
+  if (!team || team.members.length === 0) {
+    throw redirect(302, '/app/chat');
+  }
+
+  const [chats, prompts, members] = await Promise.all([
+    db.query.chats.findMany({
+      where: eq(chats.teamId, team.id),
+      orderBy: [desc(chats.updatedAt)],
+    }),
+    db.query.prompts.findMany({
+      where: eq(prompts.teamId, team.id),
+    }),
+    db.query.teamMembers.findMany({
+      where: eq(teamMembers.teamId, team.id),
+      with: {
+        user: {
+          columns: { id: true, name: true, avatar: true },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    user,
+    workspace: {
+      type: 'team',
+      id: team.id,
+      name: team.name,
+      slug: team.slug,
+    },
+    initialData: { chats, prompts, members },
+  };
+};
+```
+
+### Workspace Switching Flow
+
+```
+User clicks "Engineering Team" in WorkspaceSwitcher
+        │
+        ▼
+┌───────────────────────────────────────┐
+│ 1. Update workspace store             │
+│    workspace.setWorkspace({           │
+│      type: 'team',                    │
+│      id: 'team-123',                  │
+│      name: 'Engineering',             │
+│      slug: 'engineering'              │
+│    })                                │
+└───────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────┐
+│ 2. Update URL                         │
+│    goto(`/team/engineering/chat`)     │
+└───────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────┐
+│ 3. Route loader runs                  │
+│    - Validates team membership        │
+│    - Loads team data                  │
+│    - Returns workspace context        │
+└───────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────┐
+│ 4. Components re-render               │
+│    - NavigationRail shows Members     │
+│    - SecondarySidebar shows team chats│
+│    - Header shows team name           │
+└───────────────────────────────────────┘
+```
+
+### Client-Side Data Caching
+
+```typescript
+// stores/cache.svelte.ts
+import { writable } from 'svelte/store';
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  expiry: number;
+}
+
+function createCacheStore() {
+  const cache = new Map<string, CacheEntry<any>>();
+
+  return {
+    get: <T>(key: string): T | null => {
+      const entry = cache.get(key);
+      if (!entry) return null;
+
+      if (Date.now() > entry.timestamp + entry.expiry) {
+        cache.delete(key);
+        return null;
+      }
+
+      return entry.data;
+    },
+
+    set: <T>(key: string, data: T, ttlMs = 60000) => {
+      cache.set(key, {
+        data,
+        timestamp: Date.now(),
+        expiry: ttlMs,
+      });
+    },
+
+    invalidate: (pattern: string) => {
+      for (const key of cache.keys()) {
+        if (key.includes(pattern)) {
+          cache.delete(key);
+        }
+      }
+    },
+  };
+}
+
+export const cache = createCacheStore();
+```
+
+---
+
+## User Flows
+
+### 1. Workspace Switching Flow
+
+```
+┌─────────────────────┐
+│  Personal Workspace │
+│  /app/chat          │
+└──────────┬──────────┘
+           │
+           ├─→ Click User Menu (👤)
+           │     │
+           │     └─→ Click "Engineering Team"
+           │           │
+           │           ├─→ Update workspace store
+           │           ├─→ Navigate to /team/engineering/chat
+           │           └─→ Route loader validates membership
+           │                 │
+           │                 ├─→ Valid member → Show team chat
+           │                 └─→ Not member → Redirect to /app/chat
+           │
+           └─→ Click "Create New Team"
+                 │
+                 └─→ Navigate to /team/create
+```
+
+### 2. Team Creation Flow
+
+```
+┌──────────────────┐
+│  User Menu       │
+│  (Click 👤)       │
+└────────┬─────────┘
+         │
+         └─→ Click "Create New Team"
+               │
+               ▼
+      ┌─────────────────┐
+      │  Create Team    │
+      │  Form           │
+      └────────┬────────┘
+               │
+               ├─→ Enter team name
+               ├─→ Enter slug (auto-generated)
+               ├─→ (Optional) Upload team avatar
+               ├─→ (Optional) Add team description
+               └─→ Click "Create Team"
+                     │
+                     ├─→ Team created in database
+                     ├─→ User added as owner
+                     └─→ Redirect to /team/[slug]/chat
+```
+
+### 3. Prompt Submission to Marketplace Flow
+
+```
+┌──────────────────┐
+│  My Prompts      │
+│  /app/prompts    │
+└────────┬─────────┘
+         │
+         └─→ Create/edit prompt
+               │
+               ▼
+      ┌─────────────────┐
+      │  Prompt Editor  │
+      └────────┬────────┘
+               │
+               ├─→ Enter prompt details
+               ├─→ ✅ "Publish to Marketplace" toggle
+               └─→ Click "Save"
+                     │
+                     ├─→ Prompt saved to user's prompts
+                     ├─→ Submission added to review queue
+                     └─→ Notification: "Submitted for review"
+                           │
+                           ▼
+                  ┌──────────────────┐
+                  │  Admin Review    │
+                  │  (Dashboard)     │
+                  └────────┬─────────┘
+                           │
+                           ├─→ Review prompt
+                           ├─→ Approve → Appears in marketplace
+                           └─→ Reject → User notified with feedback
 ```
 
 ---
 
 ## Implementation Priority
 
-### Phase 1 (Week 1-4): Foundation
+### Phase 1 (Week 1-4): Foundation & Layout
 
 1. ✅ Setup shadcn-svelte in packages/ui
 2. ✅ Create base components (Button, Input, Card)
-3. ⬜ AppLayout with Sidebar
-4. ⬜ AuthLayout (Login/Register pages)
-5. ⬜ Theme provider (dark mode)
+3. ⬜ Update Header component (logo only)
+4. ⬜ Create/Update NavigationRail with new structure
+5. ⬜ Create UserMenu component
+6. ⬜ Create WorkspaceSwitcher component
+7. ⬜ Update SecondarySidebar (collapsible)
 
-### Phase 2 (Week 5-8): Chat Interface
+### Phase 2 (Week 5-8): Personal Workspace
 
-1. ⬜ ChatInterface component
-2. ⬜ Message component with Markdown
-3. ⬜ ChatInput with streaming
-4. ⬜ ModelSelector
-5. ⬜ ChatList in sidebar
+1. ⬜ Personal workspace layout (`/app/*`)
+2. ⬜ ChatInterface with streaming
+3. ⬜ ChatList in secondary sidebar
+4. ⬜ Message component with Markdown
+5. ⬜ ModelSelector
+6. ⬜ Settings pages
 
-### Phase 3 (Week 9-12): Additional Features
+### Phase 3 (Week 9-12): Team Workspace
 
-1. ⬜ PromptLibrary component
-2. ⬜ APIKeyManager component
-3. ⬜ Settings pages
-4. ⬜ Export chat functionality
-5. ⬜ Search chats
+1. ⬜ Team workspace layout (`/team/[slug]/*`)
+2. ⬜ Team creation flow
+3. ⬜ Team members management
+4. ⬜ Team-specific navigation (Members icon)
+5. ⬜ Team settings page
+6. ⬜ Workspace switching
+
+### Phase 4 (Week 13-16): Prompts & Marketplace
+
+1. ⬜ PromptLibrary with My Prompts
+2. ⬜ Team Prompts section
+3. ⬜ Marketplace UI (curated)
+4. ⬜ Prompt submission flow
+5. ⬜ Admin review dashboard
+6. ⬜ Prompt categories & search
+
+### Phase 5 (Week 17-20): Responsive Polish
+
+1. ⬜ Mobile bottom navigation
+2. ⬜ Tablet sidebar collapse
+3. ⬜ Touch gestures (swipe to open)
+4. ⬜ Responsive state management
+5. ⬜ Mobile-optimized components
 
 ---
 
 ## Related Documents
 
-- [Open Source PRD](./PRD-OpenSource.md) - Product requirements
-- [ROADMAP](./ROADMAP.md) - Development timeline
-- [packages/ui/README.md](../packages/ui/README.md) - UI component library
+- **[teams-concept.md](../docs/teams-concept.md)** - Team model and access control
+- **[routes.md](../docs/routes.md)** - Complete URL structure and routing
+- **[database.md](../docs/database.md)** - Database tables and relationships
+- **[ROADMAP.md](./ROADMAP.md)** - Development timeline
+- **[STATUS.md](./STATUS.md)** - Current development status
+- **[packages/ui/agents.md](../packages/ui/agents.md)** - UI package guidelines
 
 ---
 
