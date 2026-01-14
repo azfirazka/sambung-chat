@@ -1166,6 +1166,387 @@ export const cache = createCacheStore();
 
 ---
 
+## shadcn-svelte Implementation
+
+This section provides specific implementation details using shadcn-svelte components.
+
+### Component Mapping
+
+| Our Component         | shadcn-svelte Implementation      | Notes                       |
+| --------------------- | --------------------------------- | --------------------------- |
+| **NavigationRail**    | Custom component (64px fixed)     | Button + Tooltip components |
+| **SecondarySidebar**  | `Sidebar.Root collapsible="icon"` | Built-in collapse to icons  |
+| **UserMenu**          | `Popover` + `DropdownMenu`        | In Nav Rail bottom          |
+| **WorkspaceSwitcher** | `Select` / `DropdownMenu`         | Custom component            |
+| **AppLayout**         | Wrapper with both sidebars        | Custom layout component     |
+
+### Installation
+
+```bash
+cd packages/ui
+bunx shadcn-svelte@latest add sidebar
+bunx shadcn-svelte@latest add popover
+bunx shadcn-svelte@latest add dropdown-menu
+bunx shadcn-svelte@latest add tooltip
+bunx shadcn-svelte@latest add avatar
+bunx shadcn-svelte@latest add separator
+bunx shadcn-svelte@latest add scroll-area
+```
+
+### Theme Variables (CSS)
+
+Add to `apps/web/src/routes/app.css`:
+
+```css
+:root {
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Custom widths */
+  --sidebar-width: 17.5rem; /* 280px */
+  --sidebar-width-icon: 3rem; /* 48px collapsed */
+  --nav-rail-width: 4rem; /* 64px */
+}
+
+.dark {
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+```
+
+### Secondary Sidebar Implementation
+
+**Using `Sidebar.Root` with `collapsible="icon"`:**
+
+```svelte
+<script lang="ts">
+  import * as Sidebar from '$lib/components/ui/sidebar';
+  import { useSidebar } from '$lib/components/ui/sidebar';
+  import { page } from '$stores';
+
+  const sidebar = useSidebar();
+
+  // Context-aware content
+  const currentPage = $derived(
+    $page.url.pathname.includes('/chat')
+      ? 'chat'
+      : $page.url.pathname.includes('/prompts')
+        ? 'prompts'
+        : $page.url.pathname.includes('/settings')
+          ? 'settings'
+          : 'chat'
+  );
+</script>
+
+<Sidebar.Provider style="--sidebar-width: 17.5rem; --sidebar-width-mobile: 18rem;">
+  <Sidebar.Root collapsible="icon" side="right">
+    <Sidebar.Content>
+      {#if currentPage === 'chat'}
+        <ChatList />
+      {:else if currentPage === 'prompts'}
+        <PromptsCategories />
+      {:else if currentPage === 'settings'}
+        <!-- Hidden for settings -->
+      {/if}
+    </Sidebar.Content>
+    <Sidebar.Rail />
+  </Sidebar.Root>
+</Sidebar.Provider>
+```
+
+### Navigation Rail Implementation
+
+**Custom 64px fixed component:**
+
+```svelte
+<script lang="ts">
+  import { Button } from '$lib/components/ui/button';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { MessageSquare, Sparkles, Settings, Users, Book, HelpCircle, User } from '@lucide/svelte';
+  import UserMenu from './UserMenu.svelte';
+
+  interface Props {
+    currentPath: string;
+    workspaceType: 'personal' | 'team';
+    onNavigate: (path: string) => void;
+  }
+
+  let { currentPath, workspaceType, onNavigate }: Props = $props();
+
+  const navItems = $derived(
+    workspaceType === 'team'
+      ? [
+          { id: 'chat', label: 'Chat', icon: MessageSquare, path: '/chat' },
+          { id: 'prompts', label: 'Prompts', icon: Sparkles, path: '/prompts' },
+          { id: 'members', label: 'Members', icon: Users, path: '/members' },
+          { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+        ]
+      : [
+          { id: 'chat', label: 'Chat', icon: MessageSquare, path: '/chat' },
+          { id: 'prompts', label: 'Prompts', icon: Sparkles, path: '/prompts' },
+          { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+        ]
+  );
+</script>
+
+<nav class="w-16 bg-card border-r border-r border-border flex flex-col h-screen">
+  <!-- Navigation Items -->
+  <div class="flex-1 flex flex-col items-center py-4 gap-1">
+    {#each navItems as item (item.id)}
+      <Tooltip.Root delayDuration={200}>
+        <Tooltip.Trigger>
+          <Button
+            variant={currentPath === item.path ? 'secondary' : 'ghost'}
+            size="icon"
+            class="w-12 h-12 rounded-lg"
+            onclick={() => onNavigate(item.path)}
+          >
+            {@const Icon = item.icon}
+            <Icon class="w-5 h-5" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content side="right">
+          {item.label}
+        </Tooltip.Content>
+      </Tooltip.Root>
+    {/each}
+  </div>
+
+  <!-- Separator -->
+  <div class="w-8 h-px bg-border my-2" />
+
+  <!-- Utility Icons (bottom to top) -->
+  <div class="flex flex-col items-center gap-1 mb-2">
+    <UserMenu />
+
+    <Tooltip.Root delayDuration={200}>
+      <Tooltip.Trigger>
+        <Button variant="ghost" size="icon" class="w-12 h-12 rounded-lg">
+          <HelpCircle class="w-5 h-5" />
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right">Help</Tooltip.Content>
+    </Tooltip.Root>
+
+    <Tooltip.Root delayDuration={200}>
+      <Tooltip.Trigger>
+        <Button variant="ghost" size="icon" class="w-12 h-12 rounded-lg">
+          <Book class="w-5 h-5" />
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right">Documentation</Tooltip.Content>
+    </Tooltip.Root>
+  </div>
+</nav>
+```
+
+### User Menu with Workspace Switcher
+
+**Using `Popover` + `DropdownMenu`:**
+
+```svelte
+<script lang="ts">
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Popover from '$lib/components/ui/popover';
+  import { Button } from '$lib/components/ui/button';
+  import { Avatar } from '$lib/components/ui/avatar';
+  import * as Sidebar from '$lib/components/ui/sidebar';
+  import { workspace } from '$lib/stores/workspace';
+  import { User } from 'lucide-svelte';
+
+  interface Props {
+    user: { id: string; name: string; email: string; avatar?: string };
+    teams: Array<{ id: string; name: string; slug: string }>;
+  }
+
+  let { user, teams }: Props = $props();
+</script>
+
+<DropdownMenu.Root>
+  <DropdownMenu.Trigger>
+    <Button variant="ghost" size="icon" class="w-12 h-12 rounded-lg">
+      {#if user.avatar}
+        <Avatar class="w-8 h-8">
+          <Avatar.Image src={user.avatar} alt={user.name} />
+          <Avatar.Fallback>
+            {user.name.charAt(0).toUpperCase()}
+          </Avatar.Fallback>
+        </Avatar>
+      {:else}
+        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <span class="text-xs font-medium text-primary">
+            {user.name.charAt(0).toUpperCase()}
+          </span>
+        </div>
+      {/if}
+    </Button>
+  </DropdownMenu.Trigger>
+
+  <DropdownMenu.Content side="top" class="w-56">
+    <!-- User Info -->
+    <div class="px-2 py-1.5">
+      <p class="text-sm font-medium">{$workspace.name}</p>
+      <p class="text-xs text-muted-foreground">{user.email}</p>
+    </div>
+
+    <DropdownMenu.Separator />
+
+    <!-- Workspace Switcher -->
+    <DropdownMenu.Sub>
+      <DropdownMenu.SubTrigger>
+        <span>Switch Workspace</span>
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.SubContent>
+        <DropdownMenu.Item onclick={() => workspace.switchToPersonal()}>
+          <span>Personal</span>
+        </DropdownMenu.Item>
+        {#each teams as team (team.id)}
+          <DropdownMenu.Item onclick={() => workspace.switchToTeam(team)}>
+            <span>{team.name}</span>
+          </DropdownMenu.Item>
+        {/each}
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item>
+          <span>Create New Team</span>
+        </DropdownMenu.Item>
+      </DropdownMenu.SubContent>
+    </DropdownMenu.Sub>
+
+    <DropdownMenu.Separator />
+
+    <DropdownMenu.Item>
+      <span>Account Settings</span>
+    </DropdownMenu.Item>
+    <DropdownMenu.Item>
+      <span>Logout</span>
+    </DropdownMenu.Item>
+  </DropdownMenu.Content>
+</DropdownMenu.Root>
+```
+
+### AppLayout Integration
+
+**Combining Header, Nav Rail, and Secondary Sidebar:**
+
+```svelte
+<script lang="ts">
+  import Header from '$lib/components/layout/Header.svelte';
+  import NavigationRail from '$lib/components/layout/NavigationRail.svelte';
+  import * as SecondarySidebar from '$lib/components/layout/SecondarySidebar.svelte';
+  import { page } from '$stores';
+  import { goto } from '$app/navigation';
+
+  function handleNavigate(path: string) {
+    const workspaceBase = $page.url.pathname.startsWith('/team/')
+      ? '/team/' + $page.params.slug
+      : '/app';
+    goto(workspaceBase + path);
+  }
+</script>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Header (fixed top) -->
+  <Header class="fixed top-0 left-0 right-0 h-15 z-50" />
+
+  <!-- Navigation Rail (fixed left) -->
+  <div class="fixed left-0 top-15 bottom-0 w-16 z-40">
+    <NavigationRail
+      currentPath={$page.url.pathname}
+      workspaceType={$page.params.slug ? 'team' : 'personal'}
+      onNavigate={handleNavigate}
+    />
+  </div>
+
+  <!-- Secondary Sidebar (collapsible) -->
+  <div class="fixed left-16 top-15 bottom-0 z-30">
+    <SecondarySidebar.Sidebar collapsible="icon" style="--sidebar-width: 17.5rem;">
+      <SecondarySidebar.Content />
+    </SecondarySidebar.Sidebar>
+  </div>
+
+  <!-- Main Content -->
+  <main class="ml-[calc(4rem+17.5rem)] mt-15 flex-1 overflow-auto">
+    {@render children?.()}
+  </main>
+</div>
+```
+
+### Keyboard Shortcuts
+
+Built-in shortcuts from shadcn-svelte sidebar:
+
+- `Cmd/Ctrl + B` - Toggle secondary sidebar
+
+Custom shortcuts to implement:
+
+- `Cmd/Ctrl + K` - Quick search / command palette
+- `Cmd/Ctrl + N` - New chat
+- `Cmd/Ctrl + Shift + N` - New prompt
+
+### Responsive Behavior
+
+**Tablet (768px - 1023px):**
+
+```typescript
+import { useSidebar } from '$lib/components/ui/sidebar';
+
+const sidebar = useSidebar();
+
+// Auto-collapse on tablet
+$effect(() => {
+  if (window.innerWidth < 1024 && window.innerWidth >= 768) {
+    sidebar.setOpen(false);
+  }
+});
+```
+
+**Mobile (< 768px):**
+
+```svelte
+{#if sidebar.isMobile}
+  <BottomNavigation />
+{:else}
+  <NavigationRail />
+{/if}
+```
+
+### File Structure
+
+```
+packages/ui/src/lib/components/layout/
+├── Header.svelte                    # Logo only (60px)
+├── NavigationRail.svelte            # 64px nav rail
+├── UserMenu.svelte                  # User menu + workspace switcher
+├── user-menu/
+│   ├── WorkspaceSwitcher.svelte     # Workspace dropdown
+│   └── UserMenuItem.svelte          # Menu item component
+└── secondary-sidebar/
+    ├── SecondarySidebar.svelte      # Main wrapper
+    ├── ChatList.svelte              # Chat page content
+    ├── PromptsCategories.svelte     # Prompts page content
+    └── MembersList.svelte           # Team members content
+
+apps/web/src/lib/stores/
+└── workspace.svelte.ts              # Workspace state management
+
+apps/web/src/routes/(app)/
+└── +layout.svelte                   # App layout wrapper
+```
+
+---
+
 ## Related Documents
 
 - **[teams-concept.md](../docs/teams-concept.md)** - Team model and access control

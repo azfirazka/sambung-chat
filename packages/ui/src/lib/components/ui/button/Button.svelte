@@ -1,23 +1,28 @@
 <script lang="ts" module>
-  import { tv, type VariantProps } from 'tailwind-variants';
+  import { cn, type WithElementRef } from '$lib/utils.js';
+  import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
+  import { type VariantProps, tv } from 'tailwind-variants';
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _buttonVariants = tv({
-    base: 'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  export const buttonVariants = tv({
+    base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs',
+        destructive:
+          'bg-destructive hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white shadow-xs',
+        outline:
+          'bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border shadow-xs',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-xs',
+        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-        icon: 'h-10 w-10',
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
+        icon: 'size-9',
+        'icon-sm': 'size-8',
+        'icon-lg': 'size-10',
       },
     },
     defaultVariants: {
@@ -26,77 +31,52 @@
     },
   });
 
-  export type Variant = VariantProps<typeof _buttonVariants>['variant'];
-  export type Size = VariantProps<typeof _buttonVariants>['size'];
+  export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
+  export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
+
+  export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+    WithElementRef<HTMLAnchorAttributes> & {
+      variant?: ButtonVariant;
+      size?: ButtonSize;
+    };
 </script>
 
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { cn } from '$lib/utils';
-
-  type Variant = import('./Button.svelte').Variant;
-  type Size = import('./Button.svelte').Size;
-
-  type $$Props = {
-    class?: string;
-    variant?: Variant;
-    size?: Size;
-    type?: 'button' | 'submit' | 'reset';
-    href?: string;
-    disabled?: boolean;
-    onclick?: (e: MouseEvent) => void;
-    children: Snippet;
-  };
-
-  export let className: $$Props['class'] = undefined;
-  export let variant: $$Props['variant'] = undefined;
-  export let size: $$Props['size'] = undefined;
-  export let type: $$Props['type'] = 'button';
-  export let href: $$Props['href'] = undefined;
-  export let disabled: $$Props['disabled'] = undefined;
-  export let onclick: $$Props['onclick'] = undefined;
-  export let children: $$Props['children'];
-
-  const variantMap: Record<NonNullable<Variant>, string> = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
-    link: 'text-primary underline-offset-4 hover:underline',
-  };
-
-  const sizeMap: Record<NonNullable<Size>, string> = {
-    default: 'h-10 px-4 py-2',
-    sm: 'h-9 rounded-md px-3',
-    lg: 'h-11 rounded-md px-8',
-    icon: 'h-10 w-10',
-  };
-
-  const baseClasses =
-    'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
-
-  const getVariantClasses = (
-    variant: Variant | undefined,
-    size: Size | undefined,
-    className: string | undefined
-  ) => {
-    const variantClass = variant ? variantMap[variant] : variantMap.default;
-    const sizeClass = size ? sizeMap[size] : sizeMap.default;
-    return cn(baseClasses, variantClass, sizeClass, className);
-  };
-
-  $: classes = getVariantClasses(variant, size, className);
+  let {
+    class: className,
+    variant = 'default',
+    size = 'default',
+    ref = $bindable(null),
+    href = undefined,
+    type = 'button',
+    disabled,
+    children,
+    ...restProps
+  }: ButtonProps = $props();
 </script>
 
-<svelte:element
-  this={href ? 'a' : 'button'}
-  class={classes}
-  {href}
-  {type}
-  {disabled}
-  {onclick}
-  {...$$restProps}
->
-  {@render children()}
-</svelte:element>
+{#if href}
+  <a
+    bind:this={ref}
+    data-slot="button"
+    class={cn(buttonVariants({ variant, size }), className)}
+    href={disabled ? undefined : href}
+    aria-disabled={disabled}
+    role={disabled ? 'link' : undefined}
+    tabindex={disabled ? -1 : undefined}
+    {...restProps}
+  >
+    {@render children?.()}
+  </a>
+{:else}
+  <button
+    bind:this={ref}
+    data-slot="button"
+    class={cn(buttonVariants({ variant, size }), className)}
+    {type}
+    {disabled}
+    {...restProps}
+  >
+    {@render children?.()}
+  </button>
+{/if}

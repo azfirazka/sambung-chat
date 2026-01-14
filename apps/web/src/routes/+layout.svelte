@@ -5,7 +5,7 @@
   import '../app.css';
   import '@sambung-chat/ui/styles.css';
   import { queryClient } from '../lib/orpc';
-  import { LayoutHeader } from '@sambung-chat/ui';
+  import { Header } from '@sambung-chat/ui';
   import { authClient } from '../lib/auth-client';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -43,16 +43,7 @@
 
 <QueryClientProvider client={queryClient}>
   <div class="grid h-svh grid-rows-[auto_1fr]">
-    <LayoutHeader
-      user={$sessionQuery.data?.user}
-      isLoadingUser={$sessionQuery.isPending}
-      onNavigate={(path) => goto(path)}
-      onSignIn={() => goto('/login')}
-      onSignOut={async () => {
-        await authClient.signOut();
-        goto('/login');
-      }}
-    />
+    <Header class="h-[60px]" />
     <main class="overflow-y-auto">
       {@render children()}
     </main>
