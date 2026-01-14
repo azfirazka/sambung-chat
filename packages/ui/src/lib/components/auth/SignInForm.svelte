@@ -1,6 +1,10 @@
 <script lang="ts">
   import { createForm } from '@tanstack/svelte-form';
   import { z } from 'zod';
+  import { Button } from '../ui/button';
+  import { Input } from '../ui/input';
+  import { Label } from '../ui/label';
+  import { Loader2, KeyRound } from '@lucide/svelte';
 
   interface SignInCredentials {
     email: string;
@@ -9,10 +13,21 @@
 
   interface Props {
     onSubmit?: (credentials: SignInCredentials) => Promise<void> | void;
+    onSSO?: () => Promise<void> | void;
     switchToSignUp?: () => void;
+    isLoading?: boolean;
+    showSSO?: boolean;
+    showEmailPassword?: boolean;
   }
 
-  let { onSubmit, switchToSignUp }: Props = $props();
+  let {
+    onSubmit,
+    onSSO,
+    switchToSignUp,
+    isLoading = false,
+    showSSO = false,
+    showEmailPassword = true,
+  }: Props = $props();
 
   const validationSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -30,91 +45,128 @@
   }));
 </script>
 
-<div class="mx-auto mt-10 w-full max-w-md p-6">
-  <h1 class="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
-
-  <form
-    class="space-y-4"
-    onsubmit={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      form.handleSubmit();
-    }}
-  >
-    <form.Field name="email">
-      {#snippet children(field)}
-        <div class="space-y-1">
-          <label for={field.name}>Email</label>
-          <input
-            id={field.name}
-            name={field.name}
-            type="email"
-            class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
-            onblur={field.handleBlur}
-            value={field.state.value}
-            oninput={(e: Event) => {
-              const target = e.target as HTMLInputElement;
-              field.handleChange(target.value);
-            }}
-          />
-          {#if field.state.meta.isTouched}
-            {#each field.state.meta.errors as error}
-              <p class="text-sm text-red-500" role="alert">{error}</p>
-            {/each}
-          {/if}
-        </div>
-      {/snippet}
-    </form.Field>
-
-    <form.Field name="password">
-      {#snippet children(field)}
-        <div class="space-y-1">
-          <label for={field.name}>Password</label>
-          <input
-            id={field.name}
-            name={field.name}
-            type="password"
-            class="w-full rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-neutral-100 placeholder-neutral-500 focus:border-[hsl(var(--color-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--color-primary))] disabled:opacity-50"
-            onblur={field.handleBlur}
-            value={field.state.value}
-            oninput={(e: Event) => {
-              const target = e.target as HTMLInputElement;
-              field.handleChange(target.value);
-            }}
-          />
-          {#if field.state.meta.isTouched}
-            {#each field.state.meta.errors as error}
-              <p class="text-sm text-red-500" role="alert">{error}</p>
-            {/each}
-          {/if}
-        </div>
-      {/snippet}
-    </form.Field>
-
-    <form.Subscribe
-      selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+<div class="space-y-6">
+  {#if showSSO}
+    <Button
+      type="button"
+      variant="outline"
+      class="w-full"
+      onclick={() => onSSO?.()}
+      disabled={isLoading}
     >
-      {#snippet children(state)}
-        <button
-          type="submit"
-          class="w-full rounded bg-[hsl(var(--color-primary))] px-4 py-2 font-semibold text-white hover:bg-[hsl(var(--color-primary-hover))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--color-primary))] focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!state.canSubmit || state.isSubmitting}
-        >
-          {state.isSubmitting ? 'Submitting...' : 'Sign In'}
-        </button>
-      {/snippet}
-    </form.Subscribe>
-  </form>
+      {#if isLoading}
+        <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+        Connecting to SSO...
+      {:else}
+        <KeyRound class="w-4 h-4 mr-2" />
+        Sign in with SSO
+      {/if}
+    </Button>
 
-  {#if switchToSignUp}
-    <div class="mt-4 text-center">
-      <button
-        type="button"
-        class="text-[hsl(var(--color-accent))] hover:text-[hsl(var(--color-accent-hover))]"
-        onclick={switchToSignUp}
+    <div class="relative">
+      <div class="absolute inset-0 flex items-center">
+        <span class="w-full border-t"></span>
+      </div>
+      <div class="relative flex justify-center text-xs uppercase">
+        <span class="bg-background px-2 text-muted-foreground"> Or continue with email </span>
+      </div>
+    </div>
+  {/if}
+
+  {#if showEmailPassword}
+    <form
+      class="space-y-4"
+      onsubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        form.handleSubmit();
+      }}
+    >
+      <form.Field name="email">
+        {#snippet children(field)}
+          <div class="space-y-2">
+            <Label for={field.name}>Email</Label>
+            <Input
+              id={field.name}
+              name={field.name}
+              type="email"
+              placeholder="name@example.com"
+              required
+              disabled={isLoading}
+              onblur={field.handleBlur}
+              value={field.state.value}
+              oninput={(e: Event) => {
+                const target = e.target as HTMLInputElement;
+                field.handleChange(target.value);
+              }}
+            />
+            {#if field.state.meta.isTouched && field.state.meta.errors.length > 0}
+              <p class="text-sm text-destructive" role="alert">
+                {field.state.meta.errors[0]}
+              </p>
+            {/if}
+          </div>
+        {/snippet}
+      </form.Field>
+
+      <form.Field name="password">
+        {#snippet children(field)}
+          <div class="space-y-2">
+            <Label for={field.name}>Password</Label>
+            <Input
+              id={field.name}
+              name={field.name}
+              type="password"
+              placeholder="Enter your password"
+              required
+              disabled={isLoading}
+              onblur={field.handleBlur}
+              value={field.state.value}
+              oninput={(e: Event) => {
+                const target = e.target as HTMLInputElement;
+                field.handleChange(target.value);
+              }}
+            />
+            {#if field.state.meta.isTouched && field.state.meta.errors.length > 0}
+              <p class="text-sm text-destructive" role="alert">
+                {field.state.meta.errors[0]}
+              </p>
+            {/if}
+          </div>
+        {/snippet}
+      </form.Field>
+
+      <form.Subscribe
+        selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
       >
-        Need an account? Sign Up
-      </button>
+        {#snippet children(state)}
+          <Button
+            type="submit"
+            class="w-full"
+            disabled={!state.canSubmit || isLoading || state.isSubmitting}
+          >
+            {#if isLoading || state.isSubmitting}
+              <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+              Signing in...
+            {:else}
+              Sign In
+            {/if}
+          </Button>
+        {/snippet}
+      </form.Subscribe>
+    </form>
+
+    <div class="text-center text-sm">
+      <span class="text-muted-foreground">Don't have an account? </span>
+      {#if switchToSignUp}
+        <button
+          type="button"
+          class="text-primary font-medium hover:underline text-primary/90 hover:text-primary"
+          onclick={switchToSignUp}
+        >
+          Sign up
+        </button>
+      {/if}
     </div>
   {/if}
 </div>
