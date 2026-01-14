@@ -76,7 +76,12 @@ This roadmap outlines the development milestones for Sambung Chat, an open-sourc
 
 - [x] Theme provider (ThemeProvider.svelte exists)
 - [ ] Settings page UI
-- [ ] Language selection (English, Indonesian)
+- [ ] **Internationalization (i18n) setup**:
+  - [ ] Install and configure `svelte-i18n`
+  - [ ] Create locale files (en, id)
+  - [ ] Extract UI strings to translation files
+  - [ ] Add language selector to settings
+  - [ ] Store language preference in database
 - [ ] Sidebar width adjustment
 - [ ] Font size adjustment
 - [ ] Privacy mode toggle
