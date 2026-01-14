@@ -264,17 +264,21 @@ function validateAIProviders(env: typeof envSchema): void {
 }
 
 // Validate and export the environment
-// Skip validation for client-side/web (when running in browser context)
-if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+// Only run AI provider validation in server context (not browser, not web package imports)
+const isBrowser = typeof process === 'undefined';
+const isServer = !isBrowser;
+
+if (isServer) {
+  // Server context - validate AI providers
   try {
     validateAIProviders(envSchema);
   } catch (error) {
-    // Only throw in server context, allow web to continue
-    if (typeof process !== 'undefined' && process.env.PORT?.toString() === '3000') {
+    // Only throw in production, allow test/dev to continue with warning
+    if (process.env.NODE_ENV === 'production') {
       throw error;
     }
-    // For web, just log warning
-    console.warn('AI provider validation skipped for web context');
+    // For test/dev, just log warning
+    console.warn('AI provider validation warning:', error);
   }
 }
 

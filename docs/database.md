@@ -589,7 +589,7 @@ export const tagNameIdx = index('tag_name_idx').on(tags.name);
 **File:** `packages/db/src/schema/chat-tag.ts`
 
 ```typescript
-import { pgTable, uuid, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
 import { chats } from './chat';
 import { tags } from './tag';
 

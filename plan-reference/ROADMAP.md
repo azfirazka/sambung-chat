@@ -76,17 +76,18 @@ This roadmap outlines the development milestones for Sambung Chat, an open-sourc
 
 - [x] Theme provider (ThemeProvider.svelte exists)
 - [ ] Settings page UI
+- [ ] Sidebar width adjustment
+- [ ] Font size adjustment
+- [ ] Privacy mode toggle
+
+### Week 11: Internationalization & Testing
+
 - [ ] **Internationalization (i18n) setup**:
   - [ ] Install and configure `svelte-i18n`
   - [ ] Create locale files (en, id)
   - [ ] Extract UI strings to translation files
   - [ ] Add language selector to settings
   - [ ] Store language preference in database
-- [ ] Sidebar width adjustment
-- [ ] Font size adjustment
-- [ ] Privacy mode toggle
-
-### Week 11: Testing & Polish
 
 - [x] Unit test framework configured (Vitest)
 - [x] E2E test framework configured (Playwright)
