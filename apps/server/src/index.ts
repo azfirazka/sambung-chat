@@ -42,7 +42,6 @@ app.use(
 // auth.handler() returns a Response directly
 // ============================================================================
 app.all('/api/auth/*', (c) => {
-  console.log('[AUTH] Handler called:', c.req.method, c.req.url);
   try {
     return auth.handler(c.req.raw);
   } catch (error) {
@@ -121,27 +120,21 @@ const openai = createOpenAICompatible({
 
 app.post('/ai', async (c) => {
   try {
-    console.log('[AI] Request received');
     const body = await c.req.json();
-    console.log('[AI] Messages count:', body.messages?.length || 0);
-
     const uiMessages = body.messages || [];
     const model = wrapLanguageModel({
       model: openai(env.OPENAI_MODEL ?? 'gpt-4o-mini'),
       middleware: devToolsMiddleware(),
     });
 
-    console.log('[AI] Calling streamText...');
     const result = streamText({
       model,
       messages: await convertToModelMessages(uiMessages),
     });
 
-    console.log('[AI] Creating stream response...');
     // Use Hono's streaming API with AI SDK
     const response = result.toUIMessageStreamResponse();
 
-    console.log('[AI] Sending response...');
     // Convert AI SDK response to Hono-compatible response
     return new Response(response.body, {
       headers: {
@@ -165,13 +158,11 @@ app.post('/ai', async (c) => {
 // HEALTH CHECK
 // ============================================================================
 app.get('/', (c) => {
-  console.log('[ROOT] Root endpoint called');
   return c.text('OK');
 });
 
 // Debug endpoint to test handler
 app.get('/debug', (c) => {
-  console.log('[DEBUG] Debug endpoint called');
   return c.json({ message: 'Debug works', time: new Date().toISOString() });
 });
 
@@ -181,8 +172,6 @@ app.get('/debug', (c) => {
 // Bun runtime uses export default with port and fetch properties
 // ============================================================================
 const port = env.PORT || 3000;
-
-console.log(`[SERVER] Configured for port ${port}`);
 
 export default {
   port,

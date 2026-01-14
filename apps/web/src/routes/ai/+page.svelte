@@ -60,17 +60,6 @@
     }
   });
 
-  // Debug: Watch for message changes
-  $effect(() => {
-    const msgCount = chat.messages.length;
-    console.log('[messages changed] Count:', msgCount);
-    chat.messages.forEach((msg, idx) => {
-      // Use $state.snapshot to get actual values, not proxies
-      const partsSnapshot = $state.snapshot(msg.parts);
-      console.log(`[message ${idx}] role: ${msg.role}, id: ${msg.id}, parts:`, partsSnapshot);
-    });
-  });
-
   async function handleSubmit(e: Event) {
     e.preventDefault();
     const text = input.trim();
@@ -86,6 +75,11 @@
     const messageToSend = text;
     input = '';
 
+    // Reset textarea height to 1 line
+    if (inputField) {
+      inputField.style.height = 'auto';
+    }
+
     // Set streaming state
     isStreamingResponse = true;
     isSubmitting = true;
@@ -95,15 +89,11 @@
 
     // Track initial message count
     const initialMessageCount = chat.messages.length;
-    console.log('[handleSubmit] Starting send. Initial message count:', initialMessageCount);
 
     try {
       await chat.sendMessage({ text: messageToSend });
 
       // Check if assistant message was created
-      console.log('[handleSubmit] Send complete. New message count:', chat.messages.length);
-      console.log('[handleSubmit] Messages added:', chat.messages.length - initialMessageCount);
-
       if (chat.messages.length === initialMessageCount) {
         throw new Error('No assistant response was received');
       }
@@ -208,24 +198,20 @@
   <div bind:this={messagesContainer} class="mb-4 space-y-4 overflow-y-auto pb-4 scroll-smooth">
     {#if chat.messages.length === 0}
       <div in:fade={{ duration: 500 }} class="mt-8 text-center text-muted-foreground">
-        <div class="mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="mx-auto mb-2 text-primary"
-          >
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-            <line x1="12" x2="12" y1="19" y2="22" />
-          </svg>
-        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="mx-auto mb-4 text-primary opacity-50"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
         <h2 class="text-xl font-semibold mb-2">Start a conversation</h2>
         <p class="text-sm">Ask me anything to get started!</p>
       </div>
@@ -418,7 +404,8 @@
         bind:this={inputField}
         placeholder="Type your message..."
         rows="1"
-        class="w-full rounded-xl border border-input bg-background px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all duration-200 resize-none overflow-hidden"
+        class="w-full rounded-xl border border-input bg-background px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all duration-200 resize-none overflow-y-auto"
+        style="max-height: 200px"
         autocomplete="off"
         disabled={isStreaming() || isRetrying || isSubmitting}
         onkeydown={(e) => {
@@ -429,7 +416,7 @@
         }}
         oninput={(e) => {
           const target = e.target as HTMLTextAreaElement;
-          // Auto-resize textarea based on content
+          // Auto-resize textarea based on content, max ~8 lines (200px)
           target.style.height = 'auto';
           target.style.height = Math.min(target.scrollHeight, 200) + 'px';
         }}
