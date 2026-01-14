@@ -264,11 +264,10 @@ function validateAIProviders(env: typeof envSchema): void {
 }
 
 // Validate and export the environment
-// Only run AI provider validation in server context (not browser, not web package imports)
-const isBrowser = typeof process === 'undefined';
-const isServer = !isBrowser;
+// Only run AI provider validation in Node.js/server context
+const isBrowserContext = typeof process === 'undefined';
 
-if (isServer) {
+if (!isBrowserContext) {
   // Server context - validate AI providers
   try {
     validateAIProviders(envSchema);
