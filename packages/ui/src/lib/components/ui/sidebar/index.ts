@@ -12,7 +12,7 @@ import MenuAction from './sidebar-menu-action.svelte';
 import MenuBadge from './sidebar-menu-badge.svelte';
 import MenuButton from './sidebar-menu-button.svelte';
 import MenuItem from './sidebar-menu-item.svelte';
-import MenuSkeleton from './sidebar-menu-skeleton.svelte';
+import MenuSkeleton from '$lib/components/sidebar/sidebar-menu-skeleton.svelte';
 import MenuSubButton from './sidebar-menu-sub-button.svelte';
 import MenuSubItem from './sidebar-menu-sub-item.svelte';
 import MenuSub from './sidebar-menu-sub.svelte';
@@ -70,6 +70,5 @@ export {
   Rail as SidebarRail,
   Separator as SidebarSeparator,
   Trigger as SidebarTrigger,
-  Trigger,
   useSidebar,
 };

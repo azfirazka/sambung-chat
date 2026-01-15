@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 
 /**
  * Workspace types and interfaces
@@ -99,10 +99,8 @@ export const isTeamWorkspace = derived(workspace, ($workspace) => $workspace.typ
  * @returns Full path including workspace base
  */
 export function buildWorkspacePath(relativePath: string): string {
-  let basePath = '/app';
-  workspace.subscribe((w) => {
-    basePath = w.type === 'team' ? `/team/${w.slug}` : '/app';
-  })();
+  const w = get(workspace);
+  const basePath = w.type === 'team' ? `/team/${w.slug}` : '/app';
 
   return `${basePath}${relativePath}`;
 }
