@@ -3,9 +3,7 @@
   import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
   import { ModeWatcher } from 'mode-watcher';
   import '../../app.css';
-  import '@sambung-chat/ui/styles.css';
   import { queryClient } from '../../lib/orpc';
-  import { AuthLayout } from '@sambung-chat/ui';
 
   const { children } = $props();
 </script>
@@ -14,8 +12,8 @@
 <ModeWatcher defaultMode="dark" />
 
 <QueryClientProvider client={queryClient}>
-  <AuthLayout>
+  <div class="bg-background flex min-h-screen items-center justify-center p-4">
     {@render children()}
-  </AuthLayout>
+  </div>
   <SvelteQueryDevtools />
 </QueryClientProvider>

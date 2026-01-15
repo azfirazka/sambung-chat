@@ -1,207 +1,54 @@
 <script lang="ts">
-  import { SignInForm, SignUpForm } from '@sambung-chat/ui';
-  import { AuthLayout } from '@sambung-chat/ui';
+  import LoginForm from '$lib/components/login-form.svelte';
   import { authClient } from '../../../lib/auth-client';
   import { goto } from '$app/navigation';
-  import { toast } from 'svelte-sonner';
-  import { onMount } from 'svelte';
-  import type { PageData } from './$types';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
 
-  let showSignIn = $state(true);
-  let isLoading = $state(false);
-
-  // Track if component is mounted on client to prevent hydration mismatch
-  // IMPORTANT: Always starts as false to ensure server/client consistency
   let mounted = $state(false);
 
-  // Set mounted to true only after client-side hydration is complete
   onMount(() => {
     mounted = true;
   });
 
-  // Props from server load
-  interface Props {
-    showSSO: boolean;
-  }
-
-  let { data }: { data: PageData } = $props();
-
-  // Track session state to wait for it to be established after login
   const sessionQuery = authClient.useSession();
 
-  // Add logging for debugging
-  $effect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('[LOGIN PAGE] State:', {
-        mounted,
-        showSignIn,
-        isPending: $sessionQuery.isPending,
-        hasUser: !!$sessionQuery.data?.user,
-        url: $page.url.pathname,
-        searchParams: $page.url.search,
-      });
-    }
-  });
-
-  // Redirect to app if already authenticated (client-side only after mount to prevent hydration issues)
   $effect(() => {
     if (mounted && !$sessionQuery.isPending && $sessionQuery.data?.user) {
-      // User is already logged in, redirect to app
       const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
-      console.log('[LOGIN PAGE] User authenticated, redirecting to:', redirectTo);
       goto(redirectTo);
     }
   });
 
   async function handleSignIn(credentials: { email: string; password: string }) {
-    isLoading = true;
-
     try {
       const result = await authClient.signIn.email(credentials);
 
       if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to sign in. Please check your credentials.';
-
-        toast.error(message);
-        isLoading = false;
+        alert('Login failed: ' + (result.error as any)?.message || 'Unknown error');
         return;
       }
 
-      toast.success('Welcome back!');
-
-      // Wait for session to be established before navigating
-      // This prevents the race condition where navigation happens before cookie is set
-      await waitForSession();
+      // Wait for session and redirect
+      await new Promise((resolve) => setTimeout(resolve, 500));
       goto('/app/chat');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-      isLoading = false;
+      alert('An unexpected error occurred');
     }
-  }
-
-  // Wait for session to be established (with timeout)
-  async function waitForSession(): Promise<void> {
-    const maxWaitTime = 5000; // 5 seconds max wait
-    const checkInterval = 100; // Check every 100ms
-    let elapsedTime = 0;
-
-    return new Promise((resolve, reject) => {
-      const interval = setInterval(() => {
-        elapsedTime += checkInterval;
-
-        // Check if session is established
-        if ($sessionQuery.data?.user) {
-          clearInterval(interval);
-          resolve();
-        } else if (elapsedTime >= maxWaitTime) {
-          clearInterval(interval);
-          reject(new Error('Session establishment timeout'));
-        }
-      }, checkInterval);
-    });
   }
 
   async function handleSSO() {
-    isLoading = true;
-
     try {
-      const result = await authClient.signIn.oauth2({
-        providerId: 'keycloak',
-        callbackURL: `${window.location.origin}/app/chat`,
+      await authClient.signIn.social({
+        provider: 'keycloak',
+        callbackURL: '/app/chat',
       });
-
-      if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to sign in with SSO. Please try again.';
-
-        toast.error(message);
-        isLoading = false;
-      }
-      // Note: If successful, the redirect will happen automatically
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-      isLoading = false;
+      alert('SSO failed');
     }
-  }
-
-  async function handleSignUp(credentials: { name: string; email: string; password: string }) {
-    isLoading = true;
-
-    try {
-      const result = await authClient.signUp.email(credentials);
-
-      if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to create account. Please try again.';
-
-        toast.error(message);
-        isLoading = false;
-        return;
-      }
-
-      toast.success('Account created successfully!');
-
-      // Wait for session to be established before navigating
-      await waitForSession();
-      goto('/app/chat');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-      isLoading = false;
-    }
-  }
-
-  function switchToSignUp() {
-    showSignIn = false;
-  }
-
-  function switchToSignIn() {
-    showSignIn = true;
   }
 </script>
 
-{#if showSignIn}
-  <AuthLayout>
-    <div class="w-full max-w-sm space-y-6">
-      <!-- shadcn-svelte pattern: title and description -->
-      <div class="flex flex-col space-y-2 text-center">
-        <h1 class="text-2xl font-semibold tracking-tight">Login</h1>
-        <p class="text-sm text-muted-foreground">Enter your email below to login to your account</p>
-      </div>
-
-      <SignInForm
-        onSubmit={handleSignIn}
-        onSSO={handleSSO}
-        {switchToSignUp}
-        {isLoading}
-        showSSO={data.showSSO}
-        showEmailPassword={data.showEmailPassword}
-      />
-    </div>
-  </AuthLayout>
-{:else}
-  <AuthLayout>
-    <div class="w-full max-w-sm space-y-6">
-      <!-- shadcn-svelte pattern: title and description -->
-      <div class="flex flex-col space-y-2 text-center">
-        <h1 class="text-2xl font-semibold tracking-tight">Create an account</h1>
-        <p class="text-sm text-muted-foreground">Enter your email below to create your account</p>
-      </div>
-
-      <SignUpForm onSubmit={handleSignUp} {switchToSignIn} {isLoading} />
-    </div>
-  </AuthLayout>
-{/if}
+<div class="w-full max-w-sm">
+  <LoginForm onSignIn={handleSignIn} onSSO={handleSSO} />
+</div>
