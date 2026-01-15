@@ -7,15 +7,29 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import type { LayoutData } from './$types';
 
   // Props from SvelteKit
-  let { children } = $props();
+  let { children, data }: { children: any; data: LayoutData } = $props();
 
-  // Session state
+  // Session state from server (for SSR) with client-side sync
+  // Note: useSession() doesn't accept arguments in Better Auth Svelte
+  // We rely on server-side data (data.session) which is already verified
   const sessionQuery = authClient.useSession();
 
-  // Fetch chats using TanStack Query
-  const chatsQuery = createQuery(orpc.chat.getAll.queryOptions());
+  // Derive enabled state reactively
+  const isEnabled = $derived(
+    typeof window !== 'undefined' && (!!data.session?.user || !!$sessionQuery.data?.user)
+  );
+
+  // Fetch chats using TanStack Query - only enabled on client when authenticated
+  // This prevents fetch calls during SSR
+  const chatsQuery = createQuery({
+    ...orpc.chat.getAll.queryOptions(),
+    get enabled() {
+      return isEnabled;
+    },
+  });
 
   // Workspace state (personal mode)
   let currentWorkspace = $state<Workspace>({
@@ -68,20 +82,6 @@
     goto(`/app/chats/${chatId}`);
   }
 
-  // Protected routes that require authentication
-  const protectedRoutes = ['/app/chat', '/app/chats', '/app/settings'];
-
-  // Redirect to login if accessing protected route without session
-  $effect(() => {
-    if ($sessionQuery.isPending) return;
-
-    const isProtectedRoute = protectedRoutes.some((route) => $page.url.pathname.startsWith(route));
-
-    if (isProtectedRoute && !$sessionQuery.data?.user) {
-      goto('/login');
-    }
-  });
-
   // Get current path for navigation highlighting
   $effect(() => {
     currentPath = $page.url.pathname;
@@ -111,9 +111,9 @@
   />
 {/snippet}
 
-{#if $sessionQuery.data?.user}
+{#if data.session?.user || $sessionQuery.data?.user}
   <AppLayout
-    user={$sessionQuery.data.user}
+    user={$sessionQuery.data?.user || data.session?.user}
     {currentWorkspace}
     teams={[]}
     onSwitchWorkspace={(workspace) => {
@@ -137,7 +137,7 @@
     {@render children()}
   </AppLayout>
 {:else}
-  <!-- Loading state -->
+  <!-- Loading state - should be very brief since session comes from server -->
   <div class="flex h-screen items-center justify-center">
     <div class="text-center">
       <div class="animate-spin mb-4 text-4xl">⏳</div>

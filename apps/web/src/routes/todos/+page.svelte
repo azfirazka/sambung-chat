@@ -4,7 +4,11 @@
 
   let newTodoText = $state('');
 
-  const todosQuery = createQuery(orpc.todo.getAll.queryOptions());
+  // Only fetch on client side to avoid SSR warnings
+  const todosQuery = createQuery({
+    ...orpc.todo.getAll.queryOptions(),
+    enabled: typeof window !== 'undefined',
+  });
 
   const addMutation = createMutation(
     orpc.todo.create.mutationOptions({

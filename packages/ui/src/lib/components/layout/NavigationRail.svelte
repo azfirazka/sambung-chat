@@ -2,6 +2,7 @@
   // @ts-nocheck - bits-ui builder prop has unknown type - known library limitation
   import { cn } from '../../utils';
   import * as Tooltip from '../ui/tooltip';
+  import { Tooltip as TooltipPrimitive } from 'bits-ui';
   import { MessageSquare, Sparkles, Settings, Users, Book, HelpCircle } from '@lucide/svelte';
   import UserMenu from './UserMenu.svelte';
   import type { Team, Workspace } from './UserMenu.svelte';
@@ -104,88 +105,89 @@
   }
 </script>
 
-<nav class={cn('w-16 bg-card border-r border-border flex flex-col h-screen py-4 gap-1', className)}>
-  <!-- Navigation Items (Top) -->
-  <div class="flex-1 flex flex-col items-center gap-1 w-full">
-    {#each navItems as item (item.id)}
-      {@const Icon = item.icon}
+<TooltipPrimitive.Provider>
+  <nav
+    class={cn('w-16 bg-card border-r border-border flex flex-col h-screen py-4 gap-1', className)}
+  >
+    <!-- Navigation Items (Top) -->
+    <div class="flex-1 flex flex-col items-center gap-1 w-full">
+      {#each navItems as item (item.id)}
+        {@const Icon = item.icon}
+        <Tooltip.Root delayDuration={200}>
+          <Tooltip.Trigger>
+            <button
+              class={cn(
+                'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                'w-12 h-12 relative',
+                isActive(item.path)
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              )}
+              onclick={() => onNavigate?.(item.path)}
+              aria-label={item.label}
+            >
+              <Icon class="w-5 h-5" />
+            </button>
+          </Tooltip.Trigger>
+          <Tooltip.Content side="right">
+            {item.label}
+          </Tooltip.Content>
+        </Tooltip.Root>
+      {/each}
+    </div>
+
+    <!-- Separator -->
+    <div class="w-8 h-px bg-border my-1"></div>
+
+    <!-- Utility Icons (Bottom) - from bottom to top -->
+    <div class="flex flex-col items-center gap-1">
+      <!-- User Menu (bottom-most) -->
+      {#if user}
+        <UserMenu
+          {user}
+          currentWorkspace={currentWorkspace || {
+            type: 'personal',
+            id: 'personal',
+            name: 'Personal',
+          }}
+          {teams}
+          {onSwitchWorkspace}
+          {onAccountSettings}
+          {onLogout}
+          {onCreateTeam}
+        />
+      {:else}
+        <!-- Fallback when user not loaded -->
+        <div class="w-12 h-12 rounded-full bg-muted animate-pulse"></div>
+      {/if}
+
+      <!-- Help -->
       <Tooltip.Root delayDuration={200}>
-        <Tooltip.Trigger let:builder>
+        <Tooltip.Trigger>
           <button
-            use:builder={(builder as any) ?? undefined}
-            class={cn(
-              'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-              'w-12 h-12 relative',
-              isActive(item.path)
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            )}
-            onclick={() => onNavigate?.(item.path)}
-            aria-label={item.label}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
+            onclick={onOpenHelp}
+            aria-label="Help"
           >
-            <Icon class="w-5 h-5" />
+            <HelpCircle class="w-5 h-5" />
           </button>
         </Tooltip.Trigger>
-        <Tooltip.Content side="right">
-          {item.label}
-        </Tooltip.Content>
+        <Tooltip.Content side="right">Help</Tooltip.Content>
       </Tooltip.Root>
-    {/each}
-  </div>
 
-  <!-- Separator -->
-  <div class="w-8 h-px bg-border my-1"></div>
-
-  <!-- Utility Icons (Bottom) - from bottom to top -->
-  <div class="flex flex-col items-center gap-1">
-    <!-- User Menu (bottom-most) -->
-    {#if user}
-      <UserMenu
-        {user}
-        currentWorkspace={currentWorkspace || {
-          type: 'personal',
-          id: 'personal',
-          name: 'Personal',
-        }}
-        {teams}
-        {onSwitchWorkspace}
-        {onAccountSettings}
-        {onLogout}
-        {onCreateTeam}
-      />
-    {:else}
-      <!-- Fallback when user not loaded -->
-      <div class="w-12 h-12 rounded-full bg-muted animate-pulse"></div>
-    {/if}
-
-    <!-- Help -->
-    <Tooltip.Root delayDuration={200}>
-      <Tooltip.Trigger let:builder>
-        <button
-          use:builder={(builder as any) ?? undefined}
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
-          onclick={onOpenHelp}
-          aria-label="Help"
-        >
-          <HelpCircle class="w-5 h-5" />
-        </button>
-      </Tooltip.Trigger>
-      <Tooltip.Content side="right">Help</Tooltip.Content>
-    </Tooltip.Root>
-
-    <!-- Documentation -->
-    <Tooltip.Root delayDuration={200}>
-      <Tooltip.Trigger let:builder>
-        <button
-          use:builder={(builder as any) ?? undefined}
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
-          onclick={onOpenDocs}
-          aria-label="Documentation"
-        >
-          <Book class="w-5 h-5" />
-        </button>
-      </Tooltip.Trigger>
-      <Tooltip.Content side="right">Documentation</Tooltip.Content>
-    </Tooltip.Root>
-  </div>
-</nav>
+      <!-- Documentation -->
+      <Tooltip.Root delayDuration={200}>
+        <Tooltip.Trigger>
+          <button
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
+            onclick={onOpenDocs}
+            aria-label="Documentation"
+          >
+            <Book class="w-5 h-5" />
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content side="right">Documentation</Tooltip.Content>
+      </Tooltip.Root>
+    </div>
+  </nav>
+</TooltipPrimitive.Provider>

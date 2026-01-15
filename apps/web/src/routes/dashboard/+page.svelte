@@ -6,7 +6,11 @@
 
   const sessionQuery = authClient.useSession();
 
-  const privateDataQuery = createQuery(orpc.privateData.queryOptions());
+  // Only fetch on client side when authenticated
+  const privateDataQuery = createQuery({
+    ...orpc.privateData.queryOptions(),
+    enabled: typeof window !== 'undefined' && !!$sessionQuery.data?.user,
+  });
 
   $effect(() => {
     if (!$sessionQuery.isPending && !$sessionQuery.data) {

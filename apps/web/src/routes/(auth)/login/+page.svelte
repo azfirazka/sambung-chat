@@ -16,6 +16,9 @@
 
   let { data }: { data: PageData } = $props();
 
+  // Track session state to wait for it to be established after login
+  const sessionQuery = authClient.useSession();
+
   async function handleSignIn(credentials: { email: string; password: string }) {
     isLoading = true;
 
@@ -30,17 +33,43 @@
             : (error as any)?.message || 'Failed to sign in. Please check your credentials.';
 
         toast.error(message);
+        isLoading = false;
         return;
       }
 
       toast.success('Welcome back!');
-      goto('/dashboard');
+
+      // Wait for session to be established before navigating
+      // This prevents the race condition where navigation happens before cookie is set
+      await waitForSession();
+      goto('/app/chat');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       toast.error(message);
-    } finally {
       isLoading = false;
     }
+  }
+
+  // Wait for session to be established (with timeout)
+  async function waitForSession(): Promise<void> {
+    const maxWaitTime = 5000; // 5 seconds max wait
+    const checkInterval = 100; // Check every 100ms
+    let elapsedTime = 0;
+
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(() => {
+        elapsedTime += checkInterval;
+
+        // Check if session is established
+        if ($sessionQuery.data?.user) {
+          clearInterval(interval);
+          resolve();
+        } else if (elapsedTime >= maxWaitTime) {
+          clearInterval(interval);
+          reject(new Error('Session establishment timeout'));
+        }
+      }, checkInterval);
+    });
   }
 
   async function handleSSO() {
@@ -49,7 +78,7 @@
     try {
       const result = await authClient.signIn.oauth2({
         providerId: 'keycloak',
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/app/chat`,
       });
 
       if (result.error) {
@@ -84,15 +113,18 @@
             : (error as any)?.message || 'Failed to create account. Please try again.';
 
         toast.error(message);
+        isLoading = false;
         return;
       }
 
       toast.success('Account created successfully!');
-      goto('/dashboard');
+
+      // Wait for session to be established before navigating
+      await waitForSession();
+      goto('/app/chat');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       toast.error(message);
-    } finally {
       isLoading = false;
     }
   }

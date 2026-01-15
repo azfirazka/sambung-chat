@@ -101,9 +101,8 @@
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger let:builder class={cn('outline-none', className)}>
+  <DropdownMenu.Trigger class={cn('outline-none', className)}>
     <button
-      use:builder={(builder as any) ?? undefined}
       class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-12 w-12 p-0"
     >
       {#if user.avatar}
@@ -134,11 +133,8 @@
 
     <!-- Workspace Switcher -->
     <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger let:builder>
-        <button
-          use:builder={(builder as any) ?? undefined}
-          class="inline-flex items-center gap-2 px-2 py-1.5 text-sm outline-none"
-        >
+      <DropdownMenu.SubTrigger>
+        <button class="inline-flex items-center gap-2 px-2 py-1.5 text-sm outline-none">
           <span>Switch Workspace</span>
         </button>
       </DropdownMenu.SubTrigger>
