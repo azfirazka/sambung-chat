@@ -92,8 +92,8 @@ sambung-chat/
 ├── plan-reference/          # Documentation
 │   ├── PRD-OpenSource.md    # Open source PRD
 │   ├── ROADMAP.md           # Development timeline
-│   ├── UI-UX-DESIGN.md      # Frontend design
-│   ├── AGENTS.md            # This file
+│   ├── ui-ux-design.md      # Frontend design
+│   ├── agents.md            # This file
 │   ├── .notes               # ⚠️ SECRET (ignored)
 │   └── generated/           # Auto-generated docs
 │
@@ -489,9 +489,9 @@ import { Button } from '@sambung-chat/ui';
 | ---------- | ------------------------------------------------------------------------------------- | ----------------------- |
 | PRD        | [plan-reference/PRD-OpenSource.md](./PRD-OpenSource.md)                               | Product requirements    |
 | Roadmap    | [plan-reference/ROADMAP.md](./ROADMAP.md)                                             | Development timeline    |
-| UI/UX      | [plan-reference/UI-UX-DESIGN.md](./UI-UX-DESIGN.md)                                   | Frontend design         |
+| UI/UX      | [plan-reference/ui-ux-design.md](./ui-ux-design.md)                                   | Frontend design         |
 | UI Package | [packages/ui/README.md](../packages/ui/README.md)                                     | UI component library    |
-| UI Agents  | [packages/ui/AGENTS.md](../packages/ui/AGENTS.md)                                     | UI-specific agent guide |
+| UI Agents  | [packages/ui/agents.md](../packages/ui/agents.md)                                     | UI-specific agent guide |
 | ORPC Ref   | [plan-reference/generated/orpc-todo-reference.md](./generated/orpc-todo-reference.md) | ORPC patterns           |
 
 ---

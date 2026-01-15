@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-  import UserMenu from '../../lib/components/auth/UserMenu.svelte';
+  import AuthUserMenu from '../../lib/components/auth/AuthUserMenu.svelte';
 
   type Props = import('./Header.svelte').Props;
 
@@ -51,7 +51,7 @@
       {/each}
     </nav>
     <div class="flex items-center gap-2">
-      <UserMenu {user} {isLoadingUser} {onSignIn} {onSignOut} />
+      <AuthUserMenu {user} {isLoadingUser} {onSignIn} {onSignOut} />
     </div>
   </div>
   <hr class="border-neutral-800" />

@@ -1,16 +1,57 @@
 <script lang="ts">
   import { cn } from '../../utils';
   import type { Snippet } from 'svelte';
+  import Header from './Header.svelte';
+  import NavigationRail from './NavigationRail.svelte';
+  import type { Workspace } from './UserMenu.svelte';
 
-  interface Props {
+  export interface AppLayoutProps {
     children: Snippet;
-    rail?: Snippet;
-    sidebar?: Snippet;
-    mobileNav?: Snippet;
+    sidebarContent?: Snippet;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+      avatar?: string;
+    };
+    currentWorkspace?: Workspace;
+    teams?: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      memberCount?: number;
+      onlineCount?: number;
+      avatar?: string;
+    }>;
+    onSwitchWorkspace?: (workspace: Workspace) => void;
+    onAccountSettings?: () => void;
+    onLogout?: () => void;
+    onCreateTeam?: () => void;
+    onNavigate?: (path: string) => void;
+    onOpenDocs?: () => void;
+    onOpenHelp?: () => void;
+    currentPath?: string;
+    workspaceType?: 'personal' | 'team';
     class?: string;
   }
 
-  let { children, rail, sidebar, mobileNav, class: className = '' }: Props = $props();
+  let {
+    children,
+    sidebarContent,
+    user,
+    currentWorkspace,
+    teams = [],
+    onSwitchWorkspace,
+    onAccountSettings,
+    onLogout,
+    onCreateTeam,
+    onNavigate,
+    onOpenDocs,
+    onOpenHelp,
+    currentPath = '/',
+    workspaceType = 'personal',
+    class: className,
+  }: AppLayoutProps = $props();
 
   // Responsive breakpoint detection
   let isMobile = $state(false);
@@ -30,22 +71,52 @@
 </script>
 
 <div class={cn('flex h-screen overflow-hidden bg-background', className)}>
-  <!-- Navigation Rail (64px) -->
-  {#if !isMobile && rail}
-    {@render rail()}
+  <!-- Fixed Header (60px) -->
+  <Header class="fixed top-0 left-0 right-0 h-[60px] z-50" />
+
+  <!-- Navigation Rail (64px, below header) -->
+  {#if !isMobile}
+    <div class="fixed left-0 top-[60px] bottom-0 w-16 z-40">
+      <NavigationRail
+        {currentPath}
+        {workspaceType}
+        {user}
+        currentWorkspace={currentWorkspace || {
+          type: 'personal',
+          id: 'personal',
+          name: 'Personal',
+        }}
+        {teams}
+        {onSwitchWorkspace}
+        {onNavigate}
+        {onAccountSettings}
+        {onLogout}
+        {onCreateTeam}
+        {onOpenDocs}
+        {onOpenHelp}
+      />
+    </div>
   {/if}
 
-  <!-- Main Content Area -->
-  <div class="flex flex-1 overflow-hidden">
-    <!-- Secondary Sidebar (280px) -->
-    {#if !isMobile && sidebar}
+  <!-- Main Content Area (offset for header and nav rail) -->
+  <div
+    class={cn(
+      'flex flex-1 overflow-hidden',
+      // Offset for fixed header
+      'mt-[60px]',
+      // Offset for nav rail on desktop
+      !isMobile && 'ml-16'
+    )}
+  >
+    <!-- Secondary Sidebar (280px, collapsible) -->
+    {#if !isMobile && sidebarContent}
       <div
         class={cn(
-          'bg-card border-r border-border transition-all duration-300',
-          isTablet ? 'w-16 hover:w-[280px]' : 'w-[280px]'
+          'border-r border-border transition-all duration-300',
+          isTablet ? 'w-12' : 'w-[280px]'
         )}
       >
-        {@render sidebar()}
+        {@render sidebarContent()}
       </div>
     {/if}
 
@@ -55,10 +126,33 @@
     </main>
   </div>
 
-  <!-- Mobile Bottom Navigation -->
-  {#if isMobile && mobileNav}
-    <div class="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      {@render mobileNav()}
+  <!-- Mobile Bottom Navigation (56px) -->
+  {#if isMobile}
+    <div class="fixed bottom-0 left-0 right-0 h-[56px] bg-card border-t border-border z-50">
+      <!-- TODO: Implement mobile bottom nav -->
+      <div class="flex items-center justify-around h-full px-4">
+        <button
+          class="flex flex-col items-center gap-1 text-xs"
+          onclick={() => onNavigate?.('/chat')}
+        >
+          <span class="text-lg">💬</span>
+          <span>Chat</span>
+        </button>
+        <button
+          class="flex flex-col items-center gap-1 text-xs"
+          onclick={() => onNavigate?.('/prompts')}
+        >
+          <span class="text-lg">✨</span>
+          <span>Prompts</span>
+        </button>
+        <button
+          class="flex flex-col items-center gap-1 text-xs"
+          onclick={() => onNavigate?.('/settings')}
+        >
+          <span class="text-lg">⚙️</span>
+          <span>Settings</span>
+        </button>
+      </div>
     </div>
   {/if}
 </div>

@@ -1,6 +1,12 @@
 // shadcn-svelte components
-export * from './button/index';
-export * from './input/index';
+export {
+  Root as ButtonRoot,
+  buttonVariants,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonVariant,
+} from './button/index';
+export { Root as InputRoot } from './input/index';
 export * from './textarea/index';
 export * from './card/index';
 

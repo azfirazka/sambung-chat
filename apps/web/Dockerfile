@@ -8,10 +8,15 @@ FROM oven/bun:1.2.23 AS base
 WORKDIR /app
 
 # Install dependencies
+# Development uses host node_modules (mounted via docker-compose)
+# Production installs here
 COPY package.json bun.lock* ./
 COPY packages packages/
 COPY apps apps/
 RUN bun install --frozen-lockfile
+
+# Copy remaining config files
+COPY turbo.json ./
 
 # ============================================
 # Development stage
@@ -19,8 +24,8 @@ RUN bun install --frozen-lockfile
 FROM base AS development
 WORKDIR /app
 
-# Copy all source files
-COPY . .
+# NOTE: base stage already has all source code and node_modules installed
+# No need to COPY anything here - FROM base inherits everything
 
 # Expose port for Vite dev server
 EXPOSE 5173
@@ -40,8 +45,8 @@ CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM base AS builder
 WORKDIR /app
 
-# Copy all source files
-COPY . .
+# NOTE: base stage already has all source code and node_modules installed
+# No need to COPY anything here - FROM base inherits everything
 
 # Build the application
 RUN bun run build
@@ -57,10 +62,26 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Copy package files and install production dependencies only
-COPY package.json bun.lock* ./
+# Strategy: Copy only package.json files first for better caching
+COPY package.json bun.lock* bun.lockb* ./
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/api/package.json ./packages/api/
+COPY packages/db/package.json ./packages/db/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/env/package.json ./packages/env/
+COPY packages/config/package.json ./packages/config/
+COPY apps/web/package.json ./apps/web/
+COPY apps/server/package.json ./apps/server/
+
+# Install production dependencies
+RUN bun install --frozen-lockfile --production
+
+# Copy source code
 COPY packages packages/
 COPY apps apps/
-RUN bun install --frozen-lockfile --production
+
+# Copy source code needed for production
+COPY turbo.json ./
 
 # Copy built files from builder
 COPY --from=builder /app/apps/web/build ./apps/web/build

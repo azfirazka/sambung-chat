@@ -30,7 +30,7 @@ export default [
   ...svelte.configs['flat/recommended'],
   prettier,
   {
-    files: ['**/*.svelte'],
+    files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
     languageOptions: {
       parserOptions: {
         parser: ts.parser,

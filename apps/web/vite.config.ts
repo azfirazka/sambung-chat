@@ -2,6 +2,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import path from 'path';
+import dotenv from 'dotenv';
+import { resolve } from 'path';
+
+// Load environment variables from .env file in root
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],

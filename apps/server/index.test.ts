@@ -4,8 +4,7 @@
  * Run with: bun test
  */
 
-import { describe, it, expect } from 'bun:test';
-
+// Vitest globals enabled - no imports needed
 describe('Server Environment', () => {
   it('should have DATABASE_URL defined', () => {
     expect(process.env.DATABASE_URL).toBeDefined();

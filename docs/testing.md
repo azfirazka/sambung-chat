@@ -905,7 +905,7 @@ import { db } from '@sambung-chat/db';
 
 ## Related Documents
 
-- [BACKEND-FIRST-DEVELOPMENT](../plan-reference/BACKEND-FIRST-DEVELOPMENT.md) - Testing strategy
+- [BACKEND-FIRST-DEVELOPMENT](../plan-reference/backend-first-development.md) - Testing strategy
 - [ORPC Reference](../plan-reference/generated/orpc-todo-reference.md) - ORPC test patterns
 - [Architecture](./architecture.md) - System architecture
 

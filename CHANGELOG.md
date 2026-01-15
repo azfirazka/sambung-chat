@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Design System**
   - Create design tokens package (colors, borders, spacing, typography)
   - Establish base CSS styles and Tailwind integration
-  - Document component usage patterns in README.md and AGENTS.md
+  - Document component usage patterns in README.md and agents.md
 
 - **Comprehensive Documentation Suite**
   - **Testing Guide** ([docs/TESTING.md](docs/TESTING.md))
@@ -96,13 +96,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation**
   - Add comprehensive troubleshooting guide (TROUBLESHOOTING.md)
   - Add UI package development guide (UI-PACKAGE-GUIDE.md)
-  - Create hierarchical AGENTS.md files for AI agents
-    - Root AGENTS.md with JIT index and quick commands
-    - packages/ui/AGENTS.md with UI-specific patterns
-    - apps/web/AGENTS.md with SvelteKit patterns
-    - apps/server/AGENTS.md with Hono patterns
-    - packages/api/AGENTS.md with ORPC patterns
-    - packages/db/AGENTS.md with Drizzle patterns
+  - Create hierarchical agents.md files for AI agents
+    - Root agents.md with JIT index and quick commands
+    - packages/ui/agents.md with UI-specific patterns
+    - apps/web/agents.md with SvelteKit patterns
+    - apps/server/agents.md with Hono patterns
+    - packages/api/agents.md with ORPC patterns
+    - packages/db/agents.md with Drizzle patterns
 
 - **Status Tracking**
   - Implement file-based progress tracking system

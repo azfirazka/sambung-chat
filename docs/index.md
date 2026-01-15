@@ -87,7 +87,7 @@ Quick reference materials for configuration and troubleshooting.
 
 | Document                                  | Description                                                                    | Target Audience                     |
 | ----------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
-| [Internationalization](./I18N.md)         | Complete i18n guide with svelte-i18n, locale files, and language switching     | All developers, Translators         |
+| [Internationalization](./i18n.md)         | Complete i18n guide with svelte-i18n, locale files, and language switching     | All developers, Translators         |
 | [Environment Variables](./ENVIRONMENT.md) | Complete list of environment variables with descriptions                       | Developers configuring environments |
 | [Docker](./DOCKER.md)                     | Docker configuration and container setup                                       | DevOps engineers, Developers        |
 | [Testing](./TESTING.md)                   | Testing guidelines, unit tests, E2E tests                                      | All developers, QA engineers        |
@@ -210,7 +210,7 @@ For deploying SambungChat:
 | **Add a new AI provider**              | [AI Provider Integration Guide](./ai-provider-integration-guide.md) | [Architecture](./architecture.md), [Environment Variables](./ENVIRONMENT.md)          |
 | **Build UI components**                | [UI Package Guide](./ui-package-guide.md)                           | [Architecture](./architecture.md), [Troubleshooting](./troubleshooting.md)            |
 | **Deploy to production**               | [Deployment](./deployment.md)                                       | [Docker](./DOCKER.md), [Environment Variables](./ENVIRONMENT.md)                      |
-| **Add multi-language support**         | [I18N Guide](./I18N.md)                                             | [Getting Started](./getting-started.md), [Settings](./settings.md)                    |
+| **Add multi-language support**         | [I18N Guide](./i18n.md)                                             | [Getting Started](./getting-started.md)                                               |
 | **Debug build errors**                 | [Troubleshooting](./troubleshooting.md)                             | [UI Package Guide](./ui-package-guide.md), [Architecture](./architecture.md)          |
 | **Write tests**                        | [Testing](./TESTING.md)                                             | [Architecture](./architecture.md), [API Reference](./api-reference.md)                |
 

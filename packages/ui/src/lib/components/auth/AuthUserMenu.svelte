@@ -8,12 +8,7 @@
 </script>
 
 <script lang="ts">
-  let {
-    user,
-    isLoadingUser = false,
-    onSignIn,
-    onSignOut,
-  }: import('./UserMenu.svelte').Props = $props();
+  let { user, isLoadingUser = false, onSignIn, onSignOut }: Props = $props();
 </script>
 
 <div class="relative">
