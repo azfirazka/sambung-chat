@@ -114,20 +114,19 @@
       {#each navItems as item (item.id)}
         {@const Icon = item.icon}
         <Tooltip.Root delayDuration={200}>
-          <Tooltip.Trigger>
-            <button
-              class={cn(
-                'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-                'w-12 h-12 relative',
-                isActive(item.path)
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'hover:bg-accent hover:text-accent-foreground'
-              )}
-              onclick={() => onNavigate?.(item.path)}
-              aria-label={item.label}
-            >
-              <Icon class="w-5 h-5" />
-            </button>
+          <Tooltip.Trigger
+            type="button"
+            class={cn(
+              'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+              'w-12 h-12 relative',
+              isActive(item.path)
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'hover:bg-accent hover:text-accent-foreground'
+            )}
+            onclick={() => onNavigate?.(item.path)}
+            aria-label={item.label}
+          >
+            <Icon class="w-5 h-5" />
           </Tooltip.Trigger>
           <Tooltip.Content side="right">
             {item.label}
@@ -163,28 +162,26 @@
 
       <!-- Help -->
       <Tooltip.Root delayDuration={200}>
-        <Tooltip.Trigger>
-          <button
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
-            onclick={onOpenHelp}
-            aria-label="Help"
-          >
-            <HelpCircle class="w-5 h-5" />
-          </button>
+        <Tooltip.Trigger
+          type="button"
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
+          onclick={onOpenHelp}
+          aria-label="Help"
+        >
+          <HelpCircle class="w-5 h-5" />
         </Tooltip.Trigger>
         <Tooltip.Content side="right">Help</Tooltip.Content>
       </Tooltip.Root>
 
       <!-- Documentation -->
       <Tooltip.Root delayDuration={200}>
-        <Tooltip.Trigger>
-          <button
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
-            onclick={onOpenDocs}
-            aria-label="Documentation"
-          >
-            <Book class="w-5 h-5" />
-          </button>
+        <Tooltip.Trigger
+          type="button"
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground w-12 h-12"
+          onclick={onOpenDocs}
+          aria-label="Documentation"
+        >
+          <Book class="w-5 h-5" />
         </Tooltip.Trigger>
         <Tooltip.Content side="right">Documentation</Tooltip.Content>
       </Tooltip.Root>

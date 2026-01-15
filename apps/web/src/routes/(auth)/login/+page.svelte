@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import type { PageData } from './$types';
+  import { page } from '$app/stores';
 
   let showSignIn = $state(true);
   let isLoading = $state(false);
@@ -18,6 +19,15 @@
 
   // Track session state to wait for it to be established after login
   const sessionQuery = authClient.useSession();
+
+  // Redirect to app if already authenticated
+  $effect(() => {
+    if (!$sessionQuery.isPending && $sessionQuery.data?.user) {
+      // User is already logged in, redirect to app
+      const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
+      goto(redirectTo);
+    }
+  });
 
   async function handleSignIn(credentials: { email: string; password: string }) {
     isLoading = true;

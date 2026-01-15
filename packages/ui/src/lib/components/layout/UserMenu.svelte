@@ -101,25 +101,27 @@
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger class={cn('outline-none', className)}>
-    <button
-      class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-12 w-12 p-0"
-    >
-      {#if user.avatar}
-        <Avatar class="h-8 w-8">
-          <AvatarImage src={user.avatar} alt={user.name} />
-          <AvatarFallback>
-            {user.name.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      {:else}
-        <div class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <span class="text-xs font-medium text-primary">
-            {user.name.charAt(0).toUpperCase()}
-          </span>
-        </div>
-      {/if}
-    </button>
+  <DropdownMenu.Trigger
+    type="button"
+    class={cn(
+      'outline-none inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-12 w-12 p-0',
+      className
+    )}
+  >
+    {#if user.avatar}
+      <Avatar class="h-8 w-8">
+        <AvatarImage src={user.avatar} alt={user.name} />
+        <AvatarFallback>
+          {user.name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    {:else}
+      <div class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+        <span class="text-xs font-medium text-primary">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    {/if}
   </DropdownMenu.Trigger>
 
   <DropdownMenu.Content side="top" class="w-56" align="end">
@@ -133,10 +135,10 @@
 
     <!-- Workspace Switcher -->
     <DropdownMenu.Sub>
-      <DropdownMenu.SubTrigger>
-        <button class="inline-flex items-center gap-2 px-2 py-1.5 text-sm outline-none">
-          <span>Switch Workspace</span>
-        </button>
+      <DropdownMenu.SubTrigger
+        class="inline-flex items-center gap-2 px-2 py-1.5 text-sm outline-none w-full"
+      >
+        <span>Switch Workspace</span>
       </DropdownMenu.SubTrigger>
       <DropdownMenu.SubContent class="w-48">
         <DropdownMenu.Item onclick={switchToPersonal} class="cursor-pointer">
