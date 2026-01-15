@@ -16,6 +16,9 @@ export default defineConfig({
     // Test environment
     environment: 'node',
 
+    // Load environment variables from .env file
+    envDir: '.',
+
     // Include patterns
     include: ['**/*.{test,spec}.{js,ts}'],
     exclude: [
@@ -27,8 +30,8 @@ export default defineConfig({
       '**/tests/e2e/**',
     ],
 
-    // Setup files
-    setupFiles: [],
+    // Setup files - loads .env before tests run
+    setupFiles: ['./vitest.setup.ts'],
 
     // Test timeout (milliseconds)
     testTimeout: 10000,

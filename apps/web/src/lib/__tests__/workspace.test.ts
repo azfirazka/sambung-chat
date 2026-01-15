@@ -5,7 +5,7 @@
  * Run with: bun test apps/web/src/lib/__tests__/workspace.test.ts
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+// Vitest globals enabled - no imports needed
 import {
   workspace,
   buildWorkspacePath,

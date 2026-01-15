@@ -5,8 +5,7 @@
  * Run with: bun test apps/web/src/lib/__tests__/orpc.test.ts
  */
 
-import { describe, it, expect } from 'bun:test';
-
+// Vitest globals enabled - no imports needed
 describe('ORPC Client Configuration', () => {
   it('should have PUBLIC_API_URL defined for backend API calls', () => {
     expect(process.env.PUBLIC_API_URL).toBeDefined();
