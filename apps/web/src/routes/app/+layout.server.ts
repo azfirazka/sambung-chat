@@ -1,27 +1,11 @@
-import { redirect } from '@sveltejs/kit';
-import { auth } from '@sambung-chat/auth';
+// Server-side load for app routes
+// Note: Session verification is handled client-side in +layout.svelte
+// because cookies don't transfer across ports in development (3000 vs 5173)
+//
+// For production with a single domain, you can enable server-side session verification
 
-export const load = async ({ url, cookies, request }) => {
-  // Get session cookie from request
-  const sessionCookie = request.headers.get('cookie') || '';
-
-  // Verify session using Better Auth server instance
-  const session = await auth.api.getSession({
-    headers: new Headers({
-      cookie: sessionCookie,
-    }),
-  });
-
-  // Redirect to login if no session
-  if (!session?.user) {
-    const redirectTo = url.pathname;
-    redirect(302, `/login?redirect=${encodeURIComponent(redirectTo)}`);
-  }
-
+export const load = async () => {
   return {
-    session: {
-      user: session.user,
-      session: session.session,
-    },
+    session: null, // Will be populated client-side
   };
 };

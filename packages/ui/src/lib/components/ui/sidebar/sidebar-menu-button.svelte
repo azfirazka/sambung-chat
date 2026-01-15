@@ -44,7 +44,7 @@
     tooltipContent,
     tooltipContentProps,
     ...restProps
-  }: WithElementRef<HTMLAttributes<HTMLButtonElement>> & {
+  }: WithElementRef<HTMLAttributes<HTMLButtonElement>, HTMLButtonElement> & {
     isActive?: boolean;
     variant?: SidebarMenuButtonVariant;
     size?: SidebarMenuButtonSize;

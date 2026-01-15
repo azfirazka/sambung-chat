@@ -4,11 +4,21 @@
   import { authClient } from '../../../lib/auth-client';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
+  import { onMount } from 'svelte';
   import type { PageData } from './$types';
   import { page } from '$app/stores';
 
   let showSignIn = $state(true);
   let isLoading = $state(false);
+
+  // Track if component is mounted on client to prevent hydration mismatch
+  // IMPORTANT: Always starts as false to ensure server/client consistency
+  let mounted = $state(false);
+
+  // Set mounted to true only after client-side hydration is complete
+  onMount(() => {
+    mounted = true;
+  });
 
   // Props from server load
   interface Props {
@@ -20,11 +30,26 @@
   // Track session state to wait for it to be established after login
   const sessionQuery = authClient.useSession();
 
-  // Redirect to app if already authenticated
+  // Add logging for debugging
   $effect(() => {
-    if (!$sessionQuery.isPending && $sessionQuery.data?.user) {
+    if (typeof window !== 'undefined') {
+      console.log('[LOGIN PAGE] State:', {
+        mounted,
+        showSignIn,
+        isPending: $sessionQuery.isPending,
+        hasUser: !!$sessionQuery.data?.user,
+        url: $page.url.pathname,
+        searchParams: $page.url.search,
+      });
+    }
+  });
+
+  // Redirect to app if already authenticated (client-side only after mount to prevent hydration issues)
+  $effect(() => {
+    if (mounted && !$sessionQuery.isPending && $sessionQuery.data?.user) {
       // User is already logged in, redirect to app
       const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
+      console.log('[LOGIN PAGE] User authenticated, redirecting to:', redirectTo);
       goto(redirectTo);
     }
   });

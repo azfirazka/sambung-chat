@@ -7,6 +7,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { onMount } from 'svelte';
   import type { LayoutData } from './$types';
 
   // Props from SvelteKit
@@ -14,13 +15,51 @@
 
   // Session state from server (for SSR) with client-side sync
   // Note: useSession() doesn't accept arguments in Better Auth Svelte
-  // We rely on server-side data (data.session) which is already verified
+  // We rely on client-side session verification since cookies don't work across ports
   const sessionQuery = authClient.useSession();
 
-  // Derive enabled state reactively
-  const isEnabled = $derived(
-    typeof window !== 'undefined' && (!!data.session?.user || !!$sessionQuery.data?.user)
-  );
+  // Track if component is mounted on client to prevent hydration mismatch
+  // IMPORTANT: Always starts as false to ensure server/client consistency
+  let mounted = $state(false);
+
+  // Set mounted to true only after client-side hydration is complete
+  onMount(() => {
+    mounted = true;
+  });
+
+  // Derive enabled state reactively (client-side only after mount)
+  const isEnabled = $derived(mounted && !!$sessionQuery.data?.user);
+
+  // Add logging for debugging
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('[APP LAYOUT] State:', {
+        mounted,
+        isPending: $sessionQuery.isPending,
+        hasUser: !!$sessionQuery.data?.user,
+        user: $sessionQuery.data?.user,
+        pathname: $page.url.pathname,
+      });
+    }
+  });
+
+  // Redirect to login if not authenticated (client-side only after mount)
+  // Use a flag to prevent infinite redirects
+  let hasRedirected = $state(false);
+
+  $effect(() => {
+    // Only redirect after component is mounted and session check is complete
+    if (mounted && !$sessionQuery.isPending && !hasRedirected) {
+      if (!$sessionQuery.data?.user) {
+        console.log('[APP LAYOUT] No session found, redirecting to login');
+        hasRedirected = true;
+        const redirectTo = $page.url.pathname;
+        goto(`/login?redirect=${encodeURIComponent(redirectTo)}`);
+      } else {
+        console.log('[APP LAYOUT] Session found, showing app');
+      }
+    }
+  });
 
   // Fetch chats using TanStack Query - only enabled on client when authenticated
   // This prevents fetch calls during SSR
@@ -111,37 +150,49 @@
   />
 {/snippet}
 
-{#if data.session?.user || $sessionQuery.data?.user}
-  <AppLayout
-    user={$sessionQuery.data?.user || data.session?.user}
-    {currentWorkspace}
-    teams={[]}
-    onSwitchWorkspace={(workspace) => {
-      currentWorkspace = workspace;
-      if (workspace.type === 'team') {
-        goto(`/team/${workspace.id}/chat`);
-      } else {
-        goto('/app/chat');
-      }
-    }}
-    onAccountSettings={handleAccountSettings}
-    onLogout={handleSignOut}
-    onCreateTeam={handleCreateTeam}
-    onNavigate={handleNavigate}
-    onOpenDocs={handleOpenDocs}
-    onOpenHelp={handleOpenHelp}
-    {currentPath}
-    workspaceType="personal"
-    {sidebarContent}
-  >
-    {@render children()}
-  </AppLayout>
+{#if mounted && $sessionQuery.data?.user}
+  <div class="app-layout-wrapper" style="background: lightgreen; min-height: 100vh;">
+    <div style="padding: 20px; background: yellow;">
+      <h1>✅ APP LAYOUT LOADED - User: {$sessionQuery.data.user.name || 'Unknown'}</h1>
+      <p>Path: {$page.url.pathname}</p>
+      <p>You should see the AppLayout below...</p>
+    </div>
+    <AppLayout
+      user={$sessionQuery.data.user}
+      {currentWorkspace}
+      teams={[]}
+      onSwitchWorkspace={(workspace) => {
+        currentWorkspace = workspace;
+        if (workspace.type === 'team') {
+          goto(`/team/${workspace.id}/chat`);
+        } else {
+          goto('/app/chat');
+        }
+      }}
+      onAccountSettings={handleAccountSettings}
+      onLogout={handleSignOut}
+      onCreateTeam={handleCreateTeam}
+      onNavigate={handleNavigate}
+      onOpenDocs={handleOpenDocs}
+      onOpenHelp={handleOpenHelp}
+      {currentPath}
+      workspaceType="personal"
+      {sidebarContent}
+    >
+      {@render children()}
+    </AppLayout>
+  </div>
 {:else}
-  <!-- Loading state - should be very brief since session comes from server -->
-  <div class="flex h-screen items-center justify-center">
+  <!-- Loading state - shows during SSR and until mount + session check -->
+  <div class="flex h-screen items-center justify-center" style="background: lightcoral;">
     <div class="text-center">
       <div class="animate-spin mb-4 text-4xl">⏳</div>
-      <p class="text-muted-foreground">Loading...</p>
+      <p class="text-muted-foreground">Loading... (Checking session)</p>
+      <p class="text-xs text-muted-foreground mt-2">
+        mounted: {mounted}<br />
+        isPending: {$sessionQuery.isPending}<br />
+        hasUser: {!!$sessionQuery.data?.user}
+      </p>
     </div>
   </div>
 {/if}

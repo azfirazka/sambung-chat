@@ -4,6 +4,7 @@
   import Header from './Header.svelte';
   import NavigationRail from './NavigationRail.svelte';
   import type { Workspace } from './UserMenu.svelte';
+  import * as Sidebar from '../ui/sidebar';
 
   export interface AppLayoutProps {
     children: Snippet;
@@ -55,13 +56,11 @@
 
   // Responsive breakpoint detection
   let isMobile = $state(false);
-  let isTablet = $state(false);
 
   $effect(() => {
     const checkBreakpoint = () => {
       if (typeof window === 'undefined') return;
       isMobile = window.innerWidth < 768;
-      isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
     };
 
     checkBreakpoint();
@@ -70,92 +69,102 @@
   });
 </script>
 
-<div class={cn('flex h-screen overflow-hidden bg-background', className)}>
-  <!-- Fixed Header (60px) -->
-  <Header class="fixed top-0 left-0 right-0 h-[60px] z-50" />
+<Sidebar.Provider style="--sidebar-width: 280px;">
+  <div class={cn('flex h-screen overflow-hidden bg-background', className)}>
+    <!-- Fixed Header (60px) -->
+    <Header class="fixed top-0 left-0 right-0 h-[60px] z-50" />
 
-  <!-- Navigation Rail (64px, below header) -->
-  {#if !isMobile}
-    <div class="fixed left-0 top-[60px] bottom-0 w-16 z-40">
-      <NavigationRail
-        {currentPath}
-        {workspaceType}
-        {user}
-        currentWorkspace={currentWorkspace || {
-          type: 'personal',
-          id: 'personal',
-          name: 'Personal',
-        }}
-        {teams}
-        {onSwitchWorkspace}
-        {onNavigate}
-        {onAccountSettings}
-        {onLogout}
-        {onCreateTeam}
-        {onOpenDocs}
-        {onOpenHelp}
-      />
-    </div>
-  {/if}
-
-  <!-- Main Content Area (offset for header and nav rail) -->
-  <div
-    class={cn(
-      'flex flex-1 overflow-hidden',
-      // Offset for fixed header
-      'mt-[60px]',
-      // Offset for nav rail on desktop
-      !isMobile && 'ml-16'
-    )}
-  >
-    <!-- Secondary Sidebar (280px, collapsible) -->
-    {#if !isMobile && sidebarContent}
-      <div
-        class={cn(
-          'border-r border-border transition-all duration-300',
-          isTablet ? 'w-12' : 'w-[280px]'
-        )}
-      >
-        {@render sidebarContent()}
+    <!-- Navigation Rail (64px, below header) -->
+    {#if !isMobile}
+      <div class="fixed left-0 top-[60px] bottom-0 w-16 z-40">
+        <NavigationRail
+          {currentPath}
+          {workspaceType}
+          {user}
+          currentWorkspace={currentWorkspace || {
+            type: 'personal',
+            id: 'personal',
+            name: 'Personal',
+          }}
+          {teams}
+          {onSwitchWorkspace}
+          {onNavigate}
+          {onAccountSettings}
+          {onLogout}
+          {onCreateTeam}
+          {onOpenDocs}
+          {onOpenHelp}
+        />
       </div>
     {/if}
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
-      {@render children()}
-    </main>
-  </div>
+    <!-- Collapsible Secondary Sidebar -->
+    {#if !isMobile && sidebarContent}
+      <Sidebar.Content
+        class="fixed left-16 top-[60px] bottom-0 w-[280px] border-r border-border z-30"
+      >
+        {@render sidebarContent()}
+      </Sidebar.Content>
+    {/if}
 
-  <!-- Mobile Bottom Navigation (56px) -->
-  {#if isMobile}
-    <div class="fixed bottom-0 left-0 right-0 h-[56px] bg-card border-t border-border z-50">
-      <!-- TODO: Implement mobile bottom nav -->
-      <div class="flex items-center justify-around h-full px-4">
-        <button
-          class="flex flex-col items-center gap-1 text-xs"
-          onclick={() => onNavigate?.('/chat')}
+    <!-- Main Content Area (offset for header and nav rail) -->
+    <Sidebar.Inset
+      class={cn(
+        'flex flex-1 flex-col overflow-hidden',
+        // Offset for fixed header
+        'mt-[60px]',
+        // Offset for nav rail on desktop
+        !isMobile && 'ml-16',
+        // Offset for secondary sidebar when present
+        !isMobile && sidebarContent && 'ml-[280px]'
+      )}
+    >
+      <!-- Secondary Sidebar Trigger Header -->
+      {#if !isMobile && sidebarContent}
+        <header
+          class="bg-background sticky top-0 flex shrink-0 items-center gap-2 border-b px-4 h-14 z-20"
         >
-          <span class="text-lg">💬</span>
-          <span>Chat</span>
-        </button>
-        <button
-          class="flex flex-col items-center gap-1 text-xs"
-          onclick={() => onNavigate?.('/prompts')}
-        >
-          <span class="text-lg">✨</span>
-          <span>Prompts</span>
-        </button>
-        <button
-          class="flex flex-col items-center gap-1 text-xs"
-          onclick={() => onNavigate?.('/settings')}
-        >
-          <span class="text-lg">⚙️</span>
-          <span>Settings</span>
-        </button>
+          <Sidebar.Trigger class="-ml-1" />
+        </header>
+      {/if}
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-y-auto p-6">
+        {@render children()}
+      </main>
+    </Sidebar.Inset>
+
+    <!-- Mobile Bottom Navigation (56px) -->
+    {#if isMobile}
+      <div class="fixed bottom-0 left-0 right-0 h-[56px] bg-card border-t border-border z-50">
+        <!-- TODO: Implement mobile bottom nav -->
+        <div class="flex items-center justify-around h-full px-4">
+          <button
+            class="flex flex-col items-center gap-1 text-xs"
+            onclick={() => onNavigate?.('/chat')}
+          >
+            <span class="text-lg">💬</span>
+            <span>Chat</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-1 text-xs"
+            onclick={() => onNavigate?.('/prompts')}
+          >
+            <span class="text-lg">✨</span>
+            <span>Prompts</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-1 text-xs"
+            onclick={() => onNavigate?.('/settings')}
+          >
+            <span class="text-lg">⚙️</span>
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
-    </div>
-  {/if}
-</div>
+    {/if}
+  </div>
+</Sidebar.Provider>
 
 <style>
   /* Hide scrollbar but keep functionality */

@@ -1,20 +1,19 @@
 <script lang="ts">
+  import type { HTMLLiAttributes } from 'svelte/elements';
   import { cn, type WithElementRef } from '$lib/utils.js';
-  import type { HTMLAttributes } from 'svelte/elements';
 
   let {
     ref = $bindable(null),
     class: className,
     children,
     ...restProps
-  }: WithElementRef<HTMLAttributes<HTMLLIElement>, HTMLLIElement> = $props();
+  }: WithElementRef<HTMLLiAttributes> = $props();
 </script>
 
 <li
   bind:this={ref}
-  data-slot="sidebar-menu-item"
-  data-sidebar="menu-item"
-  class={cn('group/menu-item relative', className)}
+  data-slot="breadcrumb-item"
+  class={cn('inline-flex items-center gap-1.5', className)}
   {...restProps}
 >
   {@render children?.()}
