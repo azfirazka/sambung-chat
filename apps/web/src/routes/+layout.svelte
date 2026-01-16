@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { ModeWatcher } from 'mode-watcher';
   import '../app.css';
 

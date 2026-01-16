@@ -6,7 +6,6 @@
   import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import CommandIcon from '@lucide/svelte/icons/command';
-  import type { ComponentProps } from 'svelte';
 
   // Load nav config from JSON
   import navRailConfig from '$lib/navigation/nav-rail-menu.config.json';

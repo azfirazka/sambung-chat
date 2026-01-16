@@ -25,7 +25,9 @@
       const result = await authClient.signUp.email({ name, email, password });
 
       if (result.error) {
-        alert('Sign up failed: ' + (result.error as any)?.message || 'Unknown error');
+        type AuthError = { message?: string };
+        const errorMsg = (result.error as AuthError)?.message || 'Unknown error';
+        alert('Sign up failed: ' + errorMsg);
         isLoading = false;
         return;
       }

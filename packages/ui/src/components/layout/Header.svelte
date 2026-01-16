@@ -4,9 +4,14 @@
     label: string;
   }
 
+  interface User {
+    name?: string;
+    email?: string;
+  }
+
   export interface Props {
     links?: NavLink[];
-    user?: any | null;
+    user?: User | null;
     isLoadingUser?: boolean;
     onSignIn?: () => void;
     onSignOut?: () => void;

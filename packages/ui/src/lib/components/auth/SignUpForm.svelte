@@ -44,7 +44,12 @@
       onSubmit: validationSchema,
     },
     // Handle validation errors at form level
-    onInvalidSubmit: ({ formApi }: { value: SignUpCredentials; formApi: any }) => {
+    onInvalidSubmit: ({
+      formApi,
+    }: {
+      value: SignUpCredentials;
+      formApi: { state: { fields: Record<string, { errors: string[] }> } };
+    }) => {
       // Get first field error
       const fields = formApi.state.fields;
       for (const [, field] of Object.entries(fields)) {

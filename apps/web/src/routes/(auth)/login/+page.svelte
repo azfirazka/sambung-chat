@@ -9,7 +9,9 @@
       const result = await authClient.signIn.email(credentials);
 
       if (result.error) {
-        alert('Login failed: ' + (result.error as any)?.message || 'Unknown error');
+        type AuthError = { message?: string };
+        const errorMsg = (result.error as AuthError)?.message || 'Unknown error';
+        alert('Login failed: ' + errorMsg);
         return;
       }
 
@@ -17,7 +19,7 @@
       // Server-side will handle auth check on next request
       const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
       goto(redirectTo);
-    } catch (err) {
+    } catch {
       alert('An unexpected error occurred');
     }
   }

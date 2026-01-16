@@ -1,6 +1,11 @@
 <script lang="ts" module>
+  interface User {
+    name?: string;
+    email?: string;
+  }
+
   export interface Props {
-    user?: any | null;
+    user?: User | null;
     isLoadingUser?: boolean;
     onSignIn?: () => void;
     onSignOut?: () => void;

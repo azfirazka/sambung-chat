@@ -195,9 +195,9 @@
 </script>
 
 <div class="mx-auto grid h-full w-full max-w-3xl grid-rows-[1fr_auto] overflow-hidden p-4">
-  <div bind:this={messagesContainer} class="mb-4 space-y-4 overflow-y-auto pb-4 scroll-smooth">
+  <div bind:this={messagesContainer} class="mb-4 space-y-4 overflow-y-auto scroll-smooth pb-4">
     {#if chat.messages.length === 0}
-      <div in:fade={{ duration: 500 }} class="mt-8 text-center text-muted-foreground">
+      <div in:fade={{ duration: 500 }} class="text-muted-foreground mt-8 text-center">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="64"
@@ -208,11 +208,11 @@
           stroke-width="1"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="mx-auto mb-4 text-primary opacity-50"
+          class="text-primary mx-auto mb-4 opacity-50"
         >
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
-        <h2 class="text-xl font-semibold mb-2">Start a conversation</h2>
+        <h2 class="mb-2 text-xl font-semibold">Start a conversation</h2>
         <p class="text-sm">Ask me anything to get started!</p>
       </div>
     {/if}
@@ -230,7 +230,7 @@
         class="flex w-full {message.role === 'user' ? 'justify-end' : 'justify-start'}"
       >
         <div
-          class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm md:text-base transition-all duration-200 hover:shadow-lg"
+          class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base"
           class:ml-auto={message.role === 'user'}
           class:bg-primary={message.role === 'user'}
           class:bg-muted={message.role === 'assistant'}
@@ -250,7 +250,7 @@
                 <span class="animate-pulse" style="animation-delay: 0.4s">●</span>
               </span>
             {:else if isStoppedMessage}
-              <span class="ml-2 inline-flex items-center gap-1 text-muted-foreground">
+              <span class="text-muted-foreground ml-2 inline-flex items-center gap-1">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="12"
@@ -270,20 +270,22 @@
           </p>
 
           <div
-            class="prose prose-sm dark:prose-invert max-w-none markdown-content"
+            class="markdown-content prose prose-sm max-w-none dark:prose-invert"
             class:prose-p:text-primary-foreground={message.role === 'user'}
             class:prose-p:text-foreground={message.role === 'assistant'}
             class:opacity-70={isThisStoppedMessage}
           >
             {#if isThisStoppedMessage && stoppedMessageContent}
               <!-- Show frozen content from when stopped -->
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
               {@html stoppedMessageContent}
             {:else}
               {#each message.parts as part, partIndex (partIndex)}
                 {#if part.type === 'text'}
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
                   {@html renderMarkdownSync(part.text)}
                   {#if isStreamingMessage && !part.text}
-                    <span class="inline-block w-2 h-4 ml-1 bg-current animate-pulse opacity-50"
+                    <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
                     ></span>
                   {/if}
                 {/if}
@@ -296,7 +298,7 @@
         {#if isStoppedMessage}
           <div
             in:fade={{ duration: 300 }}
-            class="ml-4 mt-2 flex items-center gap-2 text-sm text-muted-foreground"
+            class="text-muted-foreground mt-2 ml-4 flex items-center gap-2 text-sm"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -322,7 +324,7 @@
     {#if hasError()}
       <div
         in:fade={{ duration: 300 }}
-        class="flex items-center justify-between gap-3 rounded-xl border border-destructive/50 bg-destructive/10 p-4"
+        class="border-destructive/50 bg-destructive/10 flex items-center justify-between gap-3 rounded-xl border p-4"
       >
         <div class="flex items-start gap-3">
           <svg
@@ -335,15 +337,15 @@
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="mt-0.5 shrink-0 text-destructive"
+            class="text-destructive mt-0.5 shrink-0"
           >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" x2="12" y1="8" y2="12" />
             <line x1="12" x2="12.01" y1="16" y2="16" />
           </svg>
           <div class="flex-1">
-            <p class="font-medium text-destructive">Connection Error</p>
-            <p class="text-sm text-muted-foreground mt-1">{errorMessage}</p>
+            <p class="text-destructive font-medium">Connection Error</p>
+            <p class="text-muted-foreground mt-1 text-sm">{errorMessage}</p>
           </div>
         </div>
         {#if retryCount < MAX_RETRIES}
@@ -351,7 +353,7 @@
             type="button"
             onclick={handleRetry}
             disabled={isRetrying}
-            class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
             {#if isRetrying}
               <svg
@@ -395,16 +397,16 @@
 
   <form
     onsubmit={handleSubmit}
-    class="w-full flex items-end gap-2 pt-3 border-t border-border bg-background p-2"
+    class="border-border bg-background flex w-full items-end gap-2 border-t p-2 pt-3"
   >
-    <div class="flex-1 relative">
+    <div class="relative flex-1">
       <textarea
         name="prompt"
         bind:value={input}
         bind:this={inputField}
         placeholder="Type your message..."
         rows="1"
-        class="w-full rounded-xl border border-input bg-background px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all duration-200 resize-none overflow-y-auto"
+        class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 w-full resize-none overflow-y-auto rounded-xl border px-4 py-3 pr-12 transition-all duration-200 focus:ring-2 focus:outline-none disabled:opacity-50"
         style="max-height: 200px"
         autocomplete="off"
         disabled={isStreaming() || isRetrying || isSubmitting}
@@ -421,13 +423,13 @@
           target.style.height = Math.min(target.scrollHeight, 200) + 'px';
         }}
       ></textarea>
-      <div class="absolute right-3 bottom-3 text-xs text-muted-foreground pointer-events-none">
+      <div class="text-muted-foreground pointer-events-none absolute right-3 bottom-3 text-xs">
         {#if isStreaming() || isRetrying}
           <span class="flex items-center gap-1">
             <span class="animate-spin">⋯</span>
           </span>
         {:else}
-          <div class="hidden sm:flex items-center gap-1">
+          <div class="hidden items-center gap-1 sm:flex">
             <kbd class="text-xs">⇧</kbd>
             <kbd class="text-xs">⏎</kbd>
           </div>
@@ -440,7 +442,7 @@
       <button
         type="button"
         onclick={handleStop}
-        class="inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl bg-destructive px-4 text-destructive-foreground hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 transition-all duration-200 hover:scale-105 active:scale-95"
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-4 transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95"
         aria-label="Stop generation"
       >
         <svg
@@ -459,7 +461,7 @@
       <button
         type="submit"
         disabled={!input.trim() || isStreaming() || isRetrying || isSubmitting}
-        class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:scale-105 active:scale-95"
+        class="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Send message"
       >
         {#if isRetrying}

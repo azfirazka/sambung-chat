@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Component } from 'svelte';
   import * as Sidebar from '../../ui/sidebar';
   import { Button } from '../../ui/button';
   import { cn } from '../../../utils';
@@ -7,7 +8,7 @@
   export interface PromptCategory {
     id: string;
     name: string;
-    icon?: any;
+    icon?: Component;
     count: number;
   }
 

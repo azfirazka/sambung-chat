@@ -265,10 +265,12 @@
             class:opacity-70={isThisStoppedMessage}
           >
             {#if isThisStoppedMessage && stoppedMessageContent}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
               {@html stoppedMessageContent}
             {:else}
               {#each message.parts as part, partIndex (partIndex)}
                 {#if part.type === 'text'}
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
                   {@html renderMarkdownSync(part.text)}
                   {#if isStreamingMessage && !part.text}
                     <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
