@@ -1,14 +1,8 @@
-import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async (event) => {
-  const { url, locals } = event;
-
-  // Use event.locals.user (already populated by hooks.server.ts)
-  if (locals.user) {
-    const redirectTo = url.searchParams.get('redirect') || '/app/chat';
-    redirect(302, redirectTo);
-  }
+export const load: PageServerLoad = async () => {
+  // Note: Auth check is now centralized in hooks.server.ts
+  // This will only run if user is NOT authenticated (hooks redirect otherwise)
 
   // Check which authentication methods are enabled
   const isSSOEnabled = process.env.PUBLIC_KEYCLOAK_ENABLED === 'true';
