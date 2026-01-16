@@ -3,22 +3,6 @@
   import { authClient } from '../../../lib/auth-client';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
-
-  let mounted = $state(false);
-
-  onMount(() => {
-    mounted = true;
-  });
-
-  const sessionQuery = authClient.useSession();
-
-  $effect(() => {
-    if (mounted && !$sessionQuery.isPending && $sessionQuery.data?.user) {
-      const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
-      goto(redirectTo);
-    }
-  });
 
   async function handleSignIn(credentials: { email: string; password: string }) {
     try {
@@ -29,9 +13,10 @@
         return;
       }
 
-      // Wait for session and redirect
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      goto('/app/chat');
+      // After successful login, redirect to app
+      // Server-side will handle auth check on next request
+      const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
+      goto(redirectTo);
     } catch (err) {
       alert('An unexpected error occurred');
     }
