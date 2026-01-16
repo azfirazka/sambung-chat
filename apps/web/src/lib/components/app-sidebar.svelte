@@ -43,7 +43,6 @@
   }
 
   interface Props {
-    ref?: ComponentProps<typeof Sidebar.Root>['ref'];
     user?: {
       name: string;
       email: string;
@@ -51,7 +50,7 @@
     };
   }
 
-  let { ref = $bindable(null), user, ...restProps }: Props = $props();
+  let { user, ...restProps }: Props = $props();
 
   // Filter enabled menu items
   const menuItems = navRailConfig.menuItems.filter((item) => item.enabled);
@@ -89,18 +88,14 @@
   }
 </script>
 
-<Sidebar.Root
-  bind:ref
-  collapsible="icon"
-  class="overflow-hidden [&>[data-sidebar=sidebar]]:flex-row"
-  {...restProps}
->
+<!-- Flex container for dual sidebar layout -->
+<div class="flex overflow-hidden" {...restProps}>
   <!-- Navigation Rail (64px) -->
   <Sidebar.Root collapsible="none" class="!w-[calc(var(--sidebar-width-icon)_+_1px)] border-e">
     <Sidebar.Header>
       <Sidebar.Menu>
         <Sidebar.MenuItem>
-          <Sidebar.MenuButton size="lg" class="md:h-8 md:p-0">
+          <Sidebar.MenuButton size="lg" class="md:h-8 md:p-0" tooltipContent={undefined}>
             {#snippet child({ props })}
               <a href="/app/chat" {...props}>
                 <div
@@ -151,7 +146,7 @@
 
   <!-- Secondary Sidebar (280px) - Context aware content -->
   {#if !isSettingsContext(sidebarConfig)}
-    <Sidebar.Root collapsible="none" class="hidden flex-1 md:flex">
+    <Sidebar.Root collapsible="none" class="flex-1">
       <Sidebar.Header class="gap-3.5 border-b p-4">
         <div class="flex w-full items-center justify-between">
           <div class="text-foreground text-base font-medium">
@@ -212,4 +207,4 @@
       </Sidebar.Content>
     </Sidebar.Root>
   {/if}
-</Sidebar.Root>
+</div>

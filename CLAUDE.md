@@ -156,6 +156,13 @@ export const router = {
 - Supports email/password and OAuth (Keycloak)
 - Session management via `authClient` in frontend
 
+**Dual-Sidebar Navigation System:**
+
+- **Navigation Rail (64px)**: Icon-based primary navigation with collapsible support
+- **Secondary Sidebar (280px)**: Context-aware content (chat history, agents list, prompts library)
+- Configuration via JSON: [`apps/web/src/lib/navigation/nav-rail-menu.config.json`](apps/web/src/lib/navigation/nav-rail-menu.config.json) and [`apps/web/src/lib/navigation/secondary-sidebar-menu.config.json`](apps/web/src/lib/navigation/secondary-sidebar-menu.config.json)
+- **See:** [`docs/sidebar-journey.md`](docs/sidebar-journey.md) for implementation details and troubleshooting
+
 ---
 
 ## Package-Specific Guidelines
@@ -249,13 +256,17 @@ export const myTable = pgTable('my_table', {
 
 ## Common Pitfalls
 
-| Issue                                 | Solution                                                         |
-| ------------------------------------- | ---------------------------------------------------------------- |
-| `@apply` with custom colors fails     | Use CSS variables: `background-color: hsl(var(--color-primary))` |
-| Import `lucide-svelte` errors         | Change to `@lucide/svelte`                                       |
-| `const` with `$state` errors          | Change to `let`                                                  |
-| Files outside `src/lib/` not building | Move to `src/lib/`                                               |
-| Build fails after UI changes          | Run `cd packages/ui && bun run check` first                      |
+| Issue                                    | Solution                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------- |
+| `@apply` with custom colors fails        | Use CSS variables: `background-color: hsl(var(--color-primary))` |
+| Import `lucide-svelte` errors            | Change to `@lucide/svelte`                                       |
+| `const` with `$state` errors             | Change to `let`                                                  |
+| Files outside `src/lib/` not building    | Move to `src/lib/`                                               |
+| Build fails after UI changes             | Run `cd packages/ui && bun run check` first                      |
+| **Sidebar Hydration Errors**             | **See [`docs/sidebar-journey.md`](docs/sidebar-journey.md)**     |
+| Nested `Sidebar.Root` causing DOM errors | Use flex `<div>` container, don't nest `Sidebar.Root` components |
+| Nested `Sidebar.Inset` in pages          | Only use `Sidebar.Inset` in layout, not in individual pages      |
+| Tooltip SSR mismatch                     | Use `tooltipContent={undefined}` to disable when not needed      |
 
 ---
 

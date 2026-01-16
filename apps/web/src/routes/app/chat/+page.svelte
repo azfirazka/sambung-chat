@@ -171,319 +171,317 @@
   }
 </script>
 
-<Sidebar.Inset>
-  <header class="bg-background sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b p-4">
-    <Sidebar.Trigger class="-ms-1" />
-    <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-    <Breadcrumb.Root>
-      <Breadcrumb.List>
-        <Breadcrumb.Item>
-          <Breadcrumb.Page>Chat</Breadcrumb.Page>
-        </Breadcrumb.Item>
-      </Breadcrumb.List>
-    </Breadcrumb.Root>
-  </header>
+<header class="bg-background sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b p-4">
+  <Sidebar.Trigger class="-ms-1" />
+  <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
+  <Breadcrumb.Root>
+    <Breadcrumb.List>
+      <Breadcrumb.Item>
+        <Breadcrumb.Page>Chat</Breadcrumb.Page>
+      </Breadcrumb.Item>
+    </Breadcrumb.List>
+  </Breadcrumb.Root>
+</header>
 
-  <div class="flex h-[calc(100vh-61px)] flex-col">
-    <div bind:this={messagesContainer} class="flex-1 space-y-4 overflow-y-auto scroll-smooth p-4">
-      {#if chat.messages.length === 0}
-        <div in:fade={{ duration: 500 }} class="text-muted-foreground mt-8 text-center">
+<div class="flex h-[calc(100vh-61px)] flex-col">
+  <div bind:this={messagesContainer} class="flex-1 space-y-4 overflow-y-auto scroll-smooth p-4">
+    {#if chat.messages.length === 0}
+      <div in:fade={{ duration: 500 }} class="text-muted-foreground mt-8 text-center">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="text-primary mx-auto mb-4 opacity-50"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <h2 class="mb-2 text-xl font-semibold">Start a conversation</h2>
+        <p class="text-sm">Ask me anything to get started!</p>
+      </div>
+    {/if}
+
+    {#each chat.messages as message, index (message.id + '-' + index)}
+      {@const isLast = index === chat.messages.length - 1}
+      {@const isStreamingMessage =
+        message.role === 'assistant' && isLast && isStreamingResponse && !wasStopped}
+      {@const isStoppedMessage =
+        message.role === 'assistant' && isLast && wasStopped && !isStreamingResponse}
+      {@const isThisStoppedMessage = message.id === stoppedMessageId}
+
+      <div
+        in:fade={{ duration: 400 }}
+        class="flex w-full {message.role === 'user' ? 'justify-end' : 'justify-start'}"
+      >
+        <div
+          class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base"
+          class:ml-auto={message.role === 'user'}
+          class:bg-primary={message.role === 'user'}
+          class:bg-muted={message.role === 'assistant'}
+          class:rounded-tr-sm={message.role === 'user'}
+          class:rounded-tl-sm={message.role === 'assistant'}
+        >
+          <p
+            class="mb-1.5 text-xs font-medium opacity-70"
+            class:text-primary-foreground={message.role === 'user'}
+            class:text-muted-foreground={message.role === 'assistant'}
+          >
+            {message.role === 'user' ? 'You' : 'AI Assistant'}
+            {#if isStreamingMessage}
+              <span class="ml-2 inline-flex items-center gap-1">
+                <span class="animate-pulse">●</span>
+                <span class="animate-pulse" style="animation-delay: 0.2s">●</span>
+                <span class="animate-pulse" style="animation-delay: 0.4s">●</span>
+              </span>
+            {:else if isStoppedMessage}
+              <span class="text-muted-foreground ml-2 inline-flex items-center gap-1">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+                <span>Stopped</span>
+              </span>
+            {/if}
+          </p>
+
+          <div
+            class="markdown-content prose prose-sm max-w-none dark:prose-invert"
+            class:prose-p:text-primary-foreground={message.role === 'user'}
+            class:prose-p:text-foreground={message.role === 'assistant'}
+            class:opacity-70={isThisStoppedMessage}
+          >
+            {#if isThisStoppedMessage && stoppedMessageContent}
+              {@html stoppedMessageContent}
+            {:else}
+              {#each message.parts as part, partIndex (partIndex)}
+                {#if part.type === 'text'}
+                  {@html renderMarkdownSync(part.text)}
+                  {#if isStreamingMessage && !part.text}
+                    <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
+                    ></span>
+                  {/if}
+                {/if}
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        {#if isStoppedMessage}
+          <div
+            in:fade={{ duration: 300 }}
+            class="text-muted-foreground mt-2 ml-4 flex items-center gap-2 text-sm"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="shrink-0"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="1" />
+            </svg>
+            <span class="italic">Generation stopped by user</span>
+          </div>
+        {/if}
+      </div>
+    {/each}
+
+    {#if hasError()}
+      <div
+        in:fade={{ duration: 300 }}
+        class="border-destructive/50 bg-destructive/10 flex items-center justify-between gap-3 rounded-xl border p-4"
+      >
+        <div class="flex items-start gap-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="64"
-            height="64"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="1"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="text-primary mx-auto mb-4 opacity-50"
+            class="text-destructive mt-0.5 shrink-0"
           >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" x2="12" y1="8" y2="12" />
+            <line x1="12" x2="12.01" y1="16" y2="16" />
           </svg>
-          <h2 class="mb-2 text-xl font-semibold">Start a conversation</h2>
-          <p class="text-sm">Ask me anything to get started!</p>
-        </div>
-      {/if}
-
-      {#each chat.messages as message, index (message.id + '-' + index)}
-        {@const isLast = index === chat.messages.length - 1}
-        {@const isStreamingMessage =
-          message.role === 'assistant' && isLast && isStreamingResponse && !wasStopped}
-        {@const isStoppedMessage =
-          message.role === 'assistant' && isLast && wasStopped && !isStreamingResponse}
-        {@const isThisStoppedMessage = message.id === stoppedMessageId}
-
-        <div
-          in:fade={{ duration: 400 }}
-          class="flex w-full {message.role === 'user' ? 'justify-end' : 'justify-start'}"
-        >
-          <div
-            class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base"
-            class:ml-auto={message.role === 'user'}
-            class:bg-primary={message.role === 'user'}
-            class:bg-muted={message.role === 'assistant'}
-            class:rounded-tr-sm={message.role === 'user'}
-            class:rounded-tl-sm={message.role === 'assistant'}
-          >
-            <p
-              class="mb-1.5 text-xs font-medium opacity-70"
-              class:text-primary-foreground={message.role === 'user'}
-              class:text-muted-foreground={message.role === 'assistant'}
-            >
-              {message.role === 'user' ? 'You' : 'AI Assistant'}
-              {#if isStreamingMessage}
-                <span class="ml-2 inline-flex items-center gap-1">
-                  <span class="animate-pulse">●</span>
-                  <span class="animate-pulse" style="animation-delay: 0.2s">●</span>
-                  <span class="animate-pulse" style="animation-delay: 0.4s">●</span>
-                </span>
-              {:else if isStoppedMessage}
-                <span class="text-muted-foreground ml-2 inline-flex items-center gap-1">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <rect x="6" y="6" width="12" height="12" rx="1" />
-                  </svg>
-                  <span>Stopped</span>
-                </span>
-              {/if}
-            </p>
-
-            <div
-              class="markdown-content prose prose-sm max-w-none dark:prose-invert"
-              class:prose-p:text-primary-foreground={message.role === 'user'}
-              class:prose-p:text-foreground={message.role === 'assistant'}
-              class:opacity-70={isThisStoppedMessage}
-            >
-              {#if isThisStoppedMessage && stoppedMessageContent}
-                {@html stoppedMessageContent}
-              {:else}
-                {#each message.parts as part, partIndex (partIndex)}
-                  {#if part.type === 'text'}
-                    {@html renderMarkdownSync(part.text)}
-                    {#if isStreamingMessage && !part.text}
-                      <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
-                      ></span>
-                    {/if}
-                  {/if}
-                {/each}
-              {/if}
-            </div>
+          <div class="flex-1">
+            <p class="text-destructive font-medium">Connection Error</p>
+            <p class="text-muted-foreground mt-1 text-sm">{errorMessage}</p>
           </div>
-
-          {#if isStoppedMessage}
-            <div
-              in:fade={{ duration: 300 }}
-              class="text-muted-foreground mt-2 ml-4 flex items-center gap-2 text-sm"
-            >
+        </div>
+        {#if retryCount < MAX_RETRIES}
+          <button
+            type="button"
+            onclick={handleRetry}
+            disabled={isRetrying}
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {#if isRetrying}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                class="shrink-0"
+                class="animate-spin"
               >
-                <rect x="6" y="6" width="12" height="12" rx="1" />
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              <span class="italic">Generation stopped by user</span>
-            </div>
-          {/if}
-        </div>
-      {/each}
+              Retrying...
+            {:else}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+                />
+              </svg>
+              Retry
+            {/if}
+          </button>
+        {/if}
+      </div>
+    {/if}
+  </div>
 
-      {#if hasError()}
-        <div
-          in:fade={{ duration: 300 }}
-          class="border-destructive/50 bg-destructive/10 flex items-center justify-between gap-3 rounded-xl border p-4"
-        >
-          <div class="flex items-start gap-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="text-destructive mt-0.5 shrink-0"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" x2="12" y1="8" y2="12" />
-              <line x1="12" x2="12.01" y1="16" y2="16" />
-            </svg>
-            <div class="flex-1">
-              <p class="text-destructive font-medium">Connection Error</p>
-              <p class="text-muted-foreground mt-1 text-sm">{errorMessage}</p>
-            </div>
+  <form
+    onsubmit={handleSubmit}
+    class="border-border bg-background flex items-end gap-2 border-t p-4"
+  >
+    <div class="relative flex-1">
+      <textarea
+        name="prompt"
+        bind:value={input}
+        bind:this={inputField}
+        placeholder="Type your message..."
+        rows="1"
+        class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 w-full resize-none overflow-y-auto rounded-xl border px-4 py-3 pr-12 transition-all duration-200 focus:ring-2 focus:outline-none disabled:opacity-50"
+        style="max-height: 200px"
+        autocomplete="off"
+        disabled={isStreaming() || isRetrying || isSubmitting}
+        onkeydown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
+          }
+        }}
+        oninput={(e) => {
+          const target = e.target as HTMLTextAreaElement;
+          target.style.height = 'auto';
+          target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+        }}
+      ></textarea>
+      <div class="text-muted-foreground pointer-events-none absolute right-3 bottom-3 text-xs">
+        {#if isStreaming() || isRetrying}
+          <span class="flex items-center gap-1">
+            <span class="animate-spin">⋯</span>
+          </span>
+        {:else}
+          <div class="hidden items-center gap-1 sm:flex">
+            <kbd class="text-xs">⇧</kbd>
+            <kbd class="text-xs">⏎</kbd>
           </div>
-          {#if retryCount < MAX_RETRIES}
-            <button
-              type="button"
-              onclick={handleRetry}
-              disabled={isRetrying}
-              class="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {#if isRetrying}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="animate-spin"
-                >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-                Retrying...
-              {:else}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
-                  />
-                </svg>
-                Retry
-              {/if}
-            </button>
-          {/if}
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
 
-    <form
-      onsubmit={handleSubmit}
-      class="border-border bg-background flex items-end gap-2 border-t p-4"
-    >
-      <div class="relative flex-1">
-        <textarea
-          name="prompt"
-          bind:value={input}
-          bind:this={inputField}
-          placeholder="Type your message..."
-          rows="1"
-          class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 w-full resize-none overflow-y-auto rounded-xl border px-4 py-3 pr-12 transition-all duration-200 focus:ring-2 focus:outline-none disabled:opacity-50"
-          style="max-height: 200px"
-          autocomplete="off"
-          disabled={isStreaming() || isRetrying || isSubmitting}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-          oninput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = 'auto';
-            target.style.height = Math.min(target.scrollHeight, 200) + 'px';
-          }}
-        ></textarea>
-        <div class="text-muted-foreground pointer-events-none absolute right-3 bottom-3 text-xs">
-          {#if isStreaming() || isRetrying}
-            <span class="flex items-center gap-1">
-              <span class="animate-spin">⋯</span>
-            </span>
-          {:else}
-            <div class="hidden items-center gap-1 sm:flex">
-              <kbd class="text-xs">⇧</kbd>
-              <kbd class="text-xs">⏎</kbd>
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      {#if isStreaming() && !isRetrying}
-        <button
-          type="button"
-          onclick={handleStop}
-          class="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-4 transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95"
-          aria-label="Stop generation"
+    {#if isStreaming() && !isRetrying}
+      <button
+        type="button"
+        onclick={handleStop}
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-4 transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95"
+        aria-label="Stop generation"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          stroke="none"
         >
+          <rect x="6" y="6" width="12" height="12" rx="1" />
+        </svg>
+        <span class="text-sm font-medium">Stop</span>
+      </button>
+    {:else}
+      <button
+        type="submit"
+        disabled={!input.trim() || isStreaming() || isRetrying || isSubmitting}
+        class="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Send message"
+      >
+        {#if isRetrying}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
             height="18"
             viewBox="0 0 24 24"
-            fill="currentColor"
-            stroke="none"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="animate-spin"
           >
-            <rect x="6" y="6" width="12" height="12" rx="1" />
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
-          <span class="text-sm font-medium">Stop</span>
-        </button>
-      {:else}
-        <button
-          type="submit"
-          disabled={!input.trim() || isStreaming() || isRetrying || isSubmitting}
-          class="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Send message"
-        >
-          {#if isRetrying}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="animate-spin"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-          {:else}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="transition-transform duration-200"
-            >
-              <path d="m22 2-7 20-4-9-9-4Z" />
-              <path d="M22 2 11 13" />
-            </svg>
-          {/if}
-        </button>
-      {/if}
-    </form>
-  </div>
-</Sidebar.Inset>
+        {:else}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="transition-transform duration-200"
+          >
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
+        {/if}
+      </button>
+    {/if}
+  </form>
+</div>
 
 <style>
   :global(.scroll-smooth) {
