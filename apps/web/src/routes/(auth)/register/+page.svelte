@@ -43,9 +43,10 @@
     if (isLoading) return;
     isLoading = true;
     try {
+      const callbackURL = `${window.location.origin}/app/chat`;
       await authClient.signIn.social({
         provider: 'keycloak',
-        callbackURL: '/app/chat',
+        callbackURL,
       });
     } catch {
       alert('SSO failed');
