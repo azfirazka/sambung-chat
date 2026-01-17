@@ -1,10 +1,13 @@
 import type { RouterClient } from '@orpc/server';
 
 import { protectedProcedure, publicProcedure } from '../index';
-import { todoRouter } from './todo';
 import { chatRouter } from './chat';
 import { messageRouter } from './message';
 import { folderRouter } from './folder';
+
+// NOTE: Example routers are in _example/ folder for reference only
+// They are NOT exported to production API
+// See _example/todo.ts for ORPC implementation examples
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -16,7 +19,6 @@ export const appRouter = {
       user: context.session?.user,
     };
   }),
-  todo: todoRouter,
   chat: chatRouter,
   message: messageRouter,
   folder: folderRouter,

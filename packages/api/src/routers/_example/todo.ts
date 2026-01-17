@@ -1,9 +1,24 @@
+// ============================================================================
+// EXAMPLE ROUTER - NOT FOR PRODUCTION USE
+// ============================================================================
+//
+// This is an EXAMPLE router to demonstrate ORPC patterns.
+// It uses publicProcedure (no authentication) for simplicity.
+//
+// For production use:
+// 1. Use protectedProcedure instead of publicProcedure
+// 2. Add userId field to database schema
+// 3. Add ownership checks: where(eq(table.userId, context.session.user.id))
+//
+// See orpc-todo-reference.md for complete patterns.
+// ============================================================================
+
 import { db } from '@sambung-chat/db';
 import { todo } from '@sambung-chat/db/schema/todo';
 import { eq } from 'drizzle-orm';
 import z from 'zod';
 
-import { publicProcedure } from '../index';
+import { publicProcedure } from '../../index';
 
 export const todoRouter = {
   getAll: publicProcedure.handler(async () => {

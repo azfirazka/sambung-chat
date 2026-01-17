@@ -38,9 +38,10 @@ describe('ORPC Client Type Exports', () => {
     // Verify all expected routes exist
     expect(typeof api.appRouter.healthCheck).toBe('object');
     expect(typeof api.appRouter.privateData).toBe('object');
-    expect(typeof api.appRouter.todo).toBe('object');
+    // Note: todo router moved to _example/ folder and is not exported
     expect(typeof api.appRouter.chat).toBe('object');
     expect(typeof api.appRouter.message).toBe('object');
+    expect(typeof api.appRouter.folder).toBe('object');
 
     // Note: Type exports like AppRouter and AppRouterClient are compile-time only
     // and don't exist at runtime in JavaScript
