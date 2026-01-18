@@ -49,7 +49,7 @@
 
   // Computed - filtered chats
   let filteredChats = $derived(() => {
-    let results = chats;
+    let results = [...chats]; // ← Clone array to prevent mutation
 
     // Filter by search query
     if (debouncedSearch) {
@@ -77,13 +77,6 @@
     for (const folder of folders) {
       groups[folder.name] = [];
     }
-
-    const now = $state(new Date());
-    const today = $state(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
-    const yesterday = $state(new Date(today));
-    yesterday.setDate(yesterday.getDate() - 1);
-    const weekAgo = $state(new Date(today));
-    weekAgo.setDate(weekAgo.getDate() - 7);
 
     for (const chat of filteredChats()) {
       if (chat.pinned) {
@@ -119,6 +112,7 @@
       const result = await orpc.chat.getAll();
       chats = result as Chat[];
     } catch (err) {
+      console.error('Failed to load chats:', err);
       error = err instanceof Error ? err.message : 'Failed to load chats';
     } finally {
       loading = false;
@@ -280,7 +274,7 @@
     {:else}
       <div class="h-full overflow-y-auto">
         <div class="px-2">
-          {#each Object.entries(groupedChats) as [groupName, groupChats]}
+          {#each Object.entries(groupedChats()) as [groupName, groupChats]}
             {#if groupChats.length > 0}
               <div class="mb-4">
                 <h3

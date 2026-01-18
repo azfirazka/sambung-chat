@@ -96,17 +96,15 @@
     }
   });
 
-  // Load chat data on mount
-  onMount(async () => {
-    if (chatId()) {
-      await loadChat();
-    }
-  });
+  // Track current chat ID to prevent double loading
+  let currentLoadedChatId = $state<string | null>(null);
 
-  // Reload chat when chatId changes
+  // Load chat when chatId changes (prevents double loading)
   $effect(() => {
-    if (chatId()) {
+    const id = chatId();
+    if (id && id !== currentLoadedChatId) {
       loadChat();
+      currentLoadedChatId = id;
     }
   });
 
@@ -118,6 +116,10 @@
       const data = await orpc.chat.getById({ id: chatId()! });
       if (data) {
         chatData = data;
+
+        // Clear existing messages before loading new ones
+        chat.messages = [];
+
         // Load existing messages into Chat SDK
         if (data.messages && data.messages.length > 0) {
           // Convert database messages to Chat SDK format
