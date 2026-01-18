@@ -7,7 +7,11 @@
   import { renderMarkdownSync } from '$lib/markdown-renderer.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { exportChat } from '$lib/utils/chat-export';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import DownloadIcon from '@lucide/svelte/icons/download';
+  import FileTextIcon from '@lucide/svelte/icons/file-text';
+  import FileJsonIcon from '@lucide/svelte/icons/file-json';
+  import CodeIcon from '@lucide/svelte/icons/code';
   import SquareIcon from '@lucide/svelte/icons/square';
   import SendIcon from '@lucide/svelte/icons/send';
 
@@ -354,30 +358,28 @@
         {/if}
       </div>
       <div class="flex gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onclick={() => handleExport('md')}
-          title="Export as Markdown"
-        >
-          <DownloadIcon class="size-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onclick={() => handleExport('json')}
-          title="Export as JSON"
-        >
-          <DownloadIcon class="size-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onclick={() => handleExport('txt')}
-          title="Export as Text"
-        >
-          <DownloadIcon class="size-4" />
-        </Button>
+        <DropdownMenu.DropdownMenu>
+          <DropdownMenu.DropdownMenuTrigger
+            class="bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+            title="Export chat"
+          >
+            <DownloadIcon class="size-4" />
+          </DropdownMenu.DropdownMenuTrigger>
+          <DropdownMenu.DropdownMenuContent>
+            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('md')}>
+              <CodeIcon class="mr-2 size-4" />
+              <span>Markdown</span>
+            </DropdownMenu.DropdownMenuItem>
+            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('json')}>
+              <FileJsonIcon class="mr-2 size-4" />
+              <span>JSON</span>
+            </DropdownMenu.DropdownMenuItem>
+            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('txt')}>
+              <FileTextIcon class="mr-2 size-4" />
+              <span>Plain Text</span>
+            </DropdownMenu.DropdownMenuItem>
+          </DropdownMenu.DropdownMenuContent>
+        </DropdownMenu.DropdownMenu>
       </div>
     </div>
   </div>
