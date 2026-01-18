@@ -11,6 +11,8 @@
   import PanelLeftCloseIcon from '@lucide/svelte/icons/panel-left-close';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 
   // Types
   interface Chat {
@@ -50,6 +52,7 @@
   let isCreatingFolder = $state(false);
   let selectedFolderId = $state<string>('');
   let showPinnedOnly = $state(false);
+  let collapsedFolders = $state<Record<string, boolean>>({});
 
   // Computed - filtered chats
   let filteredChats = $derived(() => {
@@ -82,32 +85,30 @@
 
   // Group chats by folder and time period
   let groupedChats = $derived(() => {
-    const groups: Record<string, Chat[]> = {
-      Pinned: [],
-      'No Folder': [],
-    };
+    const pinnedChats: Chat[] = [];
+    const folderGroups: Record<string, { folder: Folder; chats: Chat[] }> = {};
+    const noFolderChats: Chat[] = [];
 
-    // Add folder groups
+    // Initialize folder groups
     for (const folder of folders) {
-      groups[folder.name] = [];
+      folderGroups[folder.id] = { folder, chats: [] };
     }
 
     for (const chat of filteredChats()) {
       if (chat.pinned) {
-        groups.Pinned.push(chat);
+        pinnedChats.push(chat);
       } else if (chat.folderId) {
-        const folder = folders.find((f) => f.id === chat.folderId);
-        if (folder) {
-          groups[folder.name].push(chat);
+        if (folderGroups[chat.folderId]) {
+          folderGroups[chat.folderId].chats.push(chat);
         } else {
-          groups['No Folder'].push(chat);
+          noFolderChats.push(chat);
         }
       } else {
-        groups['No Folder'].push(chat);
+        noFolderChats.push(chat);
       }
     }
 
-    return groups;
+    return { pinnedChats, folderGroups, noFolderChats };
   });
 
   // Debounced search
@@ -225,6 +226,19 @@
       console.error('Failed to move chat to folder:', err);
     }
   }
+
+  // Toggle folder collapsed state
+  function toggleFolder(folderId: string) {
+    collapsedFolders = {
+      ...collapsedFolders,
+      [folderId]: !collapsedFolders[folderId],
+    };
+  }
+
+  // Check if folder is collapsed (default to true = hidden)
+  function isFolderCollapsed(folderId: string): boolean {
+    return collapsedFolders[folderId] ?? true;
+  }
 </script>
 
 <div class="flex h-full flex-col">
@@ -332,34 +346,93 @@
     {:else if chats.length === 0}
       <ChatEmptyState onNewChat={createNewChat} />
     {:else}
-      <div class="h-full overflow-y-auto">
+      <div class="h-full overflow-y-auto max-h-[50vh]">
         <div class="px-2">
-          {#each Object.entries(groupedChats()) as [groupName, groupChats]}
-            {#if groupChats.length > 0}
-              <div class="mb-4">
-                <h3
-                  class="text-muted-foreground mb-2 flex items-center gap-1.5 px-2 text-xs font-semibold uppercase"
+          <!-- Pinned Section -->
+          {#if groupedChats().pinnedChats.length > 0}
+            <div class="mb-4">
+              <h3
+                class="text-muted-foreground mb-2 flex items-center gap-1.5 px-2 text-xs font-semibold uppercase"
+              >
+                Pinned
+              </h3>
+              {#each groupedChats().pinnedChats as chat (chat.id)}
+                <ChatListItem
+                  {chat}
+                  {folders}
+                  isActive={currentChatId === chat.id}
+                  onSelect={() => selectChat(chat.id)}
+                  onDelete={() => deleteChat(chat.id)}
+                  onRename={(newTitle) => renameChat(chat.id, newTitle)}
+                  onTogglePin={() => togglePin(chat.id)}
+                  onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
+                />
+              {/each}
+            </div>
+          {/if}
+
+          <!-- Folders Section -->
+          {#each Object.values(groupedChats().folderGroups) as { folder, chats: folderChats } (folder.id)}
+            {#if folderChats.length > 0}
+              <div class="mb-3">
+                <!-- Collapsible Folder Header -->
+                <button
+                  onclick={() => toggleFolder(folder.id)}
+                  class="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase transition-colors"
                 >
-                  {#if groupName !== 'Pinned' && groupName !== 'No Folder'}
-                    <FolderIcon class="size-3" />
+                  {#if isFolderCollapsed(folder.id)}
+                    <ChevronRightIcon class="size-3.5" />
+                  {:else}
+                    <ChevronDownIcon class="size-3.5" />
                   {/if}
-                  {groupName}
-                </h3>
-                {#each groupChats as chat (chat.id)}
-                  <ChatListItem
-                    {chat}
-                    {folders}
-                    isActive={currentChatId === chat.id}
-                    onSelect={() => selectChat(chat.id)}
-                    onDelete={() => deleteChat(chat.id)}
-                    onRename={(newTitle) => renameChat(chat.id, newTitle)}
-                    onTogglePin={() => togglePin(chat.id)}
-                    onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
-                  />
-                {/each}
+                  <FolderIcon class="size-3" />
+                  {folder.name}
+                  <span class="text-muted-foreground ml-auto text-xs">
+                    {folderChats.length}
+                  </span>
+                </button>
+
+                <!-- Folder Chats (only show when expanded) -->
+                {#if !isFolderCollapsed(folder.id)}
+                  {#each folderChats as chat (chat.id)}
+                    <ChatListItem
+                      {chat}
+                      {folders}
+                      isActive={currentChatId === chat.id}
+                      onSelect={() => selectChat(chat.id)}
+                      onDelete={() => deleteChat(chat.id)}
+                      onRename={(newTitle) => renameChat(chat.id, newTitle)}
+                      onTogglePin={() => togglePin(chat.id)}
+                      onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
+                    />
+                  {/each}
+                {/if}
               </div>
             {/if}
           {/each}
+
+          <!-- No Folder Section -->
+          {#if groupedChats().noFolderChats.length > 0}
+            <div class="mb-4">
+              <h3
+                class="text-muted-foreground mb-2 flex items-center gap-1.5 px-2 text-xs font-semibold uppercase"
+              >
+                No Folder
+              </h3>
+              {#each groupedChats().noFolderChats as chat (chat.id)}
+                <ChatListItem
+                  {chat}
+                  {folders}
+                  isActive={currentChatId === chat.id}
+                  onSelect={() => selectChat(chat.id)}
+                  onDelete={() => deleteChat(chat.id)}
+                  onRename={(newTitle) => renameChat(chat.id, newTitle)}
+                  onTogglePin={() => togglePin(chat.id)}
+                  onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
+                />
+              {/each}
+            </div>
+          {/if}
         </div>
       </div>
     {/if}
