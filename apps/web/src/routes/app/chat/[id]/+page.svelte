@@ -174,34 +174,44 @@
     const initialMessageCount = chat.messages.length;
 
     try {
-      // Save user message to database
-      if (chatId()) {
-        await orpc.message.create({
-          chatId: chatId()!,
-          content: messageToSend,
-        });
-      }
-
-      // Send via AI SDK for streaming
+      // Send via AI SDK for streaming (optimistic UI - shows in chat, not saved to DB yet)
       await chat.sendMessage({ text: messageToSend });
 
       if (chat.messages.length === initialMessageCount) {
         throw new Error('No assistant response was received');
       }
 
-      // Save assistant message to database
-      const lastMessage = chat.messages[chat.messages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant' && chatId()) {
-        // For AI SDK Chat, extract content from parts
-        const textPart = lastMessage.parts?.find(
-          (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
-        );
-        const content = textPart && 'text' in textPart ? textPart.text : '';
-        await orpc.message.create({
-          chatId: chatId()!,
-          content: content,
-          role: 'assistant',
-        });
+      // AI successful! Now save both messages to database
+      // Find the user and assistant messages that were just added
+      const newUserMessage = chat.messages[initialMessageCount];
+      const assistantMessage = chat.messages[chat.messages.length - 1];
+
+      if (chatId()) {
+        // Save user message first
+        if (newUserMessage && newUserMessage.role === 'user') {
+          const userTextPart = newUserMessage.parts?.find(
+            (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+          );
+          const userContent = userTextPart && 'text' in userTextPart ? userTextPart.text : '';
+          await orpc.message.create({
+            chatId: chatId()!,
+            content: userContent,
+          });
+        }
+
+        // Save assistant message
+        if (assistantMessage && assistantMessage.role === 'assistant') {
+          const assistantTextPart = assistantMessage.parts?.find(
+            (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+          );
+          const assistantContent =
+            assistantTextPart && 'text' in assistantTextPart ? assistantTextPart.text : '';
+          await orpc.message.create({
+            chatId: chatId()!,
+            content: assistantContent,
+            role: 'assistant',
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to send message:', error);
