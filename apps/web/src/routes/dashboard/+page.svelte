@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { orpc } from '../../lib/orpc';
   import { onMount } from 'svelte';
+
+  let { data }: { data: { user?: Record<string, unknown> } | undefined } = $props();
 
   let privateData = $state<{ message: string } | null>(null);
   let isLoading = $state(false);
   let error = $state<string | null>(null);
 
-  // Get user from page.data
-  const user = $derived($page.data?.user);
+  // Get user from page data (SSR-safe)
+  const user = $derived(data?.user);
 
   $effect(() => {
     if (!user) {

@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import AppSidebar from '$lib/components/app-sidebar.svelte';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
-  const { children } = $props();
+  let { children, data } = $props();
 
   // Server-side protection handles auth check
-  // $page.data.user is available from +layout.server.ts
-  const user = $derived($page.data?.user);
+  // data.user is available from +layout.server.ts (SSR-safe)
+  const user = $derived(data?.user);
 </script>
 
 <!-- Sidebar layout for app pages -->
