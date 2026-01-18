@@ -183,6 +183,15 @@
 
   // Handle chat deletion
   async function deleteChat(chatId: string) {
+    const chat = chats.find((c) => c.id === chatId);
+    if (!chat) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to delete "${chat.title}"?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
     try {
       await orpc.chat.delete({ id: chatId });
       // Remove from local state
