@@ -157,9 +157,28 @@ app.post('/ai', async (c) => {
       return c.json({ error: 'Invalid request: too many messages (max 100)' }, 400);
     }
 
+    // Convert AI SDK format to standard format
+    // AI SDK: { role: 'user', parts: [{ type: 'text', text: 'hello' }] }
+    // Standard: { role: 'user', content: 'hello' }
+    const normalizedMessages = uiMessages.map((msg) => {
+      // If message has parts (AI SDK format), extract text content
+      if (msg.parts && Array.isArray(msg.parts)) {
+        const textPart = msg.parts.find((p: any) => p?.type === 'text');
+        return {
+          role: msg.role,
+          content: textPart?.text || '',
+        };
+      }
+      // If message already has content, use as-is
+      return {
+        role: msg.role,
+        content: msg.content || '',
+      };
+    });
+
     // Validate message structure
-    for (const msg of uiMessages) {
-      if (!msg.role || !msg.content) {
+    for (const msg of normalizedMessages) {
+      if (!msg.role || msg.content === undefined) {
         return c.json(
           { error: 'Invalid message format: each message must have role and content' },
           400
@@ -184,7 +203,7 @@ app.post('/ai', async (c) => {
 
     const result = streamText({
       model,
-      messages: await convertToModelMessages(uiMessages),
+      messages: await convertToModelMessages(normalizedMessages),
     });
 
     // Use Hono's streaming API with AI SDK
