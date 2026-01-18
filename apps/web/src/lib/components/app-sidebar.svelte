@@ -82,7 +82,8 @@
   // Handle navigation
   function handleNavClick(item: NavItem) {
     goto(item.path);
-    sidebar.setOpen(true);
+    // Open main sidebar after navigation (if sidebar context available)
+    sidebar?.setOpen(true);
   }
 
   // Type guard for action button

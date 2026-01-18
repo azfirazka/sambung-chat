@@ -31,7 +31,9 @@
       bind:this={ref}
       {...restProps}
     >
-      {@render children?.()}
+      {#if children}
+        {@render children()}
+      {/if}
     </div>
   </Tooltip.Provider>
 {:else}
@@ -46,6 +48,8 @@
     bind:this={ref}
     {...restProps}
   >
-    {@render children?.()}
+    {#if children}
+      {@render children()}
+    {/if}
   </div>
 {/if}
