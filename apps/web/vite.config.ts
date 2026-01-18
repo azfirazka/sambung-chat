@@ -41,5 +41,21 @@ export default defineConfig({
       // Include more directories to watch
       ignored: ['!**/node_modules/.vite/**', '!**/.svelte-kit/**'],
     },
+
+    // Proxy API requests to backend server (same-origin for cookies)
+    proxy: {
+      '/ai': {
+        target: process.env.PUBLIC_API_URL || 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+      '/rpc': {
+        target: process.env.PUBLIC_API_URL || 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
   },
 });

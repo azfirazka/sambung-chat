@@ -90,12 +90,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
   ],
 });
 
-// Only apply this middleware to non-auth routes
-app.use('/ai', async (c, next) => {
-  await createContext({ context: c });
-  await next();
-});
-
+// RPC middleware - applies context to RPC routes
 app.use('/rpc/*', async (c, next) => {
   const context = await createContext({ context: c });
   const rpcResult = await rpcHandler.handle(c.req.raw, {
@@ -131,12 +126,20 @@ const openai = createOpenAICompatible({
 
 app.post('/ai', async (c) => {
   try {
+    // Debug: Log request headers
+    const cookieHeader = c.req.raw.headers.get('cookie');
+    console.log('[AI] Request cookies:', cookieHeader);
+
     // Authentication check
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
     });
 
+    console.log('[AI] Session retrieved:', session ? 'Yes' : 'No');
+    console.log('[AI] User:', session?.user?.email || 'None');
+
     if (!session?.user) {
+      console.log('[AI] Unauthorized - No session or user found');
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
@@ -259,6 +262,27 @@ app.get('/debug/auth', async (c) => {
 // Debug endpoint to test handler
 app.get('/debug', (c) => {
   return c.json({ message: 'Debug works', time: new Date().toISOString() });
+});
+
+// Debug endpoint to test session
+app.get('/debug/session', async (c) => {
+  const cookieHeader = c.req.raw.headers.get('cookie');
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+
+  return c.json({
+    hasCookie: !!cookieHeader,
+    cookiePreview: cookieHeader?.substring(0, 100) || 'None',
+    hasSession: !!session,
+    user: session?.user
+      ? {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+        }
+      : null,
+  });
 });
 
 // ============================================================================

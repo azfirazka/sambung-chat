@@ -14,6 +14,9 @@
   import CodeIcon from '@lucide/svelte/icons/code';
   import SquareIcon from '@lucide/svelte/icons/square';
   import SendIcon from '@lucide/svelte/icons/send';
+  import MessageCircleIcon from '@lucide/svelte/icons/message-circle';
+  import AlignLeftIcon from '@lucide/svelte/icons/align-left';
+  import ClockIcon from '@lucide/svelte/icons/clock';
 
   // Use PUBLIC_URL for AI endpoint (backend)
   const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
@@ -52,6 +55,27 @@
 
   let messagesContainer: HTMLDivElement | null = $state(null);
   let inputField: HTMLTextAreaElement | null = $state(null);
+
+  // Chat statistics
+  let chatStats = $derived(() => {
+    const userMessages = chat.messages.filter((m) => m.role === 'user');
+    const assistantMessages = chat.messages.filter((m) => m.role === 'assistant');
+    const totalWords = chat.messages.reduce((sum, msg) => {
+      const textPart = msg.parts?.find(
+        (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+      );
+      const content = textPart && 'text' in textPart ? textPart.text : '';
+      return sum + content.split(/\s+/).filter(Boolean).length;
+    }, 0);
+
+    return {
+      messageCount: chat.messages.length,
+      userMessageCount: userMessages.length,
+      assistantMessageCount: assistantMessages.length,
+      totalWords,
+      lastActivity: chatData?.updatedAt ? new Date(chatData.updatedAt).toLocaleString() : null,
+    };
+  });
 
   // Get chat ID from URL
   let chatId = $derived(() => {
@@ -235,6 +259,7 @@
         errorMessage = errorObj.message;
       }
 
+      // Retry logic with save to database after success
       if (!wasStopped && retryCount < MAX_RETRIES) {
         isRetrying = true;
         retryCount++;
@@ -244,6 +269,38 @@
         try {
           abortController = new AbortController();
           await chat.sendMessage({ text: messageToSend });
+
+          // Retry successful! Save both messages to database
+          const newUserMessage = chat.messages[initialMessageCount];
+          const assistantMessage = chat.messages[chat.messages.length - 1];
+
+          if (chatId()) {
+            // Save user message first
+            if (newUserMessage && newUserMessage.role === 'user') {
+              const userTextPart = newUserMessage.parts?.find(
+                (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+              );
+              const userContent = userTextPart && 'text' in userTextPart ? userTextPart.text : '';
+              await orpc.message.create({
+                chatId: chatId()!,
+                content: userContent,
+              });
+            }
+
+            // Save assistant message
+            if (assistantMessage && assistantMessage.role === 'assistant') {
+              const assistantTextPart = assistantMessage.parts?.find(
+                (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+              );
+              const assistantContent =
+                assistantTextPart && 'text' in assistantTextPart ? assistantTextPart.text : '';
+              await orpc.message.create({
+                chatId: chatId()!,
+                content: assistantContent,
+                role: 'assistant',
+              });
+            }
+          }
         } catch (retryError) {
           console.error('Retry failed:', retryError);
         } finally {
@@ -343,17 +400,28 @@
   }
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-screen flex-col overflow-hidden">
   <!-- Header -->
-  <div class="border-b px-6 py-4">
+  <div class="shrink-0 border-b px-6 py-4">
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-foreground text-xl font-semibold">
           {loading ? 'Loading...' : chatData?.title || 'Chat'}
         </h1>
         {#if chatData}
-          <p class="text-muted-foreground text-sm">
-            {chatData.modelId} • {new Date(chatData.updatedAt).toLocaleString()}
+          <p class="text-muted-foreground flex items-center gap-3 text-sm">
+            <span class="flex items-center gap-1">
+              <MessageCircleIcon class="size-3" />
+              {chatStats().messageCount} messages
+            </span>
+            <span class="flex items-center gap-1">
+              <AlignLeftIcon class="size-3" />
+              {chatStats().totalWords} words
+            </span>
+            <span class="flex items-center gap-1">
+              <ClockIcon class="size-3" />
+              {chatStats().lastActivity || 'N/A'}
+            </span>
           </p>
         {/if}
       </div>
@@ -440,7 +508,7 @@
   </div>
 
   <!-- Input Area -->
-  <div class="border-t px-6 py-4">
+  <div class="shrink-0 border-t px-6 py-4">
     <div class="mx-auto max-w-3xl">
       <form onsubmit={handleSubmit}>
         <div class="flex gap-2">

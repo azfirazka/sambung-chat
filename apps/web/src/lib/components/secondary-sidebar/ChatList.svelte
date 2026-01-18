@@ -46,6 +46,8 @@
   let showCreateFolder = $state(false);
   let newFolderName = $state('');
   let isCreatingFolder = $state(false);
+  let selectedFolderId = $state<string>('');
+  let showPinnedOnly = $state(false);
 
   // Computed - filtered chats
   let filteredChats = $derived(() => {
@@ -56,6 +58,16 @@
       results = results.filter((chat) =>
         chat.title.toLowerCase().includes(debouncedSearch.toLowerCase())
       );
+    }
+
+    // Filter by folder
+    if (selectedFolderId) {
+      results = results.filter((chat) => chat.folderId === selectedFolderId);
+    }
+
+    // Filter by pinned only
+    if (showPinnedOnly) {
+      results = results.filter((chat) => chat.pinned);
     }
 
     // Sort: pinned first, then by date
@@ -254,7 +266,42 @@
       </div>
     {/if}
 
-    <Input type="text" placeholder="Search chats..." bind:value={searchQuery} class="h-8" />
+    <!-- Search Input with Debounce -->
+    <div class="mb-3">
+      <Input
+        type="text"
+        placeholder="Search chats..."
+        bind:value={searchQuery}
+        oninput={() => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            debouncedSearch = searchQuery;
+          }, 300);
+        }}
+        class="h-8"
+      />
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="flex items-center justify-between gap-2">
+      <select
+        bind:value={selectedFolderId}
+        class="border-input bg-background focus:ring-ring flex-1 rounded-md border px-2 py-1 text-sm focus:ring-1 focus:outline-none"
+      >
+        <option value="">All Folders</option>
+        {#each folders as folder}
+          <option value={folder.id}>{folder.name}</option>
+        {/each}
+      </select>
+      <label class="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <input
+          type="checkbox"
+          bind:checked={showPinnedOnly}
+          class="border-input bg-background focus:ring-ring rounded border px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
+        />
+        Pinned only
+      </label>
+    </div>
   </Sidebar.Header>
 
   <!-- Content -->
