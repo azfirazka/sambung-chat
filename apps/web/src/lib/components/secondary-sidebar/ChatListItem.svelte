@@ -39,6 +39,7 @@
     onTogglePin: () => void;
     onMoveToFolder: (folderId: string | null) => void;
     onCreateFolder: () => void;
+    searchQuery?: string;
   }
 
   let {
@@ -51,6 +52,7 @@
     onTogglePin,
     onMoveToFolder,
     onCreateFolder,
+    searchQuery = '',
   }: Props = $props();
 
   let isRenaming = $state(false);
@@ -89,6 +91,17 @@
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return new Date(date).toLocaleDateString();
+  }
+
+  // Highlight search query in text
+  function highlightText(text: string, query: string): string {
+    if (!query || !query.trim()) return text;
+
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(
+      regex,
+      '<mark class="bg-primary/30 text-foreground rounded px-0.5">$1</mark>'
+    );
   }
 
   // Handle rename submit
@@ -157,7 +170,9 @@
       />
     {:else}
       <div class="flex items-center gap-2">
-        <span class="min-w-0 flex-1 truncate">{chat.title}</span>
+        <span class="min-w-0 flex-1 truncate">
+          {@html highlightText(chat.title, searchQuery)}
+        </span>
         <span class="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
           {getRelativeTime(chat.updatedAt)}
         </span>

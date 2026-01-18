@@ -42,6 +42,7 @@
   let chats = $state<Chat[]>([]);
   let folders = $state<Folder[]>([]);
   let loading = $state(true);
+  let searching = $state(false);
   let error = $state<string | null>(null);
   let searchQuery = $state('');
   let debouncedSearch = $state('');
@@ -49,35 +50,10 @@
   let selectedFolderId = $state<string>('');
   let showPinnedOnly = $state(false);
   let collapsedFolders = $state<Record<string, boolean>>({});
+  let isInitialLoad = $state(true);
 
-  // Computed - filtered chats
-  let filteredChats = $derived(() => {
-    let results = [...chats]; // ← Clone array to prevent mutation
-
-    // Filter by search query
-    if (debouncedSearch) {
-      results = results.filter((chat) =>
-        chat.title.toLowerCase().includes(debouncedSearch.toLowerCase())
-      );
-    }
-
-    // Filter by folder
-    if (selectedFolderId) {
-      results = results.filter((chat) => chat.folderId === selectedFolderId);
-    }
-
-    // Filter by pinned only
-    if (showPinnedOnly) {
-      results = results.filter((chat) => chat.pinned);
-    }
-
-    // Sort: pinned first, then by date
-    return results.sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
-  });
+  // Computed - filtered chats (API handles filtering, just return chats)
+  let filteredChats = $derived(() => chats);
 
   // Group chats by folder and time period
   let groupedChats = $derived(() => {
@@ -132,18 +108,38 @@
     }, 300);
   });
 
-  // Load chats on mount
+  // Trigger search when filters change
+  $effect(() => {
+    // Skip initial load (handled by onMount)
+    if (!isInitialLoad && !loading && !searching) {
+      loadChats();
+    }
+  });
+
+  // Load chats with search & filters
   async function loadChats() {
-    loading = true;
+    // Use searching state for filter changes, loading for initial load
+    if (isInitialLoad) {
+      loading = true;
+    } else {
+      searching = true;
+    }
     error = null;
+
     try {
-      const result = await orpc.chat.getAll();
+      const result = await orpc.chat.search({
+        query: debouncedSearch || undefined,
+        folderId: selectedFolderId || undefined,
+        pinnedOnly: showPinnedOnly || undefined,
+      });
       chats = result as Chat[];
     } catch (err) {
       console.error('Failed to load chats:', err);
       error = err instanceof Error ? err.message : 'Failed to load chats';
     } finally {
       loading = false;
+      searching = false;
+      isInitialLoad = false;
     }
   }
 
@@ -333,9 +329,9 @@
 
   <!-- Content -->
   <Sidebar.Content class="flex-1 overflow-hidden">
-    {#if loading}
+    {#if loading || searching}
       <div class="text-muted-foreground flex items-center justify-center p-8 text-sm">
-        Loading chats...
+        {loading ? 'Loading chats...' : 'Searching...'}
       </div>
     {:else if error}
       <div class="flex flex-col items-center justify-center p-8 text-center">
@@ -367,6 +363,7 @@
                   onTogglePin={() => togglePin(chat.id)}
                   onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                   onCreateFolder={() => createFolder(chat.id)}
+                  searchQuery={debouncedSearch}
                 />
               {/each}
             </div>
@@ -406,6 +403,7 @@
                       onTogglePin={() => togglePin(chat.id)}
                       onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                       onCreateFolder={() => createFolder(chat.id)}
+                      searchQuery={debouncedSearch}
                     />
                   {/each}
                 {/if}
@@ -432,6 +430,7 @@
                   onTogglePin={() => togglePin(chat.id)}
                   onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                   onCreateFolder={() => createFolder(chat.id)}
+                  searchQuery={debouncedSearch}
                 />
               {/each}
             </div>

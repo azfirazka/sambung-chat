@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Search UI Connection**: Connected chat search input to backend API (`orpc.chat.search`). Search now filters chats in real-time with debouncing (300ms), folder filtering, pinned-only filtering, and search result highlighting.
+
 ### Changed
 
 - **Folder Creation UX**: Moved "New Folder" functionality from sidebar header to chat item popup menu. Users can now create folders directly from individual chat items via the three-dot menu.
