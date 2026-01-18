@@ -282,6 +282,12 @@ bun run format           # Prettier
 - `develop` - development
 - `feat/*` - feature branches
 
+**Commit Rules (CRITICAL):**
+
+- **NO co-author tags** - Jangan gunakan `Co-Authored-By` di commit messages
+- **Conventional commits**: `feat:`, `fix:`, `docs:`, `refactor:`, dll.
+- **Hindari watermark** - Tidak menambahkan signature atau attribution di commits
+
 ---
 
 ## Common Pitfalls
