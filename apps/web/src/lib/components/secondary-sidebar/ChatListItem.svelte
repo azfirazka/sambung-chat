@@ -153,22 +153,11 @@
         use:autofocus
       />
     {:else}
-      <div class="flex flex-col gap-0.5">
-        <div class="flex items-center gap-2">
-          <span class="min-w-0 flex-1 truncate">{chat.title}</span>
-          <span class="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
-            {getRelativeTime(chat.updatedAt)}
-          </span>
-        </div>
-        {#if chat.folderId}
-          {@const folder = folders.find((f) => f.id === chat.folderId)}
-          {#if folder}
-            <div class="flex items-center gap-1">
-              <FolderIcon class="text-muted-foreground size-3" />
-              <span class="text-muted-foreground text-xs">{folder.name}</span>
-            </div>
-          {/if}
-        {/if}
+      <div class="flex items-center gap-2">
+        <span class="min-w-0 flex-1 truncate">{chat.title}</span>
+        <span class="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+          {getRelativeTime(chat.updatedAt)}
+        </span>
       </div>
     {/if}
   </div>
