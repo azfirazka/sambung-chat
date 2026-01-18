@@ -4,170 +4,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Quick Start
+
+**Essential commands (80% of use cases):**
+
+```bash
+bun run check:types      # Type check FIRST before any build
+bun run check:hydration  # SSR hydration validation
+bun run dev              # Start all services
+bun run build            # Build entire monorepo
+```
+
+**Pre-build workflow (MANDATORY order):**
+
+1. `bun run check:types` → Fail? Fix type errors first
+2. `bun run check:hydration` → Fail? Fix SSR issues
+3. `bun run lint` → Fail? Fix linting
+
+**If ANY step fails, STOP and fix before proceeding.**
+
+---
+
 ## Project Overview
 
-**SambungChat** is an open-source multi-model LLM client platform built as a Turborepo monorepo. The project emphasizes type safety, privacy-first architecture, and self-hosting capabilities.
+**SambungChat** - Open-source multi-model LLM client platform built as a Turborepo monorepo. Emphasizes type safety, privacy-first architecture, and self-hosting.
 
 **Tech Stack:**
 
 - **Frontend:** SvelteKit 5 (Svelte 5 Runes), shadcn-svelte, TailwindCSS v4
 - **Backend:** Hono, oRPC (type-safe APIs), Drizzle ORM
 - **Database:** PostgreSQL (Docker)
-- **Auth:** Better Auth (OAuth/SSO with Keycloak support)
+- **Auth:** Better Auth (OAuth/SSO with Keycloak)
 - **Runtime:** Bun
-- **AI Integration:** AI SDK v6 supporting OpenAI, Anthropic, Google, Groq, Ollama
+- **AI:** AI SDK v6 (OpenAI, Anthropic, Google, Groq, Ollama)
 
 ---
 
-## Critical Pre-Build Workflow
-
-**BEFORE any build task, ALWAYS run TypeScript check:**
-
-```bash
-# Check entire monorepo
-bun run check:types
-```
-
-If TypeScript check fails, **DO NOT proceed to build** - fix type errors first. This catches 90% of issues.
-
----
-
-## Common Commands
-
-### Development
-
-```bash
-bun run dev              # Start all services (web + server + db)
-bun run dev:web          # Start only web app (port 5173)
-bun run dev:server       # Start only server (port 3000)
-bun run check:types      # TypeScript check (DO THIS FIRST)
-bun run build            # Build entire monorepo
-```
-
-### Database
-
-```bash
-bun run db:start         # Start PostgreSQL via Docker
-bun run db:stop          # Stop PostgreSQL
-bun run db:push          # Push schema changes to database
-bun run db:studio        # Open Drizzle Studio UI
-bun run db:generate      # Generate migration files
-bun run db:migrate       # Run database migrations
-bun run db:down          # Remove database container
-```
-
-### Testing
-
-```bash
-bun run test             # Run all tests
-bun run test:unit        # Run unit tests (Vitest)
-bun run test:e2e         # Run E2E tests (Playwright)
-bun run test:coverage    # Run with coverage
-```
-
-### Code Quality
-
-```bash
-bun run lint             # Run ESLint
-bun run lint:fix         # Fix ESLint issues
-bun run format           # Format with Prettier
-```
-
----
-
-## Architecture Overview
-
-### Monorepo Structure
+## Architecture Map
 
 ```
 sambung-chat/
 ├── apps/
-│   ├── web/                 # SvelteKit frontend → apps/web/agents.md
-│   └── server/              # Hono backend → apps/server/agents.md
+│   ├── web/          # SvelteKit frontend → apps/web/agents.md
+│   └── server/       # Hono backend → apps/server/agents.md
 ├── packages/
-│   ├── api/                 # ORPC routers → packages/api/agents.md
-│   ├── auth/                # Better Auth config
-│   ├── db/                  # Drizzle ORM schemas → packages/db/agents.md
-│   ├── env/                 # Environment validation
-│   └── config/              # Shared TypeScript configs
-├── docs/                    # Public documentation
-│   ├── index.md             # Documentation navigation index
-│   ├── README.md            # Documentation hub
-│   ├── teams-concept.md     # Team model & access control
-│   ├── routes.md            # URL structure & routing
-│   ├── database.md          # Database tables & relationships
-│   ├── i18n.md              # Internationalization guide
-│   ├── troubleshooting.md   # Common build errors
-│   ├── architecture.md      # System architecture
-│   ├── getting-started.md   # Installation & setup
-│   ├── deployment.md        # Deployment guides
-│   └── api-reference.md     # API endpoint documentation
-└── plan-reference/          # Planning docs
-    ├── ROADMAP.md           # Development timeline
-    ├── STATUS.md            # Current development status
-    └── agents.md            # Root AI agent reference
+│   ├── api/          # ORPC routers → packages/api/agents.md
+│   ├── auth/         # Better Auth config
+│   ├── db/           # Drizzle schemas → packages/db/agents.md
+│   ├── env/          # Environment validation
+│   └── config/       # Shared TypeScript configs
+└── docs/             # Public documentation → docs/index.md
 ```
 
-### Key Architectural Patterns
+**Critical Patterns:**
 
-**Type Safety:**
-
-- Full-stack TypeScript with strict mode
-- End-to-end type safety via oRPC
-- Zod schema validation for all inputs
-- Environment variables validated via `@sambung-chat/env`
-
-**API Layer (oRPC):**
+**oRPC Router:**
 
 ```typescript
-// packages/api/src/routers/example.ts
-export const router = {
-  // Query - GET requests
-  getAll: {
-    input: z.object({ limit: z.number().optional() }),
-    resolve: async ({ input, context }) => {
-      return [];
-    },
-  },
-  // Mutation - POST/PUT/DELETE
-  create: {
-    input: z.object({ title: z.string() }),
-    resolve: async ({ input, context }) => {
-      return { id: 1, ...input };
-    },
-  },
-};
-```
-
-**Database (Drizzle ORM):**
-
-- Schema-first approach in `packages/db/src/schema/`
-- Use `bun run db:push` for development, `bun run db:migrate` for production
-- All migrations tracked in `packages/db/drizzle/`
-
-**Authentication (Better Auth):**
-
-- Configured in `packages/auth/src/`
-- Supports email/password and OAuth (Keycloak)
-- Session management via `authClient` in frontend
-
-**Dual-Sidebar Navigation System:**
-
-- **Navigation Rail (64px)**: Icon-based primary navigation with collapsible support
-- **Secondary Sidebar (280px)**: Context-aware content (chat history, agents list, prompts library)
-- Configuration via JSON: [`apps/web/src/lib/navigation/nav-rail-menu.config.json`](apps/web/src/lib/navigation/nav-rail-menu.config.json) and [`apps/web/src/lib/navigation/secondary-sidebar-menu.config.json`](apps/web/src/lib/navigation/secondary-sidebar-menu.config.json)
-- **See:** [`docs/sidebar-journey.md`](docs/sidebar-journey.md) for implementation details and troubleshooting
-
----
-
-## Package-Specific Guidelines
-
-### packages/api - ORPC Routers
-
-**Router Pattern:**
-
-```typescript
-import { z } from 'zod';
 import { router } from '@sambung-chat/orpc';
 
 export const myRouter = router({
@@ -183,9 +76,7 @@ export const myRouter = router({
 });
 ```
 
-### packages/db - Database Schemas
-
-**Schema Pattern:**
+**Drizzle Schema:**
 
 ```typescript
 import { pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
@@ -197,15 +88,150 @@ export const myTable = pgTable('my_table', {
 });
 ```
 
+**Dual-Sidebar Navigation:**
+
+- Navigation Rail (64px): Icon-based primary nav
+- Secondary Sidebar (280px): Context-aware content
+- Config: `apps/web/src/lib/navigation/nav-rail-menu.config.json`
+- See: `docs/sidebar-journey.md`
+
 ---
 
-## Conventions & Standards
+## Critical: Hydration Rules
+
+Hydration mismatch is the #1 cause of SSR failures in SambungChat. Follow these rules or code will be rejected.
+
+### Core Rule 1: Snippet Child Pattern
+
+**For ALL trigger components:** `Sidebar.Trigger`, `Dialog.Trigger`, `Tooltip.Trigger`, `DropdownMenuTrigger`, `MenuButton`
+
+❌ **WRONG:**
+
+```svelte
+<Sidebar.Trigger>
+  <Button>Menu</Button>
+</Sidebar.Trigger>
+```
+
+✅ **RIGHT:**
+
+```svelte
+<Sidebar.Trigger let:child>
+  {@render child({ class: buttonVariants({ variant: 'ghost', size: 'sm' }) })}
+</Sidebar.Trigger>
+```
+
+### Core Rule 2: SSR-Safe State
+
+```svelte
+<script>
+  // Always initialize with falsy value for SSR
+  let sidebarOpen = $state(false);
+  let mounted = $state(false);
+
+  // Use $effect for client-only operations
+  $effect(() => {
+    if (browser) {
+      // Safe to access localStorage here
+      const saved = localStorage.getItem('sidebar');
+      sidebarOpen = saved === 'open';
+    }
+  });
+</script>
+
+<Sidebar.Provider bind:open={sidebarOpen}>
+  <!-- content -->
+</Sidebar.Provider>
+```
+
+### Core Rule 3: No Nested Interactive Elements
+
+❌ **WRONG:**
+
+```svelte
+<a href="/path">
+  <Button>Click</Button>
+</a>
+
+<label>
+  Text
+  <input />
+</label>
+```
+
+✅ **RIGHT:**
+
+```svelte
+<div role="button" class={buttonVariants()}>Click</div>
+
+<label>
+  <span>Text</span>
+  <input />
+</label>
+```
+
+### Validation Commands
+
+```bash
+bun run check:hydration      # Fail on SSR warnings
+bun run build && bun run preview  # Full SSR test
+```
+
+**Console must be CLEAN** - no `hydration_mismatch`, `node_invalid_placement_ssr`
+
+---
+
+## Common Commands
+
+### Development
+
+```bash
+bun run dev              # Start all services
+bun run dev:web          # Web app only (port 5173)
+bun run dev:server       # Server only (port 3000)
+bun run check:types      # TypeScript check
+bun run check:hydration  # SSR hydration check
+bun run build            # Build all
+bun run preview          # Test production build
+```
+
+### Database
+
+```bash
+bun run db:start         # Start PostgreSQL
+bun run db:stop          # Stop PostgreSQL
+bun run db:push          # Push schema (dev)
+bun run db:migrate       # Run migrations (prod)
+bun run db:studio        # Drizzle Studio UI
+bun run db:generate      # Generate migration files
+```
+
+### Testing & Quality
+
+```bash
+bun run test             # Run all tests
+bun run test:unit        # Unit tests (Vitest)
+bun run test:e2e         # E2E tests (Playwright)
+bun run lint             # ESLint
+bun run lint:fix         # Fix ESLint issues
+bun run format           # Prettier
+```
+
+---
+
+## Conventions
 
 **Code Style:**
 
 - Prettier + ESLint (auto-format on save)
-- Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, etc.
-- File naming: `kebab-case` for files, `PascalCase` for components
+- Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
+- File naming: `kebab-case` files, `PascalCase` components
+
+**TypeScript:**
+
+- Strict mode enabled - **never use `any`**
+- Always type props: `interface Props`
+- Svelte 5 runes: `$state`, `$derived`, `$props`, `$effect`
 
 **Branch Strategy:**
 
@@ -213,35 +239,19 @@ export const myTable = pgTable('my_table', {
 - `develop` - development
 - `feat/*` - feature branches
 
-**TypeScript:**
-
-- Strict mode enabled - **never use `any`**
-- Always type props using `interface Props`
-- Use Svelte 5 runes: `$state`, `$derived`, `$props`, `$effect`
-
----
-
-## Security & Secrets
-
-- **NEVER** commit tokens, API keys, or secrets
-- Use `.env` files for environment variables
-- All secrets validated through `@sambung-chat/env`
-- Never log PII or sensitive data
-
 ---
 
 ## Common Pitfalls
 
-| Issue                                    | Solution                                                         |
-| ---------------------------------------- | ---------------------------------------------------------------- |
-| `@apply` with custom colors fails        | Use CSS variables: `background-color: hsl(var(--color-primary))` |
-| Import `lucide-svelte` errors            | Change to `@lucide/svelte`                                       |
-| `const` with `$state` errors             | Change to `let`                                                  |
-| Files outside `src/lib/` not building    | Move to `src/lib/`                                               |
-| **Sidebar Hydration Errors**             | **See [`docs/sidebar-journey.md`](docs/sidebar-journey.md)**     |
-| Nested `Sidebar.Root` causing DOM errors | Use flex `<div>` container, don't nest `Sidebar.Root` components |
-| Nested `Sidebar.Inset` in pages          | Only use `Sidebar.Inset` in layout, not in individual pages      |
-| Tooltip SSR mismatch                     | Use `tooltipContent={undefined}` to disable when not needed      |
+| Issue                                    | Solution                                         |
+| ---------------------------------------- | ------------------------------------------------ |
+| `@apply` custom colors fails             | Use CSS variables: `hsl(var(--color-primary))`   |
+| Import `lucide-svelte` errors            | Use `@lucide/svelte` instead                     |
+| `const` with `$state` errors             | Change to `let`                                  |
+| Files outside `src/lib/` not building    | Move to `src/lib/`                               |
+| Sidebar hydration errors                 | Use snippet child pattern (see above)            |
+| Nested `Sidebar.Root` causing DOM errors | Use flex `<div>` wrapper, don't nest             |
+| Tooltip SSR mismatch                     | Use `tooltipContent={undefined}` when not needed |
 
 ---
 
@@ -249,23 +259,11 @@ export const myTable = pgTable('my_table', {
 
 Before considering a task complete:
 
-1. **TypeScript check passes:** `bun run check:types` ✓
-2. **Build passes:** `bun run build` ✓
-3. **No console errors** in browser/dev console ✓
-4. **Code follows existing patterns** in that folder ✓
-5. **Documentation updated** if adding new features ✓
-
----
-
-## Troubleshooting
-
-If you encounter build errors:
-
-1. **Check `docs/TROUBLESHOOTING.md`** - Common errors and solutions
-2. **Read sub-folder agents.md** - Location-specific patterns
-3. **Run TypeScript check** - `bun run check:types`
-4. **Check imports** - Ensure `@lucide/svelte` not `lucide-svelte`
-5. **Verify CSS usage** - No `@apply` with custom colors
+1. ✅ `bun run check:types` passes
+2. ✅ `bun run check:hydration` passes (console clean)
+3. ✅ `bun run build && bun run preview` - console 100% clean
+4. ✅ Code follows existing patterns in that folder
+5. ✅ Documentation updated if adding features
 
 ---
 
@@ -273,26 +271,26 @@ If you encounter build errors:
 
 **Start Here:**
 
-- **[docs/index.md](docs/index.md)** - Documentation navigation hub
-- **[docs/README.md](docs/README.md)** - Main documentation hub
+- [docs/index.md](docs/index.md) - Documentation hub
+- [docs/sidebar-journey.md](docs/sidebar-journey.md) - **Sidebar implementation (read first!)**
 
-**Team & Organization:**
+**Core Concepts:**
 
-- **[docs/teams-concept.md](docs/teams-concept.md)** - Team model, access control, workspaces
-- **[docs/routes.md](docs/routes.md)** - Complete URL structure and routing
-- **[docs/database.md](docs/database.md)** - Database tables and relationships
+- [docs/teams-concept.md](docs/teams-concept.md) - Team model & access control
+- [docs/routes.md](docs/routes.md) - URL structure
+- [docs/database.md](docs/database.md) - Database tables
 
-**Development Guides:**
+**Development:**
 
-- **[docs/getting-started.md](docs/getting-started.md)** - Installation & setup guide
-- **[docs/i18n.md](docs/i18n.md)** - Internationalization with svelte-i18n
-- **[docs/ai-provider-integration-guide.md](docs/ai-provider-integration-guide.md)** - AI provider integration
+- [docs/getting-started.md](docs/getting-started.md) - Setup guide
+- [docs/troubleshooting.md](docs/troubleshooting.md) - Common errors
+- [docs/architecture.md](docs/architecture.md) - System architecture
 
-**Reference:**
+---
 
-- **[docs/architecture.md](docs/architecture.md)** - System architecture overview
-- **[docs/api-reference.md](docs/api-reference.md)** - API endpoint documentation
-- **[docs/troubleshooting.md](docs/troubleshooting.md)** - Common build errors
-- **[docs/deployment.md](docs/deployment.md)** - Deployment guides
-- **[plan-reference/ROADMAP.md](plan-reference/ROADMAP.md)** - Development timeline
-- **[plan-reference/STATUS.md](plan-reference/STATUS.md)** - Current development status
+## Security
+
+- **NEVER** commit tokens, API keys, or secrets
+- Use `.env` files for environment variables
+- All secrets validated through `@sambung-chat/env`
+- Never log PII or sensitive data
