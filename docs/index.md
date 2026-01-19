@@ -38,6 +38,7 @@ docs/
     ├── ENVIRONMENT.md                      # Environment variables reference
     ├── DOCKER.md                           # Docker configuration
     ├── TESTING.md                          # Testing guidelines
+    ├── CI-CD.md                            # CI/CD pipeline and GitHub Actions
     └── troubleshooting.md                  # Common issues and solutions
 ```
 
@@ -91,6 +92,7 @@ Quick reference materials for configuration and troubleshooting.
 | [Environment Variables](./ENVIRONMENT.md) | Complete list of environment variables with descriptions                       | Developers configuring environments |
 | [Docker](./DOCKER.md)                     | Docker configuration and container setup                                       | DevOps engineers, Developers        |
 | [Testing](./TESTING.md)                   | Testing guidelines, unit tests, E2E tests                                      | All developers, QA engineers        |
+| [CI/CD](./CI-CD.md)                       | GitHub Actions CI pipeline, environment variables, pre-commit hooks            | All developers, AI assistants       |
 | [Troubleshooting](./troubleshooting.md)   | Common build errors, Svelte 5 issues, Tailwind CSS problems, TypeScript issues | All developers                      |
 
 ---
@@ -213,6 +215,7 @@ For deploying SambungChat:
 | **Add multi-language support**         | [I18N Guide](./i18n.md)                                             | [Getting Started](./getting-started.md)                                               |
 | **Debug build errors**                 | [Troubleshooting](./troubleshooting.md)                             | [UI Package Guide](./ui-package-guide.md), [Architecture](./architecture.md)          |
 | **Write tests**                        | [Testing](./TESTING.md)                                             | [Architecture](./architecture.md), [API Reference](./api-reference.md)                |
+| **Configure CI/CD**                    | [CI/CD](./CI-CD.md)                                                 | [Testing](./TESTING.md), [Environment Variables](./ENVIRONMENT.md)                    |
 
 ---
 

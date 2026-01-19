@@ -56,12 +56,13 @@ SambungChat uses GitHub Actions for continuous integration. All code must pass C
 ### Job Dependencies
 
 ```yaml
-type-check ───┐
-lint ─────────┼──→ build ──→ (test-e2e disabled - see note below)
-pr-title-check┘        └──→ test-unit
+pr-title-check ───→ (5s - no dependencies)
+type-check   ────┐
+lint         ────┼──→ test-unit (~20s)
+pr-title-check┘          └──→ build (~45s)
 ```
 
-> **NOTE:** E2E tests are temporarily disabled due to timeout issues with dev server startup. They can still be run manually locally with `bun run test:e2e`.
+> **NOTE:** Jobs are now ordered by execution time (fastest to slowest). E2E tests are temporarily disabled.
 
 ### Workflow File
 
