@@ -116,7 +116,7 @@
         {
           "id": "3.2",
           "title": "Implement streaming UI",
-          "status": "pending",
+          "status": "completed",
           "description": "Add real-time token display for streaming OpenAI responses",
           "estimatedMinutes": 40,
           "dependencies": [
