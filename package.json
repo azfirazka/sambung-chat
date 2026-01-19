@@ -16,6 +16,7 @@
       "@orpc/zod": "^1.12.2",
       "better-auth": "^1.4.9",
       "ai": "^6.0.3",
+      "@ai-sdk/openai": "^1.0.0",
       "@ai-sdk/openai-compatible": "^2.0.3",
       "@orpc/client": "^1.12.2",
       "drizzle-orm": "^0.45.1",
