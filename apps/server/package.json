@@ -13,6 +13,7 @@
     "@ai-sdk/devtools": "^0.0.2",
     "@ai-sdk/openai": "catalog:",
     "@ai-sdk/openai-compatible": "catalog:",
+    "@ai-sdk/anthropic": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",

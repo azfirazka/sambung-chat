@@ -86,14 +86,15 @@ In-depth guides for specific development tasks.
 
 Quick reference materials for configuration and troubleshooting.
 
-| Document                                  | Description                                                                    | Target Audience                     |
-| ----------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
-| [Internationalization](./i18n.md)         | Complete i18n guide with svelte-i18n, locale files, and language switching     | All developers, Translators         |
-| [Environment Variables](./ENVIRONMENT.md) | Complete list of environment variables with descriptions                       | Developers configuring environments |
-| [Docker](./DOCKER.md)                     | Docker configuration and container setup                                       | DevOps engineers, Developers        |
-| [Testing](./TESTING.md)                   | Testing guidelines, unit tests, E2E tests                                      | All developers, QA engineers        |
-| [CI/CD](./CI-CD.md)                       | GitHub Actions CI pipeline, environment variables, pre-commit hooks            | All developers, AI assistants       |
-| [Troubleshooting](./troubleshooting.md)   | Common build errors, Svelte 5 issues, Tailwind CSS problems, TypeScript issues | All developers                      |
+| Document                                    | Description                                                                                                                      | Target Audience                      |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [Supported AI Providers](./ai-providers.md) | Complete list of supported AI providers (OpenAI, Anthropic, Google, Groq, Ollama) with model capabilities and setup instructions | All users, Developers configuring AI |
+| [Internationalization](./i18n.md)           | Complete i18n guide with svelte-i18n, locale files, and language switching                                                       | All developers, Translators          |
+| [Environment Variables](./ENVIRONMENT.md)   | Complete list of environment variables with descriptions                                                                         | Developers configuring environments  |
+| [Docker](./DOCKER.md)                       | Docker configuration and container setup                                                                                         | DevOps engineers, Developers         |
+| [Testing](./TESTING.md)                     | Testing guidelines, unit tests, E2E tests                                                                                        | All developers, QA engineers         |
+| [CI/CD](./CI-CD.md)                         | GitHub Actions CI pipeline, environment variables, pre-commit hooks                                                              | All developers, AI assistants        |
+| [Troubleshooting](./troubleshooting.md)     | Common build errors, Svelte 5 issues, Tailwind CSS problems, TypeScript issues                                                   | All developers                       |
 
 ---
 
@@ -204,18 +205,19 @@ For deploying SambungChat:
 
 ### I want to...
 
-| Goal                                   | Start Here                                                          | Related Docs                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Set up development environment**     | [Getting Started](./getting-started.md)                             | [Environment Variables](./ENVIRONMENT.md), [Docker](./DOCKER.md)                      |
-| **Understand the system architecture** | [Architecture](./architecture.md)                                   | [API Reference](./api-reference.md), [Teams Concept](./teams-concept.md)              |
-| **Implement team features**            | [Teams Concept](./teams-concept.md)                                 | [Routes](./routes.md), [Database](./database.md), [API Reference](./api-reference.md) |
-| **Add a new AI provider**              | [AI Provider Integration Guide](./ai-provider-integration-guide.md) | [Architecture](./architecture.md), [Environment Variables](./ENVIRONMENT.md)          |
-| **Build UI components**                | [UI Package Guide](./ui-package-guide.md)                           | [Architecture](./architecture.md), [Troubleshooting](./troubleshooting.md)            |
-| **Deploy to production**               | [Deployment](./deployment.md)                                       | [Docker](./DOCKER.md), [Environment Variables](./ENVIRONMENT.md)                      |
-| **Add multi-language support**         | [I18N Guide](./i18n.md)                                             | [Getting Started](./getting-started.md)                                               |
-| **Debug build errors**                 | [Troubleshooting](./troubleshooting.md)                             | [UI Package Guide](./ui-package-guide.md), [Architecture](./architecture.md)          |
-| **Write tests**                        | [Testing](./TESTING.md)                                             | [Architecture](./architecture.md), [API Reference](./api-reference.md)                |
-| **Configure CI/CD**                    | [CI/CD](./CI-CD.md)                                                 | [Testing](./TESTING.md), [Environment Variables](./ENVIRONMENT.md)                    |
+| Goal                                   | Start Here                                                          | Related Docs                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Set up development environment**     | [Getting Started](./getting-started.md)                             | [Environment Variables](./ENVIRONMENT.md), [Docker](./DOCKER.md)                       |
+| **Configure AI providers**             | [Getting Started](./getting-started.md#1-configure-ai-provider)     | [Supported AI Providers](./ai-providers.md), [Environment Variables](./ENVIRONMENT.md) |
+| **Understand the system architecture** | [Architecture](./architecture.md)                                   | [API Reference](./api-reference.md), [Teams Concept](./teams-concept.md)               |
+| **Implement team features**            | [Teams Concept](./teams-concept.md)                                 | [Routes](./routes.md), [Database](./database.md), [API Reference](./api-reference.md)  |
+| **Add a new AI provider**              | [AI Provider Integration Guide](./ai-provider-integration-guide.md) | [Architecture](./architecture.md), [Environment Variables](./ENVIRONMENT.md)           |
+| **Build UI components**                | [UI Package Guide](./ui-package-guide.md)                           | [Architecture](./architecture.md), [Troubleshooting](./troubleshooting.md)             |
+| **Deploy to production**               | [Deployment](./deployment.md)                                       | [Docker](./DOCKER.md), [Environment Variables](./ENVIRONMENT.md)                       |
+| **Add multi-language support**         | [I18N Guide](./i18n.md)                                             | [Getting Started](./getting-started.md)                                                |
+| **Debug build errors**                 | [Troubleshooting](./troubleshooting.md)                             | [UI Package Guide](./ui-package-guide.md), [Architecture](./architecture.md)           |
+| **Write tests**                        | [Testing](./TESTING.md)                                             | [Architecture](./architecture.md), [API Reference](./api-reference.md)                 |
+| **Configure CI/CD**                    | [CI/CD](./CI-CD.md)                                                 | [Testing](./TESTING.md), [Environment Variables](./ENVIRONMENT.md)                     |
 
 ---
 

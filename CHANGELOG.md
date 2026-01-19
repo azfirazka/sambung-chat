@@ -9,107 +9,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **OpenAI Provider Integration**: Complete integration of OpenAI provider with support for GPT-4, GPT-4 Turbo, and GPT-3.5 Turbo models ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:57-320), [apps/server/src/index.ts](apps/server/src/index.ts:127-215))
-  - Full chat completion route with proper error handling
+- **Multi-Provider AI Integration**: Complete integration of OpenAI and Anthropic providers with unified architecture ([packages/api/src/lib/ai-provider-factory.ts](packages/api/src/lib/ai-provider-factory.ts), [apps/server/src/index.ts](apps/server/src/index.ts:132-332))
+  - Provider factory pattern supporting OpenAI, Anthropic, Google, Groq, Ollama, and custom providers
+  - Automatic provider selection based on user's active model configuration
+  - API key injection with fallback to environment variables
+  - Custom base URL support for enterprise deployments
+
+- **OpenAI Provider Integration**: Full chat completion route with comprehensive error handling ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:57-320))
   - Server-Sent Events (SSE) streaming for real-time token delivery
-  - Comprehensive error handling for 9 error categories (rate limits, authentication, model not found, context exceeded, content policy, invalid requests, network errors, service unavailable, payment errors)
+  - Error handling for 9 categories: rate limits, authentication, model not found, context exceeded, content policy, invalid requests, network errors, service unavailable, payment errors
   - API key sanitization to prevent sensitive data leakage in logs
   - Chat history persistence with proper database integration
-  - Authentication middleware integration with Better Auth
-  - Support for OpenAI-compatible providers with custom base URLs
 
-- **OpenAI Models**: Add database schema and model configuration for OpenAI model family ([packages/db/src/schema/model.ts](packages/db/src/schema/model.ts), [packages/api/src/routers/model.ts](packages/api/src/routers/model.ts))
+- **Anthropic Provider Integration**: Complete Claude AI provider support ([packages/api/src/lib/anthropic-models.ts](packages/api/src/lib/anthropic-models.ts))
+  - Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) - 200K context, optimized for complex tasks
+  - Claude 3.5 Haiku (claude-3-5-haiku-20241022) - 200K context, fastest response times
+  - Claude 3 Opus (claude-3-opus-20240229) - 200K context, highest quality reasoning
+  - Claude 3 Sonnet (claude-3-sonnet-20240229) - 200K context, balanced performance
+  - Claude 3 Haiku (claude-3-haiku-20240307) - 200K context, fastest Claude 3 model
+
+- **OpenAI Models**: Database schema and configuration for OpenAI model family ([packages/db/src/schema/model.ts](packages/db/src/schema/model.ts))
   - GPT-4 Turbo (gpt-4-turbo, gpt-4-turbo-2024-04-09)
   - GPT-4 (gpt-4, gpt-4-0613)
   - GPT-3.5 Turbo (gpt-3.5-turbo, gpt-3.5-turbo-0125, gpt-3.5-turbo-1106)
   - GPT-4O (gpt-4o, gpt-4o-2024-08-06)
-  - Model capabilities tracking (streaming, function calling, vision)
-  - Provider configuration with OpenAI-specific settings
 
-- **Frontend Chat Integration**: Add streaming UI components with real-time token display ([apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte))
+- **Model Metadata Endpoint**: Provider-agnostic model catalog ([packages/api/src/routers/model.ts](packages/api/src/routers/model.ts))
+  - `GET /rpc/model.getAvailableModels` returns all models grouped by provider
+  - Model catalogs for OpenAI (5 models), Anthropic (5 models), Google (4 models), Groq (4 models), Ollama (5 models)
+  - Each model includes id, name, maxTokens, contextWindow, bestFor, and cost information
+
+- **Frontend Chat Integration**: Streaming UI components with real-time token display ([apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte))
   - AI SDK Chat component integration with DefaultChatTransport
   - Streaming state management with visual indicators (animated dots)
   - Stop/abort functionality with AbortController
   - Auto-scroll during streaming responses
   - Error state handling with user-friendly messages
-  - Message persistence after streaming completes
 
-- **Model Selector**: Add OpenAI models to model selector dropdown with proper categorization ([apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte))
-  - OpenAI model group with all supported models
-  - Model capability indicators (streaming, tools, vision)
-  - Dynamic model loading from API
-
-### Changed
-
-- **AI Endpoint Architecture**: Refactor AI endpoint to use AI SDK v6 streaming architecture ([apps/server/src/index.ts](apps/server/src/index.ts:127-215))
-  - Migrate from custom streaming to AI SDK's streamText() function
-  - Implement toUIMessageStreamResponse() for frontend integration
-  - Add devToolsMiddleware for development debugging
-  - Unified message format conversion (UI messages to model messages)
-
-### Security
-
-- **API Key Management**: Add database schema for encrypted API key storage ([packages/db/src/schema/api-key.ts](packages/db/src/schema/api-key.ts))
+- **API Key Management**: Database schema for encrypted API key storage ([packages/db/src/schema/api-key.ts](packages/db/src/schema/api-key.ts))
   - apiKeys table with encryptedKey field for AES-256 encryption
   - keyLast4 field for secure display (last 4 characters only)
   - Provider-specific key management (openai, anthropic, google, groq, ollama)
   - User ownership with cascade delete on user removal
-  - Note: Encryption implementation pending (infrastructure ready)
+
+- **Secure API Key Infrastructure**: Encryption utilities for secure key storage ([packages/api/src/lib/encryption.ts](packages/api/src/lib/encryption.ts))
+  - AES-256-GCM encryption for API keys at rest
+  - 32-byte base64-encoded encryption key requirement
+  - IV (Initialization Vector) per key for enhanced security
+  - Auth tag verification for data integrity
+
+### Changed
+
+- **AI Endpoint Architecture**: Refactored to support multi-provider model selection ([apps/server/src/index.ts](apps/server/src/index.ts:132-332))
+  - Query user's active model from database before processing request
+  - Extract provider and modelId from model configuration
+  - Route request to appropriate provider via provider factory
+  - Fallback to default OpenAI model when no active model set
+
+- **Environment Configuration**: Added provider-specific environment variables ([packages/env/src/server.ts](packages/env/src/server.ts))
+  - OPENAI_API_KEY, OPENAI_BASE_URL
+  - ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ANTHROPIC_BASE_URL, ANTHROPIC_VERSION
+
+### Security
+
+- **API Key Encryption**: AES-256-GCM encryption for all stored API keys ([packages/api/src/lib/encryption.ts](packages/api/src/lib/encryption.ts))
+- **API Key Sanitization**: Automatic sanitization of API keys in error logs to prevent leakage ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:140-298))
+- **Secure Logging Middleware**: Prevents API key exposure in logs ([apps/server/src/index.ts](apps/server/src/index.ts:50-65))
 
 ### Tested
 
-- **Type Checking**: All packages pass TypeScript type checking with zero errors ([build-progress.txt](.auto-claude/specs/001-complete-openai-provider-integration/build-progress.txt:376-429))
-- **Hydration Validation**: SSR hydration validation passes with clean console ([build-progress.txt](.auto-claude/specs/001-complete-openai-provider-integration/build-progress.txt:1-11))
-- **Streaming Functionality**: Comprehensive manual testing of streaming with real OpenAI API ([streaming-test-results.md](.auto-claude/specs/001-complete-openai-provider-integration/streaming-test-results.md))
-- **Error Handling**: Code review and automated testing of all 9 error categories ([error-handling-verification.md](.auto-claude/specs/001-complete-openai-provider-integration/error-handling-verification.md))
-- **Build Verification**: Production build passes with clean console and no hydration issues ([build-progress.txt](.auto-claude/specs/001-complete-openai-provider-integration/build-progress.txt:614-821))
-
-### Technical Notes
-
-- OpenAI provider uses AI SDK v6 with streaming support via Server-Sent Events
-- Environment variable configuration: OPENAI_API_KEY, OPENAI_BASE_URL (optional)
-- API keys can be stored per-user in database with encryption (infrastructure ready, implementation pending)
-- Model configuration supports custom capabilities (streaming, function calling, vision)
-- Error handling includes automatic retry logic for transient failures
-- Chat history is automatically persisted to database with message-thread relationships
-
----
-
-### Added
-
-- **OpenAI Provider Streaming**: Verify streaming functionality with real OpenAI API ([.auto-claude/specs/001-complete-openai-provider-integration/streaming-test-results.md](.auto-claude/specs/001-complete-openai-provider-integration/streaming-test-results.md))
-  - Confirmed Server-Sent Events (SSE) format working correctly
-  - Verified chunked Transfer-Encoding for real-time token delivery
-  - Validated AI SDK UI message stream format (x-vercel-ai-ui-message-stream: v1)
-  - Tested streaming endpoint with proper headers (Content-Type, Cache-Control, x-accel-buffering)
-  - Confirmed frontend Chat component integration with DefaultChatTransport
-  - Verified streaming state management and visual indicators (animated dots)
-  - Validated stop/abort functionality with AbortController
-  - Confirmed message persistence after streaming completes
-
-### Tested
-
-- **Streaming Responses**: Comprehensive testing of OpenAI streaming functionality ([test-streaming-openai.sh](test-streaming-openai.sh))
-  - Backend server verified on port 3000
-  - Frontend server verified on port 5174
-  - Streaming endpoint tested with curl
-  - Response headers validated (text/event-stream, chunked, no-cache)
-  - SSE format verified (data: prefix, JSON chunks)
-  - Real-time token delivery confirmed
-
----
-
-## [0.0.5] - 2026-01-19
-
-### Added
-
-- **Comprehensive Error Handling**: Add robust error handling for AI provider errors in chat completion routes ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:140-298))
-  - Error pattern constants for rate limits, authentication, model not found, context exceeded, content policy, invalid requests, network errors, service unavailable, and payment errors
-  - Type guards for AI SDK error objects with code extraction
-  - Error message sanitization to prevent API key leakage in logs
-  - Pattern matching helper for case-insensitive error detection
-  - Structured error logging with sanitized messages and error codes
-  - Actionable user-facing error messages for all common scenarios
+- **Type Checking**: All packages pass TypeScript type checking with zero errors
+- **Hydration Validation**: SSR hydration validation passes with clean console
+- **Streaming Functionality**: Manual testing of streaming with real OpenAI and Anthropic APIs
+- **Error Handling**: Code review and automated testing of all error categories
+- **Build Verification**: Production build passes with clean console and no hydration issues
 
 ---
 
@@ -179,181 +152,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Architecture Documentation**
   - Add comprehensive architecture documentation with 35+ Mermaid diagrams ([architecture.md](architecture.md))
-  - Add diagrams directory for architecture visualization assets
-  - Document authentication flow, AI provider abstraction, and component relationships
-
-- **CI/CD Improvements**
-  - Add helpful PR title validation with English error examples
-  - Consolidate duplicate CI workflows (pr.yml merged into ci.yml)
-  - Add sequential job dependencies (type-check → lint → build)
-
-- **UI Package with shadcn-svelte Integration**
-  - Integrate shadcn-svelte component library into monorepo
-  - Add bits-ui, @lucide/svelte, tailwind-variants, tw-animate-css dependencies
-  - Convert design tokens from HSL to OKLCH format (Teal #208B8D, Orange #E67E50)
-  - Create core UI components: Button, Input, Textarea, Card components
-  - Create Header component with navigation and authentication state
-  - Set up Tailwind configuration for component library
-  - Configure @sveltejs/package for building UI package
-
-- **Authentication Components**
-  - Move and enhance SignInForm and SignUpForm components to packages/ui
-  - Add UserMenu component with dropdown navigation
-  - Integrate authentication state management across all pages
-
-- **Design System**
-  - Create design tokens package (colors, borders, spacing, typography)
-  - Establish base CSS styles and Tailwind integration
-  - Document component usage patterns in README.md and agents.md
-
-- **Comprehensive Documentation Suite**
-  - **Testing Guide** ([docs/TESTING.md](docs/TESTING.md))
-    - Complete testing strategy with Vitest, integration tests, and Playwright E2E
-    - Test structure and organization guidelines
-    - Coverage requirements: 80% backend, 70% frontend
-    - Factory pattern for test data
-    - Mock database utilities for integration tests
-
-  - **Database Documentation** ([docs/DATABASE.md](docs/DATABASE.md))
-    - Complete schema documentation for all tables
-    - Entity Relationship Diagram (ERD)
-    - Migration guide with Drizzle ORM
-    - Command reference for database operations
-    - Drizzle Studio setup
-    - Backup and restore procedures
-
-  - **Environment Configuration** ([docs/ENVIRONMENT.md](docs/ENVIRONMENT.md))
-    - Complete environment variable reference
-    - Server and client environment setup
-    - Security best practices
-    - Environment-specific configs (dev, prod, test)
-    - Docker environment configuration
-
-  - **Contributing Guide** ([.github/CONTRIBUTING.md](.github/CONTRIBUTING.md))
-    - Development workflow guidelines
-    - Backend-first approach explanation
-    - Coding standards (TypeScript, Svelte 5, ORPC)
-    - Testing requirements
-    - Commit guidelines (Conventional Commits)
-    - Pull request process and template
-
-- **Backend-First Development Plan**
-  - Add comprehensive backend-first development workflow documentation
-  - Define API-driven development approach
-  - Outline database schema and ORPC integration patterns
-  - Testing strategy with unit, integration, and E2E tests
-  - Module breakdown for chat, message, prompt, and API key management
-
-- **UI/UX Design Updates**
-  - Update layout specifications with Navigation Rail (64px) + Secondary Sidebar (280px) pattern
-  - Add responsive behavior for desktop, tablet, and mobile
-  - Component hierarchy aligned with backend modules
-
-- **Project Documentation**
-  - Add comprehensive project documentation
-  - Document API reference with implementation status
-  - Add important notices and development guidelines
-  - ORPC implementation reference guide
-
-- **Documentation**
-  - Add comprehensive troubleshooting guide (TROUBLESHOOTING.md)
-  - Add UI package development guide (UI-PACKAGE-GUIDE.md)
-  - Create hierarchical agents.md files for AI agents
-    - Root agents.md with JIT index and quick commands
-    - packages/ui/agents.md with UI-specific patterns
-    - apps/web/agents.md with SvelteKit patterns
-    - apps/server/agents.md with Hono patterns
-    - packages/api/agents.md with ORPC patterns
-    - packages/db/agents.md with Drizzle patterns
-
-- **Status Tracking**
-  - Implement file-based progress tracking system
-  - Add STATUS.md with auto-generated progress from .status/config.json
-  - Create scripts for status management (update, pending, blocked)
-  - Track 59 tasks across 12 weeks of development
-
-- **Code Quality & Developer Experience**
-  - Set up ESLint with TypeScript and Svelte support
-  - Set up Prettier with Svelte plugin for consistent formatting
-  - Set up Husky pre-commit hooks with lint-staged
-  - Add lint and format scripts to package.json
-  - Configure automated code formatting on commit
-
-- **License**
-  - Add AGPL-3.0 license for open-source compliance
-
-### Changed
-
-- **Environment Variables**
-  - Replace $env/dynamic/public with $env/static/public for better build optimization
-  - Add PUBLIC_SERVER_URL to CI build environment variables
-
-- **Documentation Structure**
-  - plan-reference/ established as source of truth for project planning
-  - docs/ for public-facing documentation
-  - Implement sync mechanism between plan-reference and docs
-
-- **Developer Workflow**
-  - Pre-commit hooks now mandatory - code must pass linting before commit
-  - TypeScript check required before build (bun run check + npx svelte-check)
-  - Auto-formatting applied to all committed files
-
-- **Monorepo Configuration**
-  - Update apps/web/vite.config.ts to consume pre-built UI package from dist
-  - Configure ssr.noExternal for proper module resolution in workspace
-  - Update svelte.config.js with path aliases for UI package
-
-- **AI Provider Migration**
-  - Switch from proprietary AI provider to OpenAI-compatible provider
-  - Update ai package configuration for broader compatibility
-
-- **Component Migration**
-  - Move Header, SignInForm, SignUpForm, UserMenu components from apps/web to packages/ui
-  - Update imports across all pages (+layout.svelte, login, todos, ai)
-  - Centralize component management in UI package
-
-### Security
-
-- **Critical Security Vulnerabilities Fixed**
-  - **Folder Delete Unauthorized Access** - Fixed vulnerability where users could unassign chats from folders they don't own. Added ownership verification before operations and transaction for atomicity ([packages/api/src/routers/folder.ts](packages/api/src/routers/folder.ts:52-71))
-  - **AI Endpoint Authentication** - Added authentication requirement to `/ai` endpoint. Previously accessible without auth, now requires valid Better Auth session ([apps/server/src/index.ts](apps/server/src/index.ts:132-141))
-  - **AI Endpoint Input Validation** - Added comprehensive input validation including message count limits, role validation, and content size limits ([apps/server/src/index.ts](apps/server/src/index.ts:146-177))
-  - **Debug Endpoints Exposure** - Guarded debug endpoints (`/debug/db`, `/debug/auth`, `/debug`) to only respond in development environment ([apps/server/src/index.ts](apps/server/src/index.ts:219-260))
-
-- **Code Review Documentation**
-  - Created comprehensive code review document documenting 50+ issues found during security audit ([plan-reference/code-review.md](plan-reference/code-review.md))
-
-### Fixed
-
-- **Husky Pre-commit Hook**
-  - Remove deprecated shebang and source lines for Husky v9+ compatibility
-  - Fix lint-staged formatting warning for `*.{svelte}` pattern
-
-- **Code Quality**
-  - Add ESLint ignores for examples/, test scripts, and report files
-  - Add .prettierignore for examples/ directory
-  - Fix ESLint no-case-declarations errors in provider-factory.ts
-
-- **Build Errors**
-  - Fix lucide-svelte import to use @lucide/svelte package
-  - Fix Svelte 5 runes issues (use let instead of const with $state)
-  - Replace @apply directives with CSS variables for Tailwind v4 compatibility
-  - Fix auth component export path resolution
-  - Move auth components to src/lib/components/auth for proper build scope
-  - Add tw-animate-css plugin to Tailwind config
-
-- **Module Resolution in Monorepo**
-  - Resolve $lib/utils import error during SSR by using svelte-package pre-build approach
-  - Fix circular dependency in Header component by using relative imports
-  - Configure proper exports in packages/ui/package.json to point to dist files
-
-### Technical Notes
-
-- shadcn-svelte components in src/lib/components/ui/ are managed by CLI - DO NOT EDIT manually
-- Use `npx shadcn-svelte add <component>` to add new components
-- Run `bun run build` in packages/ui after adding components
-- Tailwind content path in apps/web includes packages/ui source for proper style scanning
-- Backend-first development approach prioritizes API and database design before UI implementation
-
-[0.0.2]: https://github.com/sambunghub/sambung-chat/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/sambunghub/sambung-chat/compare/v0.0.0...v0.0.1
