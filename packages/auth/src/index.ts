@@ -35,9 +35,20 @@ export const auth = betterAuth({
     schema: schema,
   }),
   baseURL: env.BETTER_AUTH_URL,
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins: env.CORS_ORIGIN
+    ? env.CORS_ORIGIN.split(',')
+    : ['http://localhost:5173', 'http://localhost:5174'],
   emailAndPassword: {
     enabled: isEmailPasswordEnabled,
+    requireEmailVerification: false,
+  },
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days in seconds
+    updateAge: 60 * 60 * 24, // Update session every 24 hours
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // Cache for 5 minutes to reduce DB calls
+    },
   },
   advanced: {
     cookiePrefix: 'sambungchat-auth',
@@ -45,11 +56,12 @@ export const auth = betterAuth({
     crossSubDomainCookies: {
       enabled: false,
     },
-    sameSite: 'lax',
     defaultCookieAttributes: {
-      sameSite: 'lax',
-      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax', // Use 'lax' for localhost (works with Vite proxy on same domain)
+      secure: env.NODE_ENV === 'production', // Secure cookies only in production
       httpOnly: true,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
     },
   },
   plugins: [

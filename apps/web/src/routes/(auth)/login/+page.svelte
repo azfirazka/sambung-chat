@@ -1,140 +1,55 @@
 <script lang="ts">
-  import { SignInForm, SignUpForm } from '@sambung-chat/ui';
-  import { AuthLayout } from '@sambung-chat/ui';
+  import LoginForm from '$lib/components/login-form.svelte';
   import { authClient } from '../../../lib/auth-client';
   import { goto } from '$app/navigation';
-  import { toast } from 'svelte-sonner';
-  import type { PageData } from './$types';
+  import { page } from '$app/stores';
 
-  let showSignIn = $state(true);
-  let isLoading = $state(false);
-
-  // Props from server load
-  interface Props {
+  interface PageData {
     showSSO: boolean;
+    showEmailPassword: boolean;
   }
 
-  let { data }: { data: PageData } = $props();
+  export let data: PageData;
 
   async function handleSignIn(credentials: { email: string; password: string }) {
-    isLoading = true;
-
     try {
       const result = await authClient.signIn.email(credentials);
 
       if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to sign in. Please check your credentials.';
-
-        toast.error(message);
+        type AuthError = { message?: string };
+        const errorMsg = (result.error as AuthError)?.message || 'Unknown error';
+        alert('Login failed: ' + errorMsg);
         return;
       }
 
-      toast.success('Welcome back!');
-      goto('/dashboard');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-    } finally {
-      isLoading = false;
+      // After successful login, redirect to app
+      // Server-side will handle auth check on next request
+      const redirectTo = new URLSearchParams($page.url.search).get('redirect') || '/app/chat';
+      goto(redirectTo);
+    } catch {
+      alert('An unexpected error occurred');
     }
   }
 
   async function handleSSO() {
-    isLoading = true;
-
     try {
-      const result = await authClient.signIn.oauth2({
+      const callbackURL = `${$page.url.origin}/app/chat`;
+      // Use oauth2 for generic OAuth providers like Keycloak
+      await authClient.signIn.oauth2({
         providerId: 'keycloak',
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL,
       });
-
-      if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to sign in with SSO. Please try again.';
-
-        toast.error(message);
-        isLoading = false;
-      }
-      // Note: If successful, the redirect will happen automatically
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-      isLoading = false;
+    } catch {
+      alert('SSO failed: Please try again');
     }
-  }
-
-  async function handleSignUp(credentials: { name: string; email: string; password: string }) {
-    isLoading = true;
-
-    try {
-      const result = await authClient.signUp.email(credentials);
-
-      if (result.error) {
-        const error = result.error;
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as any)?.message || 'Failed to create account. Please try again.';
-
-        toast.error(message);
-        return;
-      }
-
-      toast.success('Account created successfully!');
-      goto('/dashboard');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      toast.error(message);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  function switchToSignUp() {
-    showSignIn = false;
-  }
-
-  function switchToSignIn() {
-    showSignIn = true;
   }
 </script>
 
-{#if showSignIn}
-  <AuthLayout>
-    <div class="w-full max-w-sm space-y-6">
-      <!-- shadcn-svelte pattern: title and description -->
-      <div class="flex flex-col space-y-2 text-center">
-        <h1 class="text-2xl font-semibold tracking-tight">Login</h1>
-        <p class="text-sm text-muted-foreground">Enter your email below to login to your account</p>
-      </div>
-
-      <SignInForm
-        onSubmit={handleSignIn}
-        onSSO={handleSSO}
-        {switchToSignUp}
-        {isLoading}
-        showSSO={data.showSSO}
-        showEmailPassword={data.showEmailPassword}
-      />
-    </div>
-  </AuthLayout>
-{:else}
-  <AuthLayout>
-    <div class="w-full max-w-sm space-y-6">
-      <!-- shadcn-svelte pattern: title and description -->
-      <div class="flex flex-col space-y-2 text-center">
-        <h1 class="text-2xl font-semibold tracking-tight">Create an account</h1>
-        <p class="text-sm text-muted-foreground">Enter your email below to create your account</p>
-      </div>
-
-      <SignUpForm onSubmit={handleSignUp} {switchToSignIn} {isLoading} />
-    </div>
-  </AuthLayout>
-{/if}
+<div class="w-full max-w-sm">
+  <LoginForm
+    onSignIn={data?.showEmailPassword ? handleSignIn : undefined}
+    onSSO={data?.showSSO ? handleSSO : undefined}
+    showSSO={data?.showSSO ?? false}
+    showEmailPassword={data?.showEmailPassword ?? true}
+  />
+</div>

@@ -1,11 +1,26 @@
 <script lang="ts">
+  import { page } from '$app/stores';
   import { Chat } from '@ai-sdk/svelte';
   import { DefaultChatTransport } from 'ai';
   import { fade } from 'svelte/transition';
-  import { renderMarkdownSync } from '../../../lib/markdown-renderer.js';
+  import { renderMarkdownSync } from '$lib/markdown-renderer.js';
+  import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+  import { orpc } from '$lib/orpc';
+  import { goto } from '$app/navigation';
 
   // Use PUBLIC_URL for AI endpoint (backend)
   const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
+  // Custom fetch wrapper to include credentials (cookies)
+  const authenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    return fetch(input, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        ...init?.headers,
+      },
+    });
+  };
 
   let input = $state('');
   let errorMessage = $state('');
@@ -17,18 +32,19 @@
   let stoppedMessageId = $state<string | null>(null);
   let stoppedMessageContent = $state<string | null>(null);
   let isSubmitting = $state(false);
+  let currentChatId = $state<string | null>(null);
   const MAX_RETRIES = 3;
 
   const chat = new Chat({
     transport: new DefaultChatTransport({
       api: `${PUBLIC_API_URL}/ai`,
+      fetch: authenticatedFetch,
     }),
   });
 
   let messagesContainer: HTMLDivElement | null = $state(null);
   let inputField: HTMLTextAreaElement | null = $state(null);
 
-  // Smooth auto-scroll
   $effect(() => {
     if (chat.messages.length > 0 && messagesContainer) {
       requestAnimationFrame(() => {
@@ -40,7 +56,6 @@
     }
   });
 
-  // Auto-focus input field
   $effect(() => {
     if (!isStreamingResponse && !isRetrying && !isSubmitting && chat.messages.length > 0) {
       setTimeout(() => {
@@ -49,7 +64,6 @@
     }
   });
 
-  // Clear error when new messages arrive
   $effect(() => {
     if (chat.messages.length > 0 && !isStreaming()) {
       errorMessage = '';
@@ -77,18 +91,52 @@
     isStreamingResponse = true;
     isSubmitting = true;
     abortController = new AbortController();
-
     const initialMessageCount = chat.messages.length;
 
     try {
+      // Create chat if doesn't exist
+      if (!currentChatId) {
+        const newChat = await orpc.chat.create({
+          title: messageToSend.slice(0, 50) + (messageToSend.length > 50 ? '...' : ''),
+          modelId: 'gpt-4',
+        });
+        currentChatId = newChat.id;
+      }
+
+      // Save user message to database
+      await orpc.message.create({
+        chatId: currentChatId,
+        content: messageToSend,
+      });
+
+      // Send via AI SDK for streaming
       await chat.sendMessage({ text: messageToSend });
 
       if (chat.messages.length === initialMessageCount) {
         throw new Error('No assistant response was received');
       }
+
+      // Save assistant message to database
+      const lastMessage = chat.messages[chat.messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        const textPart = lastMessage.parts.find(
+          (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+        );
+        if (textPart && 'text' in textPart) {
+          await orpc.message.create({
+            chatId: currentChatId,
+            content: textPart.text as string,
+            role: 'assistant',
+          });
+        }
+      }
+
+      // Redirect to /app/chat/[id] after everything is saved
+      if (currentChatId && $page.url.pathname === '/app/chat') {
+        await goto(`/app/chat/${currentChatId}`, { replaceState: true });
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
-
       const errorObj = error instanceof Error ? error : new Error('Failed to send message');
 
       if (errorObj.name === 'AbortError') {
@@ -115,7 +163,6 @@
 
   function handleStop() {
     wasStopped = true;
-
     const lastMessage = chat.messages[chat.messages.length - 1];
     if (lastMessage && lastMessage.role === 'assistant') {
       stoppedMessageId = lastMessage.id;
@@ -152,7 +199,9 @@
       }
     } catch (error) {
       console.error('Retry failed:', error);
-      errorMessage = `Retry ${retryCount}/${MAX_RETRIES} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errorMessage =
+        `Retry ${retryCount}/${MAX_RETRIES} failed: ` +
+        (error instanceof Error ? error.message : 'Unknown error');
 
       if (retryCount >= MAX_RETRIES) {
         errorMessage = 'Failed after multiple attempts. Please try again later.';
@@ -172,10 +221,20 @@
   }
 </script>
 
-<div class="mx-auto grid h-full w-full max-w-3xl grid-rows-[1fr_auto] overflow-hidden p-4">
-  <div bind:this={messagesContainer} class="mb-4 space-y-4 overflow-y-auto pb-4 scroll-smooth">
+<header class="bg-background sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b p-4">
+  <Breadcrumb.Root>
+    <Breadcrumb.List>
+      <Breadcrumb.Item>
+        <Breadcrumb.Page>Chat</Breadcrumb.Page>
+      </Breadcrumb.Item>
+    </Breadcrumb.List>
+  </Breadcrumb.Root>
+</header>
+
+<div class="flex h-[calc(100vh-61px)] flex-col">
+  <div bind:this={messagesContainer} class="flex-1 space-y-4 overflow-y-auto scroll-smooth p-4">
     {#if chat.messages.length === 0}
-      <div in:fade={{ duration: 500 }} class="mt-8 text-center text-muted-foreground">
+      <div in:fade={{ duration: 500 }} class="text-muted-foreground mt-8 text-center">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="64"
@@ -186,11 +245,11 @@
           stroke-width="1"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="mx-auto mb-4 text-primary opacity-50"
+          class="text-primary mx-auto mb-4 opacity-50"
         >
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
-        <h2 class="text-xl font-semibold mb-2">Start a conversation</h2>
+        <h2 class="mb-2 text-xl font-semibold">Start a conversation</h2>
         <p class="text-sm">Ask me anything to get started!</p>
       </div>
     {/if}
@@ -208,16 +267,16 @@
         class="flex w-full {message.role === 'user' ? 'justify-end' : 'justify-start'}"
       >
         <div
-          class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm md:text-base transition-all duration-200 hover:shadow-lg"
+          class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base"
           class:ml-auto={message.role === 'user'}
-          class:bg-primary={message.role === 'user'}
+          class:bg-accent={message.role === 'user'}
           class:bg-muted={message.role === 'assistant'}
           class:rounded-tr-sm={message.role === 'user'}
           class:rounded-tl-sm={message.role === 'assistant'}
         >
           <p
             class="mb-1.5 text-xs font-medium opacity-70"
-            class:text-primary-foreground={message.role === 'user'}
+            class:text-accent-foreground={message.role === 'user'}
             class:text-muted-foreground={message.role === 'assistant'}
           >
             {message.role === 'user' ? 'You' : 'AI Assistant'}
@@ -228,7 +287,7 @@
                 <span class="animate-pulse" style="animation-delay: 0.4s">●</span>
               </span>
             {:else if isStoppedMessage}
-              <span class="ml-2 inline-flex items-center gap-1 text-muted-foreground">
+              <span class="text-muted-foreground ml-2 inline-flex items-center gap-1">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="12"
@@ -248,19 +307,21 @@
           </p>
 
           <div
-            class="prose prose-sm dark:prose-invert max-w-none markdown-content"
-            class:prose-p:text-primary-foreground={message.role === 'user'}
-            class:prose-p:text-foreground={message.role === 'assistant'}
+            class="markdown-content prose prose-sm max-w-none dark:prose-invert"
+            class:prose-p:text-accent-foreground={message.role === 'user'}
+            class:prose-p:text-card-foreground={message.role === 'assistant'}
             class:opacity-70={isThisStoppedMessage}
           >
             {#if isThisStoppedMessage && stoppedMessageContent}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
               {@html stoppedMessageContent}
             {:else}
               {#each message.parts as part, partIndex (partIndex)}
                 {#if part.type === 'text'}
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
                   {@html renderMarkdownSync(part.text)}
                   {#if isStreamingMessage && !part.text}
-                    <span class="inline-block w-2 h-4 ml-1 bg-current animate-pulse opacity-50"
+                    <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
                     ></span>
                   {/if}
                 {/if}
@@ -272,7 +333,7 @@
         {#if isStoppedMessage}
           <div
             in:fade={{ duration: 300 }}
-            class="ml-4 mt-2 flex items-center gap-2 text-sm text-muted-foreground"
+            class="text-muted-foreground mt-2 ml-4 flex items-center gap-2 text-sm"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -297,7 +358,7 @@
     {#if hasError()}
       <div
         in:fade={{ duration: 300 }}
-        class="flex items-center justify-between gap-3 rounded-xl border border-destructive/50 bg-destructive/10 p-4"
+        class="border-destructive/50 bg-destructive/10 flex items-center justify-between gap-3 rounded-xl border p-4"
       >
         <div class="flex items-start gap-3">
           <svg
@@ -310,15 +371,15 @@
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="mt-0.5 shrink-0 text-destructive"
+            class="text-destructive mt-0.5 shrink-0"
           >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" x2="12" y1="8" y2="12" />
             <line x1="12" x2="12.01" y1="16" y2="16" />
           </svg>
           <div class="flex-1">
-            <p class="font-medium text-destructive">Connection Error</p>
-            <p class="text-sm text-muted-foreground mt-1">{errorMessage}</p>
+            <p class="text-destructive font-medium">Connection Error</p>
+            <p class="text-muted-foreground mt-1 text-sm">{errorMessage}</p>
           </div>
         </div>
         {#if retryCount < MAX_RETRIES}
@@ -326,7 +387,7 @@
             type="button"
             onclick={handleRetry}
             disabled={isRetrying}
-            class="shrink-0 inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
             {#if isRetrying}
               <svg
@@ -370,16 +431,16 @@
 
   <form
     onsubmit={handleSubmit}
-    class="w-full flex items-end gap-2 pt-3 border-t border-border bg-background p-2"
+    class="border-border bg-background flex items-end gap-2 border-t p-4"
   >
-    <div class="flex-1 relative">
+    <div class="relative flex-1">
       <textarea
         name="prompt"
         bind:value={input}
         bind:this={inputField}
         placeholder="Type your message..."
         rows="1"
-        class="w-full rounded-xl border border-input bg-background px-4 py-3 pr-12 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 transition-all duration-200 resize-none overflow-y-auto"
+        class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 w-full resize-none overflow-y-auto rounded-xl border px-4 py-3 pr-12 transition-all duration-200 focus:ring-2 focus:outline-none disabled:opacity-50"
         style="max-height: 200px"
         autocomplete="off"
         disabled={isStreaming() || isRetrying || isSubmitting}
@@ -395,13 +456,13 @@
           target.style.height = Math.min(target.scrollHeight, 200) + 'px';
         }}
       ></textarea>
-      <div class="absolute right-3 bottom-3 text-xs text-muted-foreground pointer-events-none">
+      <div class="text-muted-foreground pointer-events-none absolute right-3 bottom-3 text-xs">
         {#if isStreaming() || isRetrying}
           <span class="flex items-center gap-1">
             <span class="animate-spin">⋯</span>
           </span>
         {:else}
-          <div class="hidden sm:flex items-center gap-1">
+          <div class="hidden items-center gap-1 sm:flex">
             <kbd class="text-xs">⇧</kbd>
             <kbd class="text-xs">⏎</kbd>
           </div>
@@ -413,7 +474,7 @@
       <button
         type="button"
         onclick={handleStop}
-        class="inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl bg-destructive px-4 text-destructive-foreground hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 transition-all duration-200 hover:scale-105 active:scale-95"
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive inline-flex h-11 w-auto shrink-0 items-center justify-center gap-2 rounded-xl px-4 transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95"
         aria-label="Stop generation"
       >
         <svg
@@ -432,7 +493,7 @@
       <button
         type="submit"
         disabled={!input.trim() || isStreaming() || isRetrying || isSubmitting}
-        class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 hover:scale-105 active:scale-95"
+        class="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Send message"
       >
         {#if isRetrying}

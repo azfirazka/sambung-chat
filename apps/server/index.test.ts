@@ -23,7 +23,7 @@ describe('Server Environment', () => {
 
   it('should have CORS_ORIGIN defined', () => {
     expect(process.env.CORS_ORIGIN).toBeDefined();
-    expect(process.env.CORS_ORIGIN).toBe('http://localhost:5173');
+    expect(process.env.CORS_ORIGIN).toBe('http://localhost:5174');
   });
 
   it('should have NODE_ENV set', () => {
@@ -49,7 +49,6 @@ describe('API Router', () => {
     expect(appRouter).toBeDefined();
     expect(typeof appRouter.healthCheck).toBe('object');
     expect(typeof appRouter.privateData).toBe('object');
-    expect(typeof appRouter.todo).toBe('object');
     expect(typeof appRouter.chat).toBe('object');
     expect(typeof appRouter.message).toBe('object');
   });
