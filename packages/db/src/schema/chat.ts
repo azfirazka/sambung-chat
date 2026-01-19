@@ -124,7 +124,7 @@ export const agents = pgTable(
   ]
 );
 
-export const agentRelations = relations(agents, ({ one, many }) => ({
+export const agentRelations = relations(agents, ({ one }) => ({
   user: one(user, {
     fields: [agents.userId],
     references: [user.id],

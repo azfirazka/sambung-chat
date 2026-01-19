@@ -49,7 +49,6 @@ describe('API Router', () => {
     expect(appRouter).toBeDefined();
     expect(typeof appRouter.healthCheck).toBe('object');
     expect(typeof appRouter.privateData).toBe('object');
-    expect(typeof appRouter.todo).toBe('object');
     expect(typeof appRouter.chat).toBe('object');
     expect(typeof appRouter.message).toBe('object');
   });
