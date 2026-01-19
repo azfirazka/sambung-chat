@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-01-19
+
+### Added
+
+- **OpenAI Provider Streaming**: Verify streaming functionality with real OpenAI API ([.auto-claude/specs/001-complete-openai-provider-integration/streaming-test-results.md](.auto-claude/specs/001-complete-openai-provider-integration/streaming-test-results.md))
+  - Confirmed Server-Sent Events (SSE) format working correctly
+  - Verified chunked Transfer-Encoding for real-time token delivery
+  - Validated AI SDK UI message stream format (x-vercel-ai-ui-message-stream: v1)
+  - Tested streaming endpoint with proper headers (Content-Type, Cache-Control, x-accel-buffering)
+  - Confirmed frontend Chat component integration with DefaultChatTransport
+  - Verified streaming state management and visual indicators (animated dots)
+  - Validated stop/abort functionality with AbortController
+  - Confirmed message persistence after streaming completes
+
+### Tested
+
+- **Streaming Responses**: Comprehensive testing of OpenAI streaming functionality ([test-streaming-openai.sh](test-streaming-openai.sh))
+  - Backend server verified on port 3000
+  - Frontend server verified on port 5174
+  - Streaming endpoint tested with curl
+  - Response headers validated (text/event-stream, chunked, no-cache)
+  - SSE format verified (data: prefix, JSON chunks)
+  - Real-time token delivery confirmed
+
+---
+
 ## [0.0.5] - 2026-01-19
 
 ### Added
