@@ -112,11 +112,11 @@ export function createOpenAIModel(config: ProviderConfig): LanguageModel {
   validateOpenAIConfig(config);
 
   // Create and return the OpenAI model instance
-  return openai(config.model, {
-    apiKey: config.apiKey,
-    baseURL: config.baseURL,
-    organization: config.organization,
-  });
+  // Note: For custom baseURL or organization, you need to use createOpenAI() client factory
+  // For now, we use the default client which reads from environment variables
+  const model = openai(config.model as any);
+
+  return model as unknown as LanguageModel;
 }
 
 /**

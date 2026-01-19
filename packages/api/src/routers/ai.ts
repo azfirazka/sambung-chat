@@ -1,0 +1,489 @@
+/**
+ * AI Chat Completion Router
+ *
+ * This router handles AI chat completions using the AI SDK v6.
+ * It supports streaming responses and proper error handling for various scenarios.
+ *
+ * Supported providers:
+ * - OpenAI (GPT-4, GPT-3.5, GPT-4o, etc.)
+ *
+ * Error handling:
+ * - Rate limits (HTTP 429)
+ * - Invalid API keys (HTTP 401)
+ * - Network errors
+ * - Model not found
+ * - Context window exceeded
+ */
+
+import { db } from '@sambung-chat/db';
+import { chats, messages } from '@sambung-chat/db/schema/chat';
+import { models } from '@sambung-chat/db/schema/model';
+import { apiKeys } from '@sambung-chat/db/schema/api-key';
+import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
+import { ORPCError } from '@orpc/server';
+import { streamText, generateText } from 'ai';
+import { protectedProcedure } from '../index';
+import { ulidSchema } from '../utils/validation';
+import { createProvider, type ProviderConfig } from '../lib/providers';
+
+/**
+ * Chat message schema for AI completion requests
+ */
+const chatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1),
+});
+
+/**
+ * Completion settings schema
+ */
+const completionSettingsSchema = z.object({
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().min(1).max(1000000).optional(),
+  topP: z.number().min(0).max(1).optional(),
+  topK: z.number().min(0).max(100).optional(),
+  frequencyPenalty: z.number().min(-2).max(2).optional(),
+  presencePenalty: z.number().min(-2).max(2).optional(),
+});
+
+/**
+ * Helper function to get decrypted API key
+ *
+ * @param apiKeyId - The API key ID from the database
+ * @returns Decrypted API key
+ * @throws {ORPCError} If API key is not found or decryption fails
+ */
+async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
+  // TODO: Implement proper decryption logic
+  // For now, this is a placeholder that assumes encrypted keys are stored
+  // In a production environment, you would use a proper encryption library
+
+  const apiKeyResults = await db
+    .select()
+    .from(apiKeys)
+    .where(eq(apiKeys.id, apiKeyId))
+    .limit(1);
+
+  if (apiKeyResults.length === 0) {
+    throw new ORPCError('NOT_FOUND', {
+      message: 'API key not found',
+    });
+  }
+
+  const apiKey = apiKeyResults[0];
+
+  if (!apiKey) {
+    throw new ORPCError('NOT_FOUND', {
+      message: 'API key not found',
+    });
+  }
+
+  // Placeholder: Return encrypted key for now
+  // In production, you would decrypt this using a proper encryption scheme
+  // Example: await decrypt(apiKey.encryptedKey)
+  return apiKey.encryptedKey;
+}
+
+/**
+ * Helper function to get model configuration from database
+ *
+ * @param modelId - The model ID from the database
+ * @param userId - The current user's ID
+ * @returns Model configuration with decrypted API key
+ * @throws {ORPCError} If model is not found or doesn't belong to user
+ */
+async function getModelConfig(modelId: string, userId: string): Promise<ProviderConfig> {
+  const modelResults = await db
+    .select()
+    .from(models)
+    .where(and(eq(models.id, modelId), eq(models.userId, userId)))
+    .limit(1);
+
+  if (modelResults.length === 0) {
+    throw new ORPCError('NOT_FOUND', {
+      message: 'Model not found or you do not have permission to use it',
+    });
+  }
+
+  const model = modelResults[0];
+
+  if (!model) {
+    throw new ORPCError('NOT_FOUND', {
+      message: 'Model not found',
+    });
+  }
+
+  // Build provider configuration
+  const config: ProviderConfig = {
+    provider: model.provider as any,
+    model: model.modelId,
+  };
+
+  // Add API key if available
+  if (model.apiKeyId) {
+    config.apiKey = await getDecryptedApiKey(model.apiKeyId);
+  } else {
+    // If no API key ID is provided, we'll rely on environment variables
+    // This is useful for development or when using server-side API keys
+    config.apiKey = process.env.OPENAI_API_KEY;
+  }
+
+  // Add custom base URL if specified
+  if (model.baseUrl) {
+    config.baseURL = model.baseUrl;
+  }
+
+  return config;
+}
+
+/**
+ * Handle AI SDK errors and convert them to ORPC errors
+ *
+ * @param error - The error caught from AI SDK
+ * @throws {ORPCError} with appropriate error code and message
+ */
+function handleAIError(error: unknown): never {
+  // Type guard for Error objects
+  if (!(error instanceof Error)) {
+    throw new ORPCError('INTERNAL_SERVER_ERROR', {
+      message: 'An unknown error occurred',
+    });
+  }
+
+  // Check for specific error types
+  const errorMessage = error.message.toLowerCase();
+
+  // Rate limit errors
+  if (
+    errorMessage.includes('rate limit') ||
+    errorMessage.includes('429') ||
+    errorMessage.includes('quota')
+  ) {
+    throw new ORPCError('TOO_MANY_REQUESTS', {
+      message: 'Rate limit exceeded. Please try again later.',
+    });
+  }
+
+  // Authentication errors
+  if (
+    errorMessage.includes('api key') ||
+    errorMessage.includes('unauthorized') ||
+    errorMessage.includes('401') ||
+    errorMessage.includes('authentication')
+  ) {
+    throw new ORPCError('UNAUTHORIZED', {
+      message: 'Invalid API key. Please check your credentials.',
+    });
+  }
+
+  // Model not found errors
+  if (
+    errorMessage.includes('model not found') ||
+    errorMessage.includes('invalid model') ||
+    errorMessage.includes('404')
+  ) {
+    throw new ORPCError('NOT_FOUND', {
+      message: 'The specified model is not available.',
+    });
+  }
+
+  // Context window exceeded
+  if (
+    errorMessage.includes('context') ||
+    errorMessage.includes('tokens') ||
+    errorMessage.includes('too long')
+  ) {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'The conversation is too long. Please start a new chat.',
+    });
+  }
+
+  // Network errors
+  if (
+    errorMessage.includes('network') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('fetch') ||
+    errorMessage.includes('econnrefused')
+  ) {
+    throw new ORPCError('SERVICE_UNAVAILABLE', {
+      message: 'Network error. Please check your connection and try again.',
+    });
+  }
+
+  // Generic server error
+  throw new ORPCError('INTERNAL_SERVER_ERROR', {
+    message: error.message || 'An error occurred while processing your request',
+  });
+}
+
+export const aiRouter = {
+  /**
+   * Generate a non-streaming chat completion
+   *
+   * This endpoint returns the complete response in one call.
+   * Use this for simple completions where streaming is not required.
+   */
+  complete: protectedProcedure
+    .input(
+      z.object({
+        chatId: ulidSchema.optional(),
+        modelId: ulidSchema,
+        messages: z.array(chatMessageSchema).min(1),
+        settings: completionSettingsSchema.optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+
+      try {
+        // Get model configuration
+        const modelConfig = await getModelConfig(input.modelId, userId);
+
+        // Create the language model
+        const model = createProvider(modelConfig);
+
+        // Prepare AI SDK settings
+        const aiSettings: any = {};
+
+        if (input.settings) {
+          if (input.settings.temperature !== undefined) {
+            aiSettings.temperature = input.settings.temperature;
+          }
+          if (input.settings.maxTokens !== undefined) {
+            aiSettings.maxTokens = input.settings.maxTokens;
+          }
+          if (input.settings.topP !== undefined) {
+            aiSettings.topP = input.settings.topP;
+          }
+          if (input.settings.topK !== undefined) {
+            aiSettings.topK = input.settings.topK;
+          }
+          if (input.settings.frequencyPenalty !== undefined) {
+            aiSettings.frequencyPenalty = input.settings.frequencyPenalty;
+          }
+          if (input.settings.presencePenalty !== undefined) {
+            aiSettings.presencePenalty = input.settings.presencePenalty;
+          }
+        }
+
+        // Generate completion
+        const result = await generateText({
+          model,
+          messages: input.messages as any,
+          ...aiSettings,
+        });
+
+        // If chatId is provided, save the messages to database
+        if (input.chatId) {
+          // Verify chat belongs to user
+          const chatResults = await db
+            .select()
+            .from(chats)
+            .where(and(eq(chats.id, input.chatId), eq(chats.userId, userId)));
+
+          if (chatResults.length > 0) {
+            // Save user message if it's the last message and not already saved
+            const lastMessage = input.messages[input.messages.length - 1];
+            if (lastMessage && lastMessage.role === 'user') {
+              await db.insert(messages).values({
+                chatId: input.chatId,
+                role: 'user',
+                content: lastMessage.content,
+              });
+            }
+
+            // Save assistant response
+            await db.insert(messages).values({
+              chatId: input.chatId,
+              role: 'assistant',
+              content: result.text,
+              metadata: {
+                model: modelConfig.model,
+                tokens: result.usage?.totalTokens,
+                finishReason: result.finishReason,
+              },
+            });
+
+            // Update chat timestamp
+            await db
+              .update(chats)
+              .set({ updatedAt: new Date() })
+              .where(eq(chats.id, input.chatId));
+          }
+        }
+
+        // Return completion result
+        return {
+          text: result.text,
+          usage: result.usage,
+          finishReason: result.finishReason,
+          response: result.response,
+        };
+      } catch (error) {
+        handleAIError(error);
+      }
+    }),
+
+  /**
+   * Generate a streaming chat completion
+   *
+   * This endpoint returns a stream of text chunks as they are generated.
+   * Use this for real-time chat experiences.
+   */
+  stream: protectedProcedure
+    .input(
+      z.object({
+        chatId: ulidSchema.optional(),
+        modelId: ulidSchema,
+        messages: z.array(chatMessageSchema).min(1),
+        settings: completionSettingsSchema.optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+
+      try {
+        // Get model configuration
+        const modelConfig = await getModelConfig(input.modelId, userId);
+
+        // Create the language model
+        const model = createProvider(modelConfig);
+
+        // Prepare AI SDK settings
+        const aiSettings: any = {};
+
+        if (input.settings) {
+          if (input.settings.temperature !== undefined) {
+            aiSettings.temperature = input.settings.temperature;
+          }
+          if (input.settings.maxTokens !== undefined) {
+            aiSettings.maxTokens = input.settings.maxTokens;
+          }
+          if (input.settings.topP !== undefined) {
+            aiSettings.topP = input.settings.topP;
+          }
+          if (input.settings.topK !== undefined) {
+            aiSettings.topK = input.settings.topK;
+          }
+          if (input.settings.frequencyPenalty !== undefined) {
+            aiSettings.frequencyPenalty = input.settings.frequencyPenalty;
+          }
+          if (input.settings.presencePenalty !== undefined) {
+            aiSettings.presencePenalty = input.settings.presencePenalty;
+          }
+        }
+
+        // Start streaming
+        const result = await streamText({
+          model,
+          messages: input.messages as any,
+          ...aiSettings,
+        });
+
+        // If chatId is provided, save user message and prepare to save assistant response
+        let assistantMessageId: string | undefined;
+        if (input.chatId) {
+          // Verify chat belongs to user
+          const chatResults = await db
+            .select()
+            .from(chats)
+            .where(and(eq(chats.id, input.chatId), eq(chats.userId, userId)));
+
+          if (chatResults.length > 0) {
+            // Save user message
+            const lastMessage = input.messages[input.messages.length - 1];
+            if (lastMessage && lastMessage.role === 'user') {
+              await db.insert(messages).values({
+                chatId: input.chatId,
+                role: 'user',
+                content: lastMessage.content,
+              });
+            }
+
+            // Create a placeholder message for the assistant that we'll update later
+            // Note: This is a simplified approach. In production, you might want to
+            // save chunks as they arrive or use a different strategy.
+            const insertedMessages = await db
+              .insert(messages)
+              .values({
+                chatId: input.chatId,
+                role: 'assistant',
+                content: '', // Will be updated as stream progresses
+              })
+              .returning();
+
+            if (insertedMessages.length > 0 && insertedMessages[0]) {
+              assistantMessageId = insertedMessages[0].id;
+            }
+          }
+        }
+
+        // Return the stream result directly
+        // The frontend will handle the streaming using AI SDK's useChat hook
+        return {
+          textStream: result.textStream,
+          fullStream: result.fullStream,
+          messageId: assistantMessageId,
+          model: modelConfig.model,
+        };
+      } catch (error) {
+        handleAIError(error);
+      }
+    }),
+
+  /**
+   * Get available models for testing
+   *
+   * This endpoint returns a list of available models for the current user.
+   * Useful for testing and validation.
+   */
+  listModels: protectedProcedure.handler(async ({ context }) => {
+    const userId = context.session.user.id;
+
+    const userModels = await db
+      .select()
+      .from(models)
+      .where(eq(models.userId, userId));
+
+    return userModels;
+  }),
+
+  /**
+   * Validate model configuration
+   *
+   * This endpoint checks if a model is properly configured with valid credentials.
+   */
+  validateModel: protectedProcedure
+    .input(z.object({ modelId: ulidSchema }))
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+
+      try {
+        const modelConfig = await getModelConfig(input.modelId, userId);
+        const model = createProvider(modelConfig);
+
+        // Make a simple test request
+        await generateText({
+          model,
+          messages: [{ role: 'user', content: 'Test' }],
+        });
+
+        return {
+          valid: true,
+          message: 'Model is properly configured',
+        };
+      } catch (error) {
+        if (error instanceof ORPCError) {
+          return {
+            valid: false,
+            message: error.message,
+          };
+        }
+        return {
+          valid: false,
+          message: 'Model configuration is invalid',
+        };
+      }
+    }),
+};
