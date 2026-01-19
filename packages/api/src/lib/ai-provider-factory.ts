@@ -1,9 +1,11 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { LanguageModelV1 } from '@ai-sdk/provider';
 import { wrapLanguageModel } from 'ai';
 import { devToolsMiddleware } from '@ai-sdk/devtools';
 import { env } from '@sambung-chat/env/server';
+
+// Type for the language model (inferred from AI SDK)
+type LanguageModel = ReturnType<typeof wrapLanguageModel>;
 
 /**
  * Supported AI providers
@@ -26,7 +28,7 @@ export interface ProviderConfig {
  * @param config - Provider configuration
  * @returns Wrapped language model with dev tools middleware
  */
-function createOpenAIProvider(config: ProviderConfig): LanguageModelV1 {
+function createOpenAIProvider(config: ProviderConfig): LanguageModel {
 	const openai = createOpenAICompatible({
 		name: config.provider === 'custom' ? 'custom' : config.provider,
 		baseURL: config.baseURL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
@@ -47,13 +49,14 @@ function createOpenAIProvider(config: ProviderConfig): LanguageModelV1 {
  * @param config - Provider configuration
  * @returns Wrapped language model with dev tools middleware
  */
-function createAnthropicProvider(config: ProviderConfig): LanguageModelV1 {
+function createAnthropicProvider(config: ProviderConfig): LanguageModel {
 	const apiKey = config.apiKey || env.ANTHROPIC_API_KEY;
 
 	if (!apiKey) {
 		throw new Error('Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable or provide apiKey in config.');
 	}
 
+	// Create Anthropic model instance
 	const model = anthropic(config.modelId, {
 		apiKey,
 		baseURL: config.baseURL || env.ANTHROPIC_BASE_URL,
@@ -73,7 +76,7 @@ function createAnthropicProvider(config: ProviderConfig): LanguageModelV1 {
  *
  * @throws {Error} When @ai-sdk/google is not installed or API key is missing
  */
-function createGoogleProvider(config: ProviderConfig): LanguageModelV1 {
+function createGoogleProvider(config: ProviderConfig): LanguageModel {
 	try {
 		// Import dynamically to avoid issues if @ai-sdk/google is not installed
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -111,7 +114,7 @@ function createGoogleProvider(config: ProviderConfig): LanguageModelV1 {
  * @param config - Provider configuration
  * @returns Wrapped language model with dev tools middleware
  */
-function createGroqProvider(config: ProviderConfig): LanguageModelV1 {
+function createGroqProvider(config: ProviderConfig): LanguageModel {
 	const groq = createOpenAICompatible({
 		name: 'groq',
 		baseURL: config.baseURL || env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
@@ -132,7 +135,7 @@ function createGroqProvider(config: ProviderConfig): LanguageModelV1 {
  * @param config - Provider configuration
  * @returns Wrapped language model with dev tools middleware
  */
-function createOllamaProvider(config: ProviderConfig): LanguageModelV1 {
+function createOllamaProvider(config: ProviderConfig): LanguageModel {
 	const ollama = createOpenAICompatible({
 		name: 'ollama',
 		baseURL: config.baseURL || env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
@@ -187,7 +190,7 @@ function createOllamaProvider(config: ProviderConfig): LanguageModelV1 {
  *
  * @throws {Error} When required API key is missing for the provider
  */
-export function createAIProvider(config: ProviderConfig): LanguageModelV1 {
+export function createAIProvider(config: ProviderConfig): LanguageModel {
 	switch (config.provider) {
 		case 'openai':
 		case 'custom':
@@ -207,7 +210,7 @@ export function createAIProvider(config: ProviderConfig): LanguageModelV1 {
 
 		default:
 			// TypeScript exhaustiveness check
-			const _exhaustive: never = config;
+			const _exhaustive: never = config.provider;
 			throw new Error(`Unsupported provider: ${_exhaustive}`);
 	}
 }
@@ -237,8 +240,9 @@ export function isProviderConfigured(provider: AIProvider): boolean {
 			return true; // Ollama doesn't require API key
 
 		default:
+			// TypeScript exhaustiveness check
 			const _exhaustive: never = provider;
-			return false;
+			throw new Error(`Unsupported provider: ${_exhaustive}`);
 	}
 }
 
