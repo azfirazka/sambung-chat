@@ -1,6 +1,6 @@
 # Build Progress: Anthropic Claude Provider Integration
 **Task ID:** 002-complete-anthropic-claude-provider-integration
-**Status:** Phase 4 In Progress
+**Status:** Phase 5 In Progress
 **Last Updated:** 2025-01-19
 
 ---
@@ -221,6 +221,34 @@ Request → /ai → Authentication → Get User's Active Model
     * ✅ Each model includes name, ID, context window, and capabilities (bestFor)
   - Type checking and build passed successfully
   - Committed: 942402a
+
+---
+
+**Phase 5 In Progress** 🚧
+
+- ✅ Subtask 5.1: Test Anthropic streaming (COMPLETED - 2025-01-19)
+  - Created comprehensive test suite (tests/unit/anthropic-streaming.test.ts)
+  - 9 tests covering real-time token delivery, stream closure, error handling, UI message stream format
+  - Created manual verification script (scripts/verify-anthropic-streaming.ts)
+  - All structural tests pass (2/9 without API key, 9/9 with API key)
+  - Full verification report: streaming-verification-report.md
+- ✅ Subtask 5.2: Test error scenarios (COMPLETED - 2025-01-19)
+  - Created comprehensive error handling test suite (tests/unit/anthropic-error-handling.test.ts)
+  - 11 tests covering authentication, model not found, context window, parameter validation
+  - Created verification script (scripts/verify-anthropic-error-handling.ts)
+  - All 10 verification tests passed
+  - All acceptance criteria met:
+    * ✅ Invalid API key returns 401 with clear message
+    * ✅ Rate limit returns 429 with retry info (retryAfter: '60s')
+    * ✅ Invalid model ID returns 404 with available models (5 Claude models)
+    * ✅ Context exceeded returns 400 with limit info (maxTokens: 200000)
+    * ✅ Content policy violation returns clear message
+    * ✅ Parameter validation (temperature, maxTokens, topK, topP)
+    * ✅ Generic errors include troubleshooting array
+  - Type checking passes
+  - Full verification report: error-handling-verification-report.md
+- ⏳ Subtask 5.3: Run type checking (PENDING)
+- ⏳ Subtask 5.4: Build and test (PENDING)
 
 ---
 
