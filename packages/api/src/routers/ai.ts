@@ -21,7 +21,7 @@ import { models } from '@sambung-chat/db/schema/model';
 import { apiKeys } from '@sambung-chat/db/schema/api-key';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
-import { ORPCError } from '@orpc/server';
+import { ORPCError, eventIterator } from '@orpc/server';
 import { streamText, generateText } from 'ai';
 import { protectedProcedure } from '../index';
 import { ulidSchema } from '../utils/validation';
@@ -326,10 +326,18 @@ export const aiRouter = {
     }),
 
   /**
-   * Generate a streaming chat completion
+   * Generate a streaming chat completion using Server-Sent Events (SSE)
    *
-   * This endpoint returns a stream of text chunks as they are generated.
-   * Use this for real-time chat experiences.
+   * This endpoint uses oRPC's event iterator to stream text chunks as they are generated.
+   * The async generator function yields each text delta for real-time display.
+   *
+   * Frontend consumption example:
+   * ```ts
+   * const stream = await orpc.ai.stream({ messages: [...] })
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text) // Individual text delta
+   * }
+   * ```
    */
   stream: protectedProcedure
     .input(
@@ -340,8 +348,37 @@ export const aiRouter = {
         settings: completionSettingsSchema.optional(),
       })
     )
-    .handler(async ({ input, context }) => {
+    .output(
+      eventIterator(
+        z.discriminatedUnion('type', [
+          z.object({
+            type: z.literal('text-delta'),
+            text: z.string(),
+          }),
+          z.object({
+            type: z.literal('finish'),
+            finishReason: z.string().optional(),
+            usage: z.object({
+              promptTokens: z.number().optional(),
+              completionTokens: z.number().optional(),
+              totalTokens: z.number().optional(),
+            }).optional(),
+          }),
+          z.object({
+            type: z.literal('error'),
+            error: z.object({
+              code: z.string(),
+              message: z.string(),
+            }),
+          }),
+        ])
+      )
+    )
+    .handler(async function* ({ input, context }) {
       const userId = context.session.user.id;
+
+      let assistantMessageId: string | undefined;
+      let fullText = '';
 
       try {
         // Get model configuration
@@ -374,15 +411,7 @@ export const aiRouter = {
           }
         }
 
-        // Start streaming
-        const result = await streamText({
-          model,
-          messages: input.messages as any,
-          ...aiSettings,
-        });
-
-        // If chatId is provided, save user message and prepare to save assistant response
-        let assistantMessageId: string | undefined;
+        // If chatId is provided, save user message and create placeholder for assistant
         if (input.chatId) {
           // Verify chat belongs to user
           const chatResults = await db
@@ -401,15 +430,13 @@ export const aiRouter = {
               });
             }
 
-            // Create a placeholder message for the assistant that we'll update later
-            // Note: This is a simplified approach. In production, you might want to
-            // save chunks as they arrive or use a different strategy.
+            // Create a placeholder message for the assistant
             const insertedMessages = await db
               .insert(messages)
               .values({
                 chatId: input.chatId,
                 role: 'assistant',
-                content: '', // Will be updated as stream progresses
+                content: '',
               })
               .returning();
 
@@ -419,16 +446,80 @@ export const aiRouter = {
           }
         }
 
-        // Return the stream result directly
-        // The frontend will handle the streaming using AI SDK's useChat hook
-        return {
-          textStream: result.textStream,
-          fullStream: result.fullStream,
-          messageId: assistantMessageId,
-          model: modelConfig.model,
-        };
+        // Start streaming with AI SDK
+        const result = await streamText({
+          model,
+          messages: input.messages as any,
+          ...aiSettings,
+        });
+
+        // Stream text deltas to client using async generator
+        // The AI SDK's textStream is an async iterable of text chunks
+        for await (const textDelta of result.textStream) {
+          // Accumulate full text for saving to database later
+          fullText += textDelta;
+
+          // Yield text chunk to client
+          yield {
+            type: 'text-delta',
+            text: textDelta,
+          } as const;
+        }
+
+        // After streaming completes, save the complete message to database
+        if (assistantMessageId && input.chatId) {
+          await db
+            .update(messages)
+            .set({
+              content: fullText,
+              metadata: {
+                model: modelConfig.model,
+                finishReason: result.finishReason,
+                usage: result.usage,
+              },
+            })
+            .where(eq(messages.id, assistantMessageId));
+
+          // Update chat timestamp
+          await db
+            .update(chats)
+            .set({ updatedAt: new Date() })
+            .where(eq(chats.id, input.chatId));
+        }
+
+        // Send final completion message
+        yield {
+          type: 'finish',
+          finishReason: result.finishReason,
+          usage: result.usage,
+        } as const;
       } catch (error) {
-        handleAIError(error);
+        // Handle errors and yield error message to client
+        if (error instanceof ORPCError) {
+          yield {
+            type: 'error',
+            error: {
+              code: error.code,
+              message: error.message,
+            },
+          } as const;
+          return;
+        }
+
+        // Handle AI SDK errors
+        try {
+          handleAIError(error);
+        } catch (orpcError) {
+          if (orpcError instanceof ORPCError) {
+            yield {
+              type: 'error',
+              error: {
+                code: orpcError.code,
+                message: orpcError.message,
+              },
+            } as const;
+          }
+        }
       }
     }),
 
