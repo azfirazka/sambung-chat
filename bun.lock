@@ -101,6 +101,7 @@
     "packages/api": {
       "name": "@sambung-chat/api",
       "dependencies": {
+        "@ai-sdk/openai": "catalog:",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -109,6 +110,7 @@
         "@sambung-chat/db": "workspace:*",
         "@sambung-chat/env": "workspace:*",
         "@types/pg": "catalog:",
+        "ai": "catalog:",
         "dotenv": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",

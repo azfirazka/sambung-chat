@@ -138,82 +138,162 @@ async function getModelConfig(modelId: string, userId: string): Promise<Provider
 }
 
 /**
+ * Error type constants for better error categorization
+ */
+const ERROR_PATTERNS = {
+  RATE_LIMIT: ['rate limit', 'rate_limit_exceeded', '429', 'quota', 'too many requests', 'requests exceeded'],
+  AUTHENTICATION: ['api key', 'unauthorized', '401', '403', 'authentication', 'invalid api key', 'incorrect api key'],
+  MODEL_NOT_FOUND: ['model not found', 'invalid model', '404', 'model does not exist', 'no such model'],
+  CONTEXT_EXCEEDED: ['context', 'context_length_exceeded', 'tokens', 'too long', 'maximum', 'exceeds maximum length'],
+  CONTENT_POLICY: ['content policy', 'content_filter', 'safety', 'moderation', 'policy violation'],
+  INVALID_REQUEST: ['invalid', 'validation', 'schema', 'malformed', 'bad request', '400'],
+  NETWORK: ['network', 'connection', 'fetch', 'econnrefused', 'etimedout', 'timeout', 'dns'],
+  SERVICE_UNAVAILABLE: ['503', 'service unavailable', 'maintenance', 'overloaded', 'temporarily unavailable'],
+  PAYMENT_REQUIRED: ['payment', 'billing', 'insufficient', '402', 'quota exceeded'],
+} as const;
+
+/**
+ * Type guard to check if error has a message property
+ */
+function hasMessage(error: unknown): error is { message: string } {
+  return typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string';
+}
+
+/**
+ * Type guard to check if error is an AI SDK error with additional properties
+ */
+function isAIError(error: unknown): error is Error & { cause?: unknown; statusCode?: number; code?: string } {
+  return error instanceof Error;
+}
+
+/**
+ * Extract error code from error object if available
+ */
+function extractErrorCode(error: unknown): string | undefined {
+  if (isAIError(error)) {
+    // Check for code property directly
+    if ('code' in error && typeof error.code === 'string') {
+      return error.code;
+    }
+
+    // Check for cause property
+    if ('cause' in error && typeof error.cause === 'object' && error.cause !== null) {
+      if ('code' in error.cause && typeof error.cause.code === 'string') {
+        return error.cause.code;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Sanitize error message by removing sensitive information
+ */
+function sanitizeErrorMessage(message: string): string {
+  // Remove API keys if accidentally included
+  return message.replace(/sk-[a-zA-Z0-9-]{20,}/g, 'sk-****');
+}
+
+/**
+ * Check if error message matches any of the provided patterns
+ */
+function matchesPattern(errorMessage: string, patterns: readonly string[]): boolean {
+  return patterns.some((pattern) => errorMessage.toLowerCase().includes(pattern.toLowerCase()));
+}
+
+/**
  * Handle AI SDK errors and convert them to ORPC errors
+ *
+ * This function provides comprehensive error handling for AI provider errors,
+ * including rate limits, authentication failures, network issues, and more.
  *
  * @param error - The error caught from AI SDK
  * @throws {ORPCError} with appropriate error code and message
  */
 function handleAIError(error: unknown): never {
-  // Type guard for Error objects
-  if (!(error instanceof Error)) {
+  // Handle non-Error objects
+  if (!isAIError(error)) {
     throw new ORPCError('INTERNAL_SERVER_ERROR', {
       message: 'An unknown error occurred',
     });
   }
 
-  // Check for specific error types
-  const errorMessage = error.message.toLowerCase();
+  const errorMessage = sanitizeErrorMessage(error.message).toLowerCase();
+  const errorCode = extractErrorCode(error);
 
-  // Rate limit errors
-  if (
-    errorMessage.includes('rate limit') ||
-    errorMessage.includes('429') ||
-    errorMessage.includes('quota')
-  ) {
+  // Log error for debugging (without sensitive data)
+  console.error('[AI Error]', {
+    message: sanitizeErrorMessage(error.message),
+    code: errorCode,
+    name: error.name,
+  });
+
+  // Rate limit errors - most common
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.RATE_LIMIT)) {
     throw new ORPCError('TOO_MANY_REQUESTS', {
-      message: 'Rate limit exceeded. Please try again later.',
+      message: 'Rate limit exceeded. Please wait a moment and try again.',
     });
   }
 
-  // Authentication errors
-  if (
-    errorMessage.includes('api key') ||
-    errorMessage.includes('unauthorized') ||
-    errorMessage.includes('401') ||
-    errorMessage.includes('authentication')
-  ) {
+  // Authentication errors - invalid or missing API keys
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.AUTHENTICATION)) {
     throw new ORPCError('UNAUTHORIZED', {
-      message: 'Invalid API key. Please check your credentials.',
+      message: 'Invalid API key. Please check your provider credentials.',
     });
   }
 
-  // Model not found errors
-  if (
-    errorMessage.includes('model not found') ||
-    errorMessage.includes('invalid model') ||
-    errorMessage.includes('404')
-  ) {
+  // Model not found or access denied
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.MODEL_NOT_FOUND)) {
     throw new ORPCError('NOT_FOUND', {
-      message: 'The specified model is not available.',
+      message: 'The specified model is not available or you do not have access to it.',
     });
   }
 
   // Context window exceeded
-  if (
-    errorMessage.includes('context') ||
-    errorMessage.includes('tokens') ||
-    errorMessage.includes('too long')
-  ) {
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.CONTEXT_EXCEEDED)) {
     throw new ORPCError('BAD_REQUEST', {
-      message: 'The conversation is too long. Please start a new chat.',
+      message: 'The conversation is too long. Please start a new chat or reduce the message length.',
     });
   }
 
-  // Network errors
-  if (
-    errorMessage.includes('network') ||
-    errorMessage.includes('connection') ||
-    errorMessage.includes('fetch') ||
-    errorMessage.includes('econnrefused')
-  ) {
+  // Content policy violations
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.CONTENT_POLICY)) {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'The content was flagged by the safety filter. Please modify your message and try again.',
+    });
+  }
+
+  // Invalid request format
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.INVALID_REQUEST)) {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'Invalid request format. Please check your input and try again.',
+    });
+  }
+
+  // Network and connectivity errors
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.NETWORK)) {
     throw new ORPCError('SERVICE_UNAVAILABLE', {
       message: 'Network error. Please check your connection and try again.',
     });
   }
 
-  // Generic server error
+  // Service unavailable or maintenance
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.SERVICE_UNAVAILABLE)) {
+    throw new ORPCError('SERVICE_UNAVAILABLE', {
+      message: 'The service is temporarily unavailable. Please try again later.',
+    });
+  }
+
+  // Payment/billing related errors
+  if (matchesPattern(errorMessage, ERROR_PATTERNS.PAYMENT_REQUIRED)) {
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'Payment required or quota exceeded. Please check your billing details.',
+    });
+  }
+
+  // Generic server error with sanitized message
   throw new ORPCError('INTERNAL_SERVER_ERROR', {
-    message: error.message || 'An error occurred while processing your request',
+    message: sanitizeErrorMessage(error.message) || 'An error occurred while processing your request',
   });
 }
 
