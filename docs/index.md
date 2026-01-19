@@ -88,6 +88,7 @@ Quick reference materials for configuration and troubleshooting.
 
 | Document                                  | Description                                                                    | Target Audience                     |
 | ----------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
+| [Supported AI Providers](./ai-providers.md) | Complete list of supported AI providers (OpenAI, Anthropic, Google, Groq, Ollama) with model capabilities and setup instructions | All users, Developers configuring AI |
 | [Internationalization](./i18n.md)         | Complete i18n guide with svelte-i18n, locale files, and language switching     | All developers, Translators         |
 | [Environment Variables](./ENVIRONMENT.md) | Complete list of environment variables with descriptions                       | Developers configuring environments |
 | [Docker](./DOCKER.md)                     | Docker configuration and container setup                                       | DevOps engineers, Developers        |
@@ -207,6 +208,7 @@ For deploying SambungChat:
 | Goal                                   | Start Here                                                          | Related Docs                                                                          |
 | -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | **Set up development environment**     | [Getting Started](./getting-started.md)                             | [Environment Variables](./ENVIRONMENT.md), [Docker](./DOCKER.md)                      |
+| **Configure AI providers**             | [Getting Started](./getting-started.md#1-configure-ai-provider)   | [Supported AI Providers](./ai-providers.md), [Environment Variables](./ENVIRONMENT.md) |
 | **Understand the system architecture** | [Architecture](./architecture.md)                                   | [API Reference](./api-reference.md), [Teams Concept](./teams-concept.md)              |
 | **Implement team features**            | [Teams Concept](./teams-concept.md)                                 | [Routes](./routes.md), [Database](./database.md), [API Reference](./api-reference.md) |
 | **Add a new AI provider**              | [AI Provider Integration Guide](./ai-provider-integration-guide.md) | [Architecture](./architecture.md), [Environment Variables](./ENVIRONMENT.md)          |
