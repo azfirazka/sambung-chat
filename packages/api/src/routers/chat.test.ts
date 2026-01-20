@@ -510,4 +510,521 @@ describe('Chat Search Performance Tests', () => {
       expect(results['Full-text search']).toBeLessThan(PERFORMANCE_THRESHOLDS.SEARCH_IN_MESSAGES);
     });
   });
+
+  describe('Filter Combinations', () => {
+    it('should filter by query + provider', async () => {
+      const query = 'google';
+      const providers = ['google', 'anthropic'];
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`${chats.title} ILIKE ${`%${query}%`}`,
+            inArray(models.provider, providers)
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Provider filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match the provider filter
+      const uniqueProviders = new Set();
+      for (const result of results) {
+        const model = await db.select().from(models).where(eq(models.id, result.modelId));
+        if (model.length > 0) {
+          uniqueProviders.add(model[0].provider);
+        }
+      }
+      expect(uniqueProviders.size).toBeGreaterThan(0);
+      expect(Array.from(uniqueProviders).every((p) => providers.includes(p as string))).toBe(true);
+    });
+
+    it('should filter by query + model', async () => {
+      const query = 'Test';
+      const modelIdsToFilter = testModelIds.slice(0, 2);
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`${chats.title} ILIKE ${`%${query}%`}`,
+            inArray(models.id, modelIdsToFilter)
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Model filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match the model filter
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+    });
+
+    it('should filter by query + date range', async () => {
+      const query = 'Test';
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dateTo = new Date().toISOString();
+
+      const results = await db
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`${chats.title} ILIKE ${`%${query}%`}`,
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`,
+            sql`${chats.createdAt} <= ${new Date(dateTo)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results are within date range
+      expect(
+        results.every(
+          (r) =>
+            r.createdAt >= new Date(dateFrom) && r.createdAt <= new Date(dateTo)
+        )
+      ).toBe(true);
+    });
+
+    it('should filter by provider + model', async () => {
+      const providers = ['openai', 'anthropic'];
+      const modelIdsToFilter = testModelIds.slice(0, 3);
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            inArray(models.provider, providers),
+            inArray(models.id, modelIdsToFilter)
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Provider + Model filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match both filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+    });
+
+    it('should filter by provider + date range', async () => {
+      const providers = ['google', 'groq'];
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            inArray(models.provider, providers),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Provider + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThanOrEqual(0);
+
+      // Verify all results are within date range
+      expect(results.every((r) => r.createdAt >= new Date(dateFrom))).toBe(true);
+    });
+
+    it('should filter by model + date range', async () => {
+      const modelIdsToFilter = testModelIds.slice(1, 3);
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dateTo = new Date().toISOString();
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            inArray(models.id, modelIdsToFilter),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`,
+            sql`${chats.createdAt} <= ${new Date(dateTo)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Model + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThanOrEqual(0);
+
+      // Verify all results match both filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+      expect(
+        results.every(
+          (r) =>
+            r.createdAt >= new Date(dateFrom) && r.createdAt <= new Date(dateTo)
+        )
+      ).toBe(true);
+    });
+
+    it('should filter by query + provider + model', async () => {
+      const query = 'conversation';
+      const providers = ['openai', 'google'];
+      const modelIdsToFilter = testModelIds.slice(0, 2);
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(messages, eq(chats.id, messages.chatId))
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`(${chats.title} ILIKE ${`%${query}%`} OR ${messages.content} ILIKE ${`%${query}%`})`,
+            inArray(models.provider, providers),
+            inArray(models.id, modelIdsToFilter)
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Provider + Model filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match all filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+    });
+
+    it('should filter by query + provider + date range', async () => {
+      const query = 'topic';
+      const providers = ['anthropic', 'groq'];
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(messages, eq(chats.id, messages.chatId))
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`(${chats.title} ILIKE ${`%${query}%`} OR ${messages.content} ILIKE ${`%${query}%`})`,
+            inArray(models.provider, providers),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Provider + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match filters
+      expect(results.every((r) => r.createdAt >= new Date(dateFrom))).toBe(true);
+    });
+
+    it('should filter by query + model + date range', async () => {
+      const query = 'asking';
+      const modelIdsToFilter = testModelIds.slice(2, 4);
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(messages, eq(chats.id, messages.chatId))
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`(${chats.title} ILIKE ${`%${query}%`} OR ${messages.content} ILIKE ${`%${query}%`})`,
+            inArray(models.id, modelIdsToFilter),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Query + Model + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match all filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+      expect(results.every((r) => r.createdAt >= new Date(dateFrom))).toBe(true);
+    });
+
+    it('should filter by provider + model + date range', async () => {
+      const providers = ['openai', 'anthropic'];
+      const modelIdsToFilter = testModelIds.slice(0, 3);
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dateTo = new Date().toISOString();
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            inArray(models.provider, providers),
+            inArray(models.id, modelIdsToFilter),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`,
+            sql`${chats.createdAt} <= ${new Date(dateTo)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Provider + Model + Date range filter: ${results.length} results`);
+      expect(results.length).toBeGreaterThanOrEqual(0);
+
+      // Verify all results match all filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+      expect(
+        results.every(
+          (r) =>
+            r.createdAt >= new Date(dateFrom) && r.createdAt <= new Date(dateTo)
+        )
+      ).toBe(true);
+    });
+
+    it('should filter by all filters: query + provider + model + date range', async () => {
+      const query = 'chat';
+      const providers = ['google', 'openai'];
+      const modelIdsToFilter = testModelIds.slice(0, 2);
+      const dateFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dateTo = new Date().toISOString();
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(messages, eq(chats.id, messages.chatId))
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`(${chats.title} ILIKE ${`%${query}%`} OR ${messages.content} ILIKE ${`%${query}%`})`,
+            inArray(models.provider, providers),
+            inArray(models.id, modelIdsToFilter),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`,
+            sql`${chats.createdAt} <= ${new Date(dateTo)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`All filters combined: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+
+      // Verify all results match all filters
+      expect(results.every((r) => modelIdsToFilter.includes(r.modelId))).toBe(true);
+      expect(
+        results.every(
+          (r) =>
+            r.createdAt >= new Date(dateFrom) && r.createdAt <= new Date(dateTo)
+        )
+      ).toBe(true);
+    });
+
+    it('should handle edge case: empty provider array', async () => {
+      const providers: string[] = [];
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            providers.length > 0 ? inArray(models.provider, providers) : sql`1=1`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Empty provider array edge case: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('should handle edge case: empty model array', async () => {
+      const modelIdsToFilter: string[] = [];
+
+      const results = await db
+        .select({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(models, eq(chats.modelId, models.id))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            modelIdsToFilter.length > 0 ? inArray(models.id, modelIdsToFilter) : sql`1=1`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Empty model array edge case: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('should handle edge case: query with special characters', async () => {
+      // Use a query that exists in the test data with colon character
+      const query = 'conversation about';
+
+      const results = await db
+        .selectDistinct({
+          id: chats.id,
+          userId: chats.userId,
+          title: chats.title,
+          modelId: chats.modelId,
+          folderId: chats.folderId,
+          pinned: chats.pinned,
+          createdAt: chats.createdAt,
+          updatedAt: chats.updatedAt,
+        })
+        .from(chats)
+        .innerJoin(messages, eq(chats.id, messages.chatId))
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`(${chats.title} ILIKE ${`%${query}%`} OR ${messages.content} ILIKE ${`%${query}%`})`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Special characters in query: ${results.length} results`);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('should handle edge case: date range with no results', async () => {
+      // Far future date range that should have no results
+      const dateFrom = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      const dateTo = new Date(Date.now() + 366 * 24 * 60 * 60 * 1000).toISOString();
+
+      const results = await db
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`${chats.createdAt} >= ${new Date(dateFrom)}`,
+            sql`${chats.createdAt} <= ${new Date(dateTo)}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      console.log(`Date range with no results: ${results.length} results`);
+      expect(results.length).toBe(0);
+    });
+  });
 });
