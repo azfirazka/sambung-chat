@@ -1,5 +1,3 @@
-import { devToolsMiddleware } from '@ai-sdk/devtools';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { OpenAPIHandler } from '@orpc/openapi/fetch';
 import { OpenAPIReferencePlugin } from '@orpc/openapi/plugins';
 import { onError } from '@orpc/server';
@@ -7,9 +5,15 @@ import { RPCHandler } from '@orpc/server/fetch';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import { createContext } from '@sambung-chat/api/context';
 import { appRouter } from '@sambung-chat/api/routers/index';
+import { createAIProvider, type ProviderConfig } from '@sambung-chat/api/lib/ai-provider-factory';
+import { decrypt } from '@sambung-chat/api/lib/encryption';
 import { auth } from '@sambung-chat/auth';
+import { db } from '@sambung-chat/db';
+import { models } from '@sambung-chat/db/schema/model';
+import { apiKeys } from '@sambung-chat/db/schema/api-key';
 import { env } from '@sambung-chat/env/server';
-import { streamText, convertToModelMessages, wrapLanguageModel } from 'ai';
+import { streamText, convertToModelMessages } from 'ai';
+import { eq, and } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -91,7 +95,13 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 // RPC middleware - applies context to RPC routes
-app.use('/rpc/*', async (c, next) => {
+// Handle OPTIONS first for CORS preflight
+app.options('/rpc/*', (c) => {
+  return c.text('', 200);
+});
+
+// Handle GET/POST for RPC calls
+app.all('/rpc/*', async (c, next) => {
   const context = await createContext({ context: c });
   const rpcResult = await rpcHandler.handle(c.req.raw, {
     prefix: '/rpc',
@@ -115,15 +125,22 @@ app.use('/api-reference/*', async (c, next) => {
   await next();
 });
 
+/**
+ * Helper function to get decrypted API key
+ */
+async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
+  const apiKeyResults = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
+
+  if (apiKeyResults.length === 0 || !apiKeyResults[0]) {
+    throw new Error('API key not found');
+  }
+
+  return decrypt(apiKeyResults[0].encryptedKey);
+}
+
 // ============================================================================
 // AI ENDPOINT
 // ============================================================================
-const openai = createOpenAICompatible({
-  name: 'openai-compatible',
-  baseURL: env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
-  apiKey: env.OPENAI_API_KEY ?? '',
-});
-
 app.post('/ai', async (c) => {
   try {
     // Debug: Log request headers
@@ -181,15 +198,216 @@ app.post('/ai', async (c) => {
       }
     }
 
-    // Create AI model
-    const model = wrapLanguageModel({
-      model: openai(env.OPENAI_MODEL ?? 'gpt-4o-mini'),
-      middleware: devToolsMiddleware(),
-    });
+    // Get user's active model from database
+    const userId = session.user.id;
+    const activeModels = await db
+      .select()
+      .from(models)
+      .where(and(eq(models.userId, userId), eq(models.isActive, true)));
+
+    const providerConfig: ProviderConfig = {} as ProviderConfig;
+
+    if (activeModels.length === 0) {
+      // No active model set - user needs to configure a model via Settings
+      console.log('[AI] No active model found');
+      return c.json(
+        {
+          error: 'No active model configured',
+          details:
+            'Please configure and activate an AI model in Settings → Models. ' +
+            'You need to add an API Key first, then create a Model and set it as Active.',
+        },
+        400
+      );
+    }
+
+    // Use user's active model
+    const activeModel = activeModels[0]!;
+    console.log(
+      '[AI] Using active model:',
+      activeModel.provider,
+      activeModel.modelId,
+      activeModel.name
+    );
+
+    // Build provider config with decrypted API key
+    const config: ProviderConfig = {
+      provider: activeModel.provider as
+        | 'openai'
+        | 'anthropic'
+        | 'google'
+        | 'groq'
+        | 'ollama'
+        | 'openrouter'
+        | 'custom',
+      modelId: activeModel.modelId,
+      apiKey: '', // Will be set from API key below
+      baseURL: activeModel.baseUrl ?? undefined,
+    };
+
+    // Get decrypted API key - this is now required
+    if (activeModel.apiKeyId) {
+      try {
+        config.apiKey = await getDecryptedApiKey(activeModel.apiKeyId);
+        console.log('[AI] API key loaded from database');
+      } catch (error) {
+        console.error('[AI] Failed to load API key:', error);
+        return c.json(
+          {
+            error: 'Configuration error',
+            details: 'Failed to decrypt API key. Please reconfigure your model.',
+          },
+          500
+        );
+      }
+    } else if (activeModel.provider !== 'ollama') {
+      // Ollama doesn't require API key, but other providers do
+      return c.json(
+        {
+          error: 'Configuration error',
+          details: `Model "${activeModel.name}" is missing an API key. Please add an API Key in Settings and assign it to this model.`,
+        },
+        400
+      );
+    } else {
+      config.apiKey = 'ollama'; // Placeholder for Ollama
+    }
+
+    // Assign to providerConfig
+    Object.assign(providerConfig, config);
+
+    // Validate request parameters based on provider
+    if (providerConfig.provider === 'anthropic') {
+      // Anthropic-specific parameter validation
+
+      // Validate temperature (0-1 for Anthropic)
+      if (body.temperature !== undefined) {
+        if (typeof body.temperature !== 'number') {
+          return c.json(
+            {
+              error: 'Invalid parameter',
+              details: 'Temperature must be a number',
+            },
+            400
+          );
+        }
+        if (body.temperature < 0 || body.temperature > 1) {
+          return c.json(
+            {
+              error: 'Invalid temperature',
+              details: 'Temperature must be between 0 and 1 for Anthropic models',
+              parameter: 'temperature',
+              min: 0,
+              max: 1,
+              provided: body.temperature,
+            },
+            400
+          );
+        }
+      }
+
+      // Validate maxTokens (1-8192 for most Anthropic models)
+      if (body.maxTokens !== undefined) {
+        if (typeof body.maxTokens !== 'number') {
+          return c.json(
+            {
+              error: 'Invalid parameter',
+              details: 'maxTokens must be a number',
+            },
+            400
+          );
+        }
+        if (body.maxTokens < 1 || body.maxTokens > 8192) {
+          return c.json(
+            {
+              error: 'Invalid maxTokens',
+              details: 'maxTokens must be between 1 and 8192 for Anthropic models',
+              parameter: 'maxTokens',
+              min: 1,
+              max: 8192,
+              provided: body.maxTokens,
+            },
+            400
+          );
+        }
+      }
+
+      // Validate topK (0-40 for Anthropic)
+      if (body.topK !== undefined) {
+        if (typeof body.topK !== 'number') {
+          return c.json(
+            {
+              error: 'Invalid parameter',
+              details: 'topK must be a number',
+            },
+            400
+          );
+        }
+        if (body.topK < 0 || body.topK > 40) {
+          return c.json(
+            {
+              error: 'Invalid topK',
+              details: 'topK must be between 0 and 40 for Anthropic models',
+              parameter: 'topK',
+              min: 0,
+              max: 40,
+              provided: body.topK,
+            },
+            400
+          );
+        }
+      }
+
+      // Validate topP (0-1 for Anthropic, same as OpenAI)
+      if (body.topP !== undefined) {
+        if (typeof body.topP !== 'number') {
+          return c.json(
+            {
+              error: 'Invalid parameter',
+              details: 'topP must be a number',
+            },
+            400
+          );
+        }
+        if (body.topP < 0 || body.topP > 1) {
+          return c.json(
+            {
+              error: 'Invalid topP',
+              details: 'topP must be between 0 and 1',
+              parameter: 'topP',
+              min: 0,
+              max: 1,
+              provided: body.topP,
+            },
+            400
+          );
+        }
+      }
+    }
+
+    // Create AI model using provider factory
+    const model = createAIProvider(providerConfig);
+
+    // Build generation options with validated parameters
+    const generationOptions: Record<string, any> = {};
+
+    if (body.temperature !== undefined) {
+      generationOptions.temperature = body.temperature;
+    }
+    if (body.maxTokens !== undefined) {
+      generationOptions.maxTokens = body.maxTokens;
+    }
+    if (body.topP !== undefined) {
+      generationOptions.topP = body.topP;
+    }
+    if (body.topK !== undefined) {
+      generationOptions.topK = body.topK;
+    }
 
     const result = streamText({
       model,
       messages: await convertToModelMessages(uiMessages),
+      ...generationOptions,
     });
 
     // Use Hono's streaming API with AI SDK
@@ -204,10 +422,129 @@ app.post('/ai', async (c) => {
     });
   } catch (error) {
     console.error('[AI] Error:', error);
+
+    // Handle specific Anthropic errors
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+
+      // Authentication error
+      if (
+        errorMessage.includes('401') ||
+        errorMessage.includes('403') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('invalid api key') ||
+        errorMessage.includes('api key is required')
+      ) {
+        return c.json(
+          {
+            error: 'Authentication failed',
+            details:
+              'Invalid or missing API key. Please check your API key configuration in Settings.',
+          },
+          401
+        );
+      }
+
+      // Rate limit error
+      if (
+        errorMessage.includes('429') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('too many requests')
+      ) {
+        return c.json(
+          {
+            error: 'Rate limit exceeded',
+            details: 'API rate limit exceeded. Please try again later.',
+            retryAfter: '60s',
+          },
+          429
+        );
+      }
+
+      // Model not found
+      if (
+        errorMessage.includes('404') ||
+        errorMessage.includes('model not found') ||
+        errorMessage.includes('invalid model') ||
+        errorMessage.includes('unknown model')
+      ) {
+        return c.json(
+          {
+            error: 'Model not found',
+            details: 'The configured model was not found. Please check your model settings.',
+            availableModels: [
+              'claude-3-5-sonnet-20241022',
+              'claude-3-5-haiku-20241022',
+              'claude-3-opus-20240229',
+              'claude-3-sonnet-20240229',
+              'claude-3-haiku-20240307',
+            ],
+          },
+          404
+        );
+      }
+
+      // Context window exceeded
+      if (
+        errorMessage.includes('context') ||
+        errorMessage.includes('tokens') ||
+        errorMessage.includes('too long') ||
+        errorMessage.includes('maximum') ||
+        errorMessage.includes('context_window_exceeded')
+      ) {
+        return c.json(
+          {
+            error: 'Message too long',
+            details: 'The conversation exceeds the model context limit. Please start a new chat.',
+            maxTokens: 200000, // Claude 3.5 Sonnet context window
+          },
+          400
+        );
+      }
+
+      // Content filtering (Anthropic specific)
+      if (
+        errorMessage.includes('content') &&
+        (errorMessage.includes('policy') || errorMessage.includes('filtered'))
+      ) {
+        return c.json(
+          {
+            error: 'Content policy violation',
+            details:
+              'The request content was flagged by Anthropic content filters. Please modify your message and try again.',
+          },
+          400
+        );
+      }
+
+      // Invalid request format
+      if (
+        errorMessage.includes('invalid') ||
+        errorMessage.includes('validation') ||
+        errorMessage.includes('schema')
+      ) {
+        return c.json(
+          {
+            error: 'Invalid request format',
+            details: error.message,
+          },
+          400
+        );
+      }
+    }
+
+    // Generic error response
     return c.json(
       {
-        error: 'Failed to process AI request',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Internal server error',
+        details: 'An error occurred while processing your request. Please try again.',
+        troubleshooting: [
+          'Check your API key configuration in Settings',
+          'Verify your network connection',
+          'Try selecting a different model',
+          'Contact support if the issue persists',
+        ],
       },
       500
     );

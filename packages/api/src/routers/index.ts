@@ -5,6 +5,8 @@ import { chatRouter } from './chat';
 import { messageRouter } from './message';
 import { folderRouter } from './folder';
 import { modelRouter } from './model';
+import { aiRouter } from './ai';
+import { apiKeyRouter } from './api-keys';
 
 // NOTE: Example routers are in _example/ folder for reference only
 // They are NOT exported to production API
@@ -24,6 +26,8 @@ export const appRouter = {
   message: messageRouter,
   folder: folderRouter,
   model: modelRouter,
+  ai: aiRouter,
+  apiKey: apiKeyRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

@@ -17,12 +17,16 @@
   import MessageCircleIcon from '@lucide/svelte/icons/message-circle';
   import AlignLeftIcon from '@lucide/svelte/icons/align-left';
   import ClockIcon from '@lucide/svelte/icons/clock';
+  import TokenDisplay from '$lib/components/token-display.svelte';
+  import ErrorDisplay from '$lib/components/error-display.svelte';
 
   // Use PUBLIC_URL for AI endpoint (backend)
   const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
   let input = $state('');
   let errorMessage = $state('');
+  let errorCode = $state<string | undefined>(undefined);
+  let errorType: 'error' | 'warning' | 'info' = $state('error');
   let isRetrying = $state(false);
   let retryCount = $state(0);
   let abortController = $state<AbortController | null>(null);
@@ -34,6 +38,13 @@
   let chatData = $state<Awaited<ReturnType<typeof orpc.chat.getById>> | null>(null);
   let loading = $state(true);
   const MAX_RETRIES = 3;
+
+  // Token tracking for streaming
+  let streamingMessageId = $state<string | null>(null);
+  let streamingTokenCount = $state(0);
+  let messageTokenData = $state<Map<string, { exactTokens?: number; promptTokens?: number }>>(
+    new Map()
+  );
 
   // Custom fetch wrapper to include credentials (cookies)
   const authenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -117,10 +128,102 @@
     }
   });
 
-  // Clear error when not streaming
+  // Clear error when not streaming and when user starts typing
   $effect(() => {
-    if (chat.messages.length > 0 && !isStreaming()) {
-      errorMessage = '';
+    if (chat.messages.length > 0 && !isStreaming() && input.length > 0) {
+      clearError();
+    }
+  });
+
+  // Helper function to clear error state
+  function clearError() {
+    errorMessage = '';
+    errorCode = undefined;
+    errorType = 'error';
+  }
+
+  // Helper function to categorize errors
+  function categorizeError(
+    errorMsg: string,
+    errorObj?: Error & { code?: string }
+  ): {
+    code: string | undefined;
+    type: 'error' | 'warning' | 'info';
+    message: string;
+  } {
+    const msg = errorMsg.toLowerCase();
+
+    // Check for error code first
+    if (errorObj?.code) {
+      switch (errorObj.code) {
+        case 'TOO_MANY_REQUESTS':
+          return { code: errorObj.code, type: 'warning', message: errorMsg };
+        case 'UNAUTHORIZED':
+          return { code: errorObj.code, type: 'error', message: errorMsg };
+        case 'NOT_FOUND':
+          return { code: errorObj.code, type: 'error', message: errorMsg };
+        case 'SERVICE_UNAVAILABLE':
+          return { code: errorObj.code, type: 'warning', message: errorMsg };
+        default:
+          return { code: errorObj.code, type: 'error', message: errorMsg };
+      }
+    }
+
+    // Categorize based on message content
+    if (msg.includes('rate limit') || msg.includes('429') || msg.includes('quota')) {
+      return { code: 'TOO_MANY_REQUESTS', type: 'warning', message: errorMsg };
+    }
+    if (
+      msg.includes('api key') ||
+      msg.includes('unauthorized') ||
+      msg.includes('401') ||
+      msg.includes('authentication')
+    ) {
+      return { code: 'UNAUTHORIZED', type: 'error', message: errorMsg };
+    }
+    if (
+      msg.includes('not found') ||
+      msg.includes('404') ||
+      (msg.includes('model') && (msg.includes('not available') || msg.includes('does not exist')))
+    ) {
+      return { code: 'NOT_FOUND', type: 'error', message: errorMsg };
+    }
+    if (
+      msg.includes('context') ||
+      msg.includes('too long') ||
+      (msg.includes('maximum') && msg.includes('length'))
+    ) {
+      return { code: 'BAD_REQUEST', type: 'warning', message: errorMsg };
+    }
+    if (
+      msg.includes('network') ||
+      msg.includes('connection') ||
+      msg.includes('timeout') ||
+      msg.includes('fetch')
+    ) {
+      return { code: 'SERVICE_UNAVAILABLE', type: 'warning', message: errorMsg };
+    }
+
+    // Default error
+    return { code: 'INTERNAL_SERVER_ERROR', type: 'error', message: errorMsg };
+  }
+
+  // Track tokens during streaming
+  $effect(() => {
+    if (isStreamingResponse && chat.messages.length > 0) {
+      const lastMessage = chat.messages[chat.messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        streamingMessageId = lastMessage.id || null;
+        const textPart = lastMessage.parts?.find(
+          (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
+        );
+        const content = textPart && 'text' in textPart ? textPart.text : '';
+        streamingTokenCount = estimateTokens(content);
+      }
+    } else if (!isStreamingResponse && streamingMessageId) {
+      // Streaming just ended, keep the last token count
+      streamingMessageId = null;
+      streamingTokenCount = 0;
     }
   });
 
@@ -145,30 +248,55 @@
       if (data) {
         chatData = data;
 
-        // Clear existing messages before loading new ones
+        // Clear existing messages and token data before loading new ones
         chat.messages = [];
+        messageTokenData.clear();
 
         // Load existing messages into Chat SDK
         if (data.messages && data.messages.length > 0) {
           // Convert database messages to Chat SDK format
           for (const msg of data.messages) {
+            let messageObj;
+
             if (msg.role === 'user') {
-              chat.messages.push({
+              messageObj = {
                 role: 'user',
                 parts: [{ type: 'text', text: msg.content }],
-              } as any);
+              } as any;
             } else if (msg.role === 'assistant') {
-              chat.messages.push({
+              messageObj = {
                 role: 'assistant',
                 parts: [{ type: 'text', text: msg.content }],
-              } as any);
+              } as any;
+
+              // Extract token data from metadata if available
+              if (msg.metadata && typeof msg.metadata === 'object') {
+                const metadata = msg.metadata as any;
+                if (metadata.tokens || metadata.promptTokens || metadata.completionTokens) {
+                  messageTokenData.set(msg.id, {
+                    exactTokens: metadata.completionTokens || metadata.tokens,
+                    promptTokens: metadata.promptTokens,
+                  });
+                }
+              }
+            }
+
+            if (messageObj) {
+              chat.messages.push(messageObj);
             }
           }
         }
       }
     } catch (err) {
       console.error('Failed to load chat:', err);
-      errorMessage = 'Failed to load chat';
+      const errorObj = err instanceof Error ? err : new Error('Failed to load chat');
+      const categorized = categorizeError(
+        'Failed to load chat. Please try refreshing the page.',
+        errorObj as any
+      );
+      errorMessage = categorized.message;
+      errorCode = categorized.code;
+      errorType = categorized.type;
     } finally {
       loading = false;
     }
@@ -183,7 +311,7 @@
     const text = input.trim();
     if (!text || isRetrying || isStreamingResponse || isSubmitting) return;
 
-    errorMessage = '';
+    clearError();
     retryCount = 0;
     wasStopped = false;
     stoppedMessageId = null;
@@ -234,11 +362,32 @@
           );
           const assistantContent =
             assistantTextPart && 'text' in assistantTextPart ? assistantTextPart.text : '';
-          await orpc.message.create({
+
+          // Create the message and get the database record with metadata
+          const createdMessage = await orpc.message.create({
             chatId: chatId()!,
             content: assistantContent,
             role: 'assistant',
           });
+
+          // Extract token data from the saved message metadata
+          if (
+            createdMessage &&
+            createdMessage.metadata &&
+            typeof createdMessage.metadata === 'object'
+          ) {
+            const metadata = createdMessage.metadata as {
+              tokens?: number;
+              promptTokens?: number;
+              completionTokens?: number;
+            };
+            if (metadata.tokens || metadata.promptTokens || metadata.completionTokens) {
+              messageTokenData.set(assistantMessage.id || createdMessage.id, {
+                exactTokens: metadata.completionTokens || metadata.tokens,
+                promptTokens: metadata.promptTokens,
+              });
+            }
+          }
         }
       }
     } catch (error) {
@@ -247,6 +396,8 @@
 
       if (errorObj.name === 'AbortError') {
         errorMessage = wasStopped ? 'Generation was stopped' : 'Request was interrupted';
+        errorCode = undefined;
+        errorType = 'info';
       } else if (
         errorObj.message.includes('ERR_INCOMPLETE_CHUNKED_ENCODING') ||
         errorObj.message.includes('chunked') ||
@@ -254,9 +405,15 @@
         errorObj.message.includes('fetch') ||
         errorObj.message.includes('No assistant response')
       ) {
-        errorMessage = 'Connection interrupted. Please try again.';
+        const categorized = categorizeError('Connection interrupted. Please try again.', errorObj);
+        errorMessage = categorized.message;
+        errorCode = categorized.code;
+        errorType = categorized.type;
       } else {
-        errorMessage = errorObj.message;
+        const categorized = categorizeError(errorObj.message, errorObj as any);
+        errorMessage = categorized.message;
+        errorCode = categorized.code;
+        errorType = categorized.type;
       }
 
       // Retry logic with save to database after success
@@ -294,11 +451,32 @@
               );
               const assistantContent =
                 assistantTextPart && 'text' in assistantTextPart ? assistantTextPart.text : '';
-              await orpc.message.create({
+
+              // Create the message and get the database record with metadata
+              const createdMessage = await orpc.message.create({
                 chatId: chatId()!,
                 content: assistantContent,
                 role: 'assistant',
               });
+
+              // Extract token data from the saved message metadata
+              if (
+                createdMessage &&
+                createdMessage.metadata &&
+                typeof createdMessage.metadata === 'object'
+              ) {
+                const metadata = createdMessage.metadata as {
+                  tokens?: number;
+                  promptTokens?: number;
+                  completionTokens?: number;
+                };
+                if (metadata.tokens || metadata.promptTokens || metadata.completionTokens) {
+                  messageTokenData.set(assistantMessage.id || createdMessage.id, {
+                    exactTokens: metadata.completionTokens || metadata.tokens,
+                    promptTokens: metadata.promptTokens,
+                  });
+                }
+              }
             }
           }
         } catch (retryError) {
@@ -343,7 +521,7 @@
       chat.messages.pop();
     }
 
-    errorMessage = '';
+    clearError();
     isStreamingResponse = true;
     abortController = new AbortController();
 
@@ -355,11 +533,42 @@
       await chat.sendMessage({ text: content });
     } catch (error) {
       console.error('Failed to regenerate:', error);
-      errorMessage = 'Failed to regenerate response';
+      const errorObj = error instanceof Error ? error : new Error('Failed to regenerate response');
+      const categorized = categorizeError(errorObj.message, errorObj as any);
+      errorMessage = categorized.message;
+      errorCode = categorized.code;
+      errorType = categorized.type;
     } finally {
       isStreamingResponse = false;
       abortController = null;
     }
+  }
+
+  // Handle retry action from error display
+  function handleRetry() {
+    if (!input.trim() && chat.messages.length > 0) {
+      // If no input, retry the last user message
+      const lastUserMessage = [...chat.messages].reverse().find((m) => m.role === 'user');
+      if (lastUserMessage) {
+        _handleRegenerate();
+      }
+    } else {
+      // Otherwise, submit the current input
+      handleSubmit(new Event('submit'));
+    }
+  }
+
+  // Handle settings action from error display
+  function handleSettings() {
+    // Navigate to settings or open settings modal
+    // For now, just clear the error
+    // TODO: Implement proper navigation to settings
+    clearError();
+  }
+
+  // Handle dismiss action from error display
+  function handleDismiss() {
+    clearError();
   }
 
   async function handleExport(format: 'json' | 'md' | 'txt') {
@@ -398,6 +607,17 @@
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
   }
+
+  // Estimate token count from text (approximately 4 characters per token for OpenAI)
+  function estimateTokens(text: string): number {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+
+  // Get token data for a message
+  function getMessageTokenData(messageId: string) {
+    return messageTokenData.get(messageId);
+  }
 </script>
 
 <div class="flex h-screen flex-col overflow-hidden">
@@ -422,6 +642,11 @@
               <ClockIcon class="size-3" />
               {chatStats().lastActivity || 'N/A'}
             </span>
+            {#if chatData.modelId}
+              <span class="text-muted-foreground flex items-center gap-1">
+                <span class="font-masonic text-xs">{chatData.modelId}</span>
+              </span>
+            {/if}
           </p>
         {/if}
       </div>
@@ -484,6 +709,21 @@
                     )?.text as string) || ''
                   )}
                 </div>
+                <!-- Token display for assistant messages -->
+                <div class="mt-2">
+                  {#if isStreamingResponse && streamingMessageId === message.id}
+                    <TokenDisplay currentTokens={streamingTokenCount} isStreaming={true} />
+                  {:else}
+                    {@const tokenData = getMessageTokenData(message.id)}
+                    {#if tokenData}
+                      <TokenDisplay
+                        exactTokens={tokenData.exactTokens}
+                        promptTokens={tokenData.promptTokens}
+                        isStreaming={false}
+                      />
+                    {/if}
+                  {/if}
+                </div>
               {:else}
                 <div class="whitespace-pre-wrap">
                   {(message.parts?.find(
@@ -499,10 +739,14 @@
 
     {#if errorMessage}
       <div class="mx-auto mt-4 max-w-3xl">
-        <div class="bg-destructive/10 border-destructive text-destructive rounded-lg border p-4">
-          <p class="text-sm font-medium">Error</p>
-          <p class="text-sm">{errorMessage}</p>
-        </div>
+        <ErrorDisplay
+          message={errorMessage}
+          code={errorCode}
+          type={errorType}
+          onRetry={handleRetry}
+          onSettings={handleSettings}
+          onDismiss={handleDismiss}
+        />
       </div>
     {/if}
   </div>
