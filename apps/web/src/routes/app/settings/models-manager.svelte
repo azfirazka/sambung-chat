@@ -18,6 +18,7 @@
   import CheckIcon from '@lucide/svelte/icons/check';
   import EditIcon from '@lucide/svelte/icons/edit';
   import ZapIcon from '@lucide/svelte/icons/zap';
+  import KeyIcon from '@lucide/svelte/icons/key';
 
   type Model = {
     id: string;
@@ -40,7 +41,16 @@
     updatedAt: Date;
   };
 
+  type ApiKey = {
+    id: string;
+    provider: string;
+    name: string;
+    keyLast4: string;
+    createdAt: Date;
+  };
+
   let models = $state<Model[]>([]);
+  let apiKeys = $state<ApiKey[]>([]);
   let loading = $state(false);
   let errorMessage = $state('');
   let showAddDialog = $state(false);
@@ -70,11 +80,17 @@
     { value: 'google', label: 'Google' },
     { value: 'groq', label: 'Groq' },
     { value: 'ollama', label: 'Ollama' },
+    { value: 'openrouter', label: 'OpenRouter' },
     { value: 'custom', label: 'Custom' },
   ] as const;
 
+  // Computed: Filter API keys based on selected provider
+  function getFilteredApiKeys(provider: string) {
+    return apiKeys.filter((key) => key.provider === provider || provider === 'custom');
+  }
+
   onMount(async () => {
-    await loadModels();
+    await Promise.all([loadModels(), loadApiKeys()]);
   });
 
   async function loadModels() {
@@ -88,6 +104,15 @@
       errorMessage = 'Failed to load models';
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadApiKeys() {
+    try {
+      const result = await orpc.apiKey.getAll();
+      apiKeys = result as ApiKey[];
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
     }
   }
 
@@ -165,6 +190,7 @@
     try {
       await orpc.model.update({
         id: editingModel.id,
+        modelId: formData.modelId,
         name: formData.name,
         baseUrl: formData.baseUrl || undefined,
         apiKeyId: formData.apiKeyId || undefined,
@@ -342,7 +368,9 @@
       <div class="max-h-[calc(90vh-140px)] space-y-4 overflow-y-auto p-6">
         <div class="grid gap-4 md:grid-cols-2">
           <div class="space-y-2">
-            <Label for="provider">Provider</Label>
+            <Label for="provider">
+              Provider <span class="text-destructive">*</span>
+            </Label>
             <select
               id="provider"
               bind:value={formData.provider}
@@ -355,23 +383,48 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="modelId">Model ID</Label>
+            <Label for="modelId">
+              Model ID <span class="text-destructive">*</span>
+            </Label>
             <Input
               id="modelId"
               bind:value={formData.modelId}
-              placeholder="e.g., gpt-4o, claude-3-5-sonnet"
+              placeholder="e.g., gpt-4o, claude-3-5-sonnet-20241022, glm-4"
               required
             />
+            <p class="text-muted-foreground text-xs">
+              The actual model identifier used by the API. Examples:
+              {#if formData.provider === 'openai'}
+                gpt-4o, gpt-4o-mini, gpt-4-turbo
+              {:else if formData.provider === 'anthropic'}
+                claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022
+              {:else if formData.provider === 'google'}
+                gemini-2.0-flash-exp, gemini-1.5-pro
+              {:else if formData.provider === 'groq'}
+                llama-3.3-70b-versatile, mixtral-8x7b-32768
+              {:else if formData.provider === 'ollama'}
+                llama3.2, codellama:latest
+              {:else if formData.provider === 'openrouter'}
+                openai/gpt-4o, anthropic/claude-3.5-sonnet, google/gemini-2.0-flash-exp
+              {:else if formData.provider === 'custom'}
+                glm-4, glm-4-flash, glm-4-plus (for GLM APIs)
+              {/if}
+            </p>
           </div>
 
           <div class="space-y-2 md:col-span-2">
-            <Label for="name">Display Name</Label>
+            <Label for="name">
+              Display Name <span class="text-destructive">*</span>
+            </Label>
             <Input
               id="name"
               bind:value={formData.name}
-              placeholder="e.g., GPT-4o, Claude 3.5 Sonnet"
+              placeholder="e.g., GPT-4o, Claude 3.5 Sonnet, My GLM Model"
               required
             />
+            <p class="text-muted-foreground text-xs">
+              A friendly name for display in the UI. Can be different from Model ID.
+            </p>
           </div>
 
           <div class="space-y-2 md:col-span-2">
@@ -382,6 +435,32 @@
               placeholder="https://api.example.com/v1"
               type="url"
             />
+            <p class="text-muted-foreground text-xs">
+              For OpenAI-compatible APIs. Automatically removes /chat/completions if present.
+            </p>
+          </div>
+
+          <div class="space-y-2 md:col-span-2">
+            <Label for="apiKeyId">
+              API Key
+              <KeyIcon class="ml-1 inline size-3" />
+            </Label>
+            <select
+              id="apiKeyId"
+              bind:value={formData.apiKeyId}
+              class="border-input bg-background focus:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus:ring-1 focus:outline-none"
+            >
+              <option value="">Use environment variables (default)</option>
+              {#each getFilteredApiKeys(formData.provider) as key}
+                <option value={key.id}>{key.name} (•••{key.keyLast4})</option>
+              {/each}
+            </select>
+            <p class="text-muted-foreground text-xs">
+              Select an API key from your stored keys, or leave empty to use environment variables.
+              <a href="/app/settings/api-keys" class="text-primary ml-1 hover:underline"
+                >Manage API Keys</a
+              >
+            </p>
           </div>
 
           <div class="space-y-2">
@@ -454,13 +533,71 @@
       <div class="max-h-[calc(90vh-140px)] space-y-4 overflow-y-auto p-6">
         <div class="grid gap-4 md:grid-cols-2">
           <div class="space-y-2 md:col-span-2">
-            <Label for="edit-name">Display Name</Label>
+            <Label for="edit-name">
+              Display Name <span class="text-destructive">*</span>
+            </Label>
             <Input
               id="edit-name"
               bind:value={formData.name}
-              placeholder="e.g., GPT-4o, Claude 3.5 Sonnet"
+              placeholder="e.g., GPT-4o, Claude 3.5 Sonnet, My GLM Model"
               required
             />
+            <p class="text-muted-foreground text-xs">
+              A friendly name for display in the UI. Can be different from Model ID.
+            </p>
+          </div>
+
+          <div class="space-y-2 md:col-span-2">
+            <Label for="edit-modelId">
+              Model ID <span class="text-destructive">*</span>
+            </Label>
+            <Input
+              id="edit-modelId"
+              bind:value={formData.modelId}
+              placeholder="e.g., gpt-4o, claude-3-5-sonnet-20241022, glm-4"
+              required
+            />
+            <p class="text-muted-foreground text-xs">
+              The actual model identifier used by the API. This must match exactly what the provider
+              expects.
+            </p>
+            <div class="bg-muted/50 mt-2 rounded border p-3 text-xs">
+              <div class="mb-2 font-semibold">
+                <a
+                  href="https://openrouter.ai/models"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary hover:underline"
+                >
+                  View all models on OpenRouter ↗
+                </a>
+              </div>
+              <div class="text-muted-foreground space-y-1">
+                <div><strong>Format examples:</strong></div>
+                <div>
+                  • OpenAI: <code class="bg-background rounded px-1">gpt-4o</code>,
+                  <code class="bg-background rounded px-1">gpt-4o-mini</code>
+                </div>
+                <div>
+                  • Anthropic: <code class="bg-background rounded px-1"
+                    >claude-3-5-sonnet-20241022</code
+                  >
+                </div>
+                <div>
+                  • Google: <code class="bg-background rounded px-1">gemini-2.0-flash-exp</code>
+                </div>
+                <div>
+                  • Custom/GLM: <code class="bg-background rounded px-1">glm-4</code>,
+                  <code class="bg-background rounded px-1">glm-4-flash</code>
+                </div>
+                <div class="text-muted-foreground mt-2">
+                  <strong>OpenRouter format:</strong>
+                  <code class="bg-background rounded px-1">provider/model-name</code>
+                  (e.g.,
+                  <code class="bg-background rounded px-1">anthropic/claude-3.5-sonnet</code>)
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="space-y-2 md:col-span-2">
@@ -471,6 +608,29 @@
               placeholder="https://api.example.com/v1"
               type="url"
             />
+            <p class="text-muted-foreground text-xs">
+              For OpenAI-compatible APIs. Automatically removes /chat/completions if present.
+            </p>
+          </div>
+
+          <div class="space-y-2 md:col-span-2">
+            <Label for="edit-apiKeyId">
+              API Key
+              <KeyIcon class="ml-1 inline size-3" />
+            </Label>
+            <select
+              id="edit-apiKeyId"
+              bind:value={formData.apiKeyId}
+              class="border-input bg-background focus:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus:ring-1 focus:outline-none"
+            >
+              <option value="">Use environment variables (default)</option>
+              {#each editingModel && getFilteredApiKeys(editingModel.provider) as key}
+                <option value={key.id}>{key.name} (•••{key.keyLast4})</option>
+              {/each}
+            </select>
+            <p class="text-muted-foreground text-xs">
+              Select an API key from your stored keys, or leave empty to use environment variables.
+            </p>
           </div>
 
           <div class="space-y-2">

@@ -3,11 +3,29 @@ import { models } from '@sambung-chat/db/schema/model';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ORPCError } from '@orpc/server';
-import { protectedProcedure } from '../index';
+import { protectedProcedure, publicProcedure } from '../index';
 import { ulidSchema } from '../utils/validation';
+import {
+  isValidAnthropicModel,
+  getAnthropicModelIds,
+  anthropicModels,
+  type AnthropicModel,
+} from '../lib/anthropic-models';
+import { openaiModels, type OpenAIModel } from '../lib/openai-models';
+import { googleModels, type GoogleModel } from '../lib/google-models';
+import { groqModels, type GroqModel } from '../lib/groq-models';
+import { ollamaModels, type OllamaModel } from '../lib/ollama-models';
 
 // Provider enum for validation
-const providerEnum = z.enum(['openai', 'anthropic', 'google', 'groq', 'ollama', 'custom']);
+const providerEnum = z.enum([
+  'openai',
+  'anthropic',
+  'google',
+  'groq',
+  'ollama',
+  'openrouter',
+  'custom',
+]);
 
 // Settings schema for model parameters
 const modelSettingsSchema = z.object({
@@ -81,6 +99,14 @@ export const modelRouter = {
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
 
+      // Validate Anthropic model IDs against catalog
+      if (input.provider === 'anthropic' && !isValidAnthropicModel(input.modelId)) {
+        const validModelIds = getAnthropicModelIds().join(', ');
+        throw new ORPCError('BAD_REQUEST', {
+          message: `Invalid Anthropic model ID: "${input.modelId}". Valid models: ${validModelIds}`,
+        });
+      }
+
       // If setting as active, deactivate all other models for this user
       if (input.isActive) {
         await db.update(models).set({ isActive: false }).where(eq(models.userId, userId));
@@ -102,6 +128,7 @@ export const modelRouter = {
     .input(
       z.object({
         id: ulidSchema,
+        modelId: z.string().min(1).max(255).optional(),
         name: z.string().min(1).max(255).optional(),
         baseUrl: z.string().url().optional(),
         apiKeyId: ulidSchema.optional(),
@@ -112,7 +139,31 @@ export const modelRouter = {
     )
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
-      const { id, isActive, ...data } = input;
+      const { id, isActive, modelId, ...rest } = input;
+
+      // Build update data
+      const data: Record<string, any> = { ...rest };
+
+      // If modelId is being updated, validate it for Anthropic
+      if (modelId) {
+        // Get the model to check its provider
+        const existingModel = await db
+          .select()
+          .from(models)
+          .where(and(eq(models.id, id), eq(models.userId, userId)))
+          .limit(1);
+
+        if (existingModel.length > 0 && existingModel[0]?.provider === 'anthropic') {
+          if (!isValidAnthropicModel(modelId)) {
+            const validModelIds = getAnthropicModelIds().join(', ');
+            throw new ORPCError('BAD_REQUEST', {
+              message: `Invalid Anthropic model ID: "${modelId}". Valid models: ${validModelIds}`,
+            });
+          }
+        }
+
+        data.modelId = modelId;
+      }
 
       // If setting as active, deactivate all other models for this user
       if (isActive) {
@@ -190,4 +241,51 @@ export const modelRouter = {
 
       return { success: true };
     }),
+
+  // Get all available models grouped by provider
+  getAvailableModels: publicProcedure.handler(async () => {
+    return {
+      openai: openaiModels.map((model: OpenAIModel) => ({
+        id: model.id,
+        name: model.name,
+        maxTokens: model.maxTokens,
+        contextWindow: model.contextWindow,
+        bestFor: model.bestFor,
+        cost: model.cost,
+      })),
+      anthropic: anthropicModels.map((model: AnthropicModel) => ({
+        id: model.id,
+        name: model.name,
+        maxTokens: model.maxTokens,
+        contextWindow: model.contextWindow,
+        bestFor: model.bestFor,
+        cost: model.cost,
+      })),
+      google: googleModels.map((model: GoogleModel) => ({
+        id: model.id,
+        name: model.name,
+        maxTokens: model.maxTokens,
+        contextWindow: model.contextWindow,
+        bestFor: model.bestFor,
+        cost: model.cost,
+      })),
+      groq: groqModels.map((model: GroqModel) => ({
+        id: model.id,
+        name: model.name,
+        maxTokens: model.maxTokens,
+        contextWindow: model.contextWindow,
+        bestFor: model.bestFor,
+        cost: model.cost,
+      })),
+      ollama: ollamaModels.map((model: OllamaModel) => ({
+        id: model.id,
+        name: model.name,
+        maxTokens: model.maxTokens,
+        contextWindow: model.contextWindow,
+        bestFor: model.bestFor,
+        cost: model.cost,
+      })),
+      custom: [], // Custom provider doesn't have predefined models
+    };
+  }),
 };

@@ -90,6 +90,25 @@ BETTER_AUTH_URL=http://localhost:5173
 
 # CORS
 CORS_ORIGIN=http://localhost:5173
+
+# AI Providers - Optional (can also be set via UI Settings)
+# OpenAI
+OPENAI_API_KEY=sk-your-openai-key-here
+
+# Anthropic/Claude
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+ANTHROPIC_VERSION=2023-06-01
+
+# Google AI
+GOOGLE_GENERATIVE_AI_API_KEY=your-google-api-key-here
+
+# Groq
+GROQ_API_KEY=gsk_your-groq-key-here
+
+# Ollama (for local models)
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 **apps/web/.env:**
@@ -197,13 +216,46 @@ bun run dev:server
 
 ### 1. Configure AI Provider
 
-After signing up, you'll need to add your AI provider credentials:
+After signing up, you'll need to add your AI provider credentials. You can either set them via environment variables or through the UI Settings.
+
+#### Option A: Via Environment Variables (Recommended for Self-Hosting)
+
+Add your API keys to `apps/server/.env`:
+
+```bash
+# OpenAI (GPT-4, GPT-3.5)
+OPENAI_API_KEY=sk-your-openai-key-here
+
+# Anthropic (Claude 3.5 Sonnet, Claude 3 Opus, etc.)
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # Optional: default model
+```
+
+#### Option B: Via UI Settings
 
 1. Go to **Settings** → **API Keys**
 2. Click **Add Key**
-3. Select your provider (OpenAI, Anthropic, etc.)
+3. Select your provider (OpenAI, Anthropic, Google, Groq, Ollama)
 4. Enter your API key
 5. Click **Save**
+
+#### Supported AI Providers
+
+| Provider      | Models                                                                              | Best For                           |
+| ------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
+| **OpenAI**    | GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo                                                  | General purpose, coding            |
+| **Anthropic** | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku | Complex reasoning, coding, writing |
+| **Google**    | Gemini 1.5 Pro, Gemini 1.5 Flash, Gemini Pro, Gemini Flash                          | Multimodal tasks, long context     |
+| **Groq**      | Llama 3 70B, Llama 3 8B, Mixtral 8x7B, Gemma 7B                                     | Fast inference, local deployment   |
+| **Ollama**    | Llama 3, Mistral, Gemma, and other open-source models                               | Privacy, local execution           |
+
+#### Available Claude Models
+
+- **Claude 3.5 Sonnet** (`claude-3-5-sonnet-20241022`) - Most balanced model, excellent for coding and general tasks
+- **Claude 3.5 Haiku** (`claude-3-5-haiku-20241022`) - Fastest model, great for simple tasks and quick responses
+- **Claude 3 Opus** (`claude-3-opus-20240229`) - Most capable, best for complex reasoning and analysis
+- **Claude 3 Sonnet** (`claude-3-sonnet-20240229`) - Balanced performance and speed
+- **Claude 3 Haiku** (`claude-3-haiku-20240307`) - Fastest and most cost-effective
 
 ### 2. Create Your First Chat
 
