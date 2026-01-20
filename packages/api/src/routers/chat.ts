@@ -171,8 +171,17 @@ export const chatRouter = {
 
       const conditions = [eq(chats.userId, userId)];
 
+      // Build search conditions for title and/or message content
       if (input.query) {
-        conditions.push(sql`${chats.title} ILIKE ${`%${input.query}%`}`);
+        if (input.searchInMessages) {
+          // Search in both title and message content
+          conditions.push(
+            sql`(${chats.title} ILIKE ${`%${input.query}%`} OR ${messages.content} ILIKE ${`%${input.query}%`})`
+          );
+        } else {
+          // Search only in title
+          conditions.push(sql`${chats.title} ILIKE ${`%${input.query}%`}`);
+        }
       }
 
       if (input.folderId !== undefined) {
@@ -196,11 +205,41 @@ export const chatRouter = {
         conditions.push(lte(chats.createdAt, new Date(input.dateTo)));
       }
 
-      // Build the query - join with models table if needed for provider/modelId filters
+      // Build the query - join with models and/or messages tables as needed
       const needsModelJoin = input.provider !== undefined || input.modelId !== undefined;
+      const needsMessagesJoin = input.searchInMessages && input.query !== undefined;
 
       let query;
-      if (needsModelJoin) {
+      if (needsModelJoin && needsMessagesJoin) {
+        // Add provider filter
+        if (input.provider !== undefined) {
+          conditions.push(eq(models.provider, input.provider));
+        }
+
+        // Add modelId filter
+        if (input.modelId !== undefined) {
+          conditions.push(eq(models.modelId, input.modelId));
+        }
+
+        // Join with both models and messages tables
+        // Use DISTINCT ON to avoid duplicate chats when multiple messages match
+        query = db
+          .selectDistinct({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(models, eq(chats.modelId, models.id))
+          .innerJoin(messages, eq(chats.id, messages.chatId))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else if (needsModelJoin) {
         // Add provider filter
         if (input.provider !== undefined) {
           conditions.push(eq(models.provider, input.provider));
@@ -226,7 +265,26 @@ export const chatRouter = {
           .innerJoin(models, eq(chats.modelId, models.id))
           .where(and(...conditions))
           .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else if (needsMessagesJoin) {
+        // Join only with messages table
+        // Use DISTINCT ON to avoid duplicate chats when multiple messages match
+        query = db
+          .selectDistinct({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(messages, eq(chats.id, messages.chatId))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
       } else {
+        // No joins needed
         query = db
           .select()
           .from(chats)
