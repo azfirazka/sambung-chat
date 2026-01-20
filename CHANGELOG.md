@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2026-01-20
+
+### Fixed
+
+- **SSR Error**: Fix 500 error in sidebar-provider during server-side rendering ([apps/web/src/lib/components/ui/sidebar/sidebar-provider.svelte](apps/web/src/lib/components/ui/sidebar/sidebar-provider.svelte:39))
+  - Remove `bind:this={ref}` from server-side rendering branch
+  - Element refs don't work during SSR because there's no DOM
+  - This fixes `Cannot read properties of null (reading 'function')` error in `push_element`
+  - Chat pages now load correctly without hydration errors
+
+---
+
 ## [0.0.6] - 2026-01-20
 
 ### Fixed
