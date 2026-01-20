@@ -9,15 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Cookie Forwarding**: Fix CSRF token 403 errors and URL construction errors by using Vite proxy ([.env.example](.env.example:46))
-  - Change `PUBLIC_API_URL` from `http://localhost:3000` to `http://localhost:5174`
-  - Standardize all web ports to 5174: `WEB_PORT`, `BETTER_AUTH_URL`, `CORS_ORIGIN`, `PUBLIC_API_URL`
-  - Requests now go through Vite proxy which properly forwards session cookies
+- **CSP & Cookie Forwarding**: Fix CSP violations and CSRF errors by using relative paths ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:8))
+  - Use relative path `/rpc` for client-side requests instead of absolute URLs
+  - This makes requests same-origin, which allows cookies to be sent automatically
+  - Fixes CSP violation: "Connecting to 'http://localhost:3000/rpc/\*' violates CSP directive"
+  - Fixes 403 CSRF errors caused by missing session cookies in requests
   - Fixes "Failed to construct 'URL': Invalid URL" errors in ORPC client
-  - Fixes 403 CSRF errors caused by missing authentication
-  - Session cookies are now sent with RPC requests, allowing chat functionality to work
+  - For SSR, still uses full URL from `PUBLIC_API_URL` environment variable
+  - Session cookies are now properly sent with all RPC requests
 
-**Important**: Users must update their local `.env` file to use `PUBLIC_API_URL=http://localhost:5174`
+**Technical Details**:
+
+- In browser: Uses relative path (e.g., `/rpc/getCsrfToken`) - same-origin, cookies work
+- In SSR: Uses `PUBLIC_API_URL` from env (e.g., `http://localhost:5174`)
+- This approach works regardless of which port the web app runs on (5173, 5174, etc.)
 
 ---
 

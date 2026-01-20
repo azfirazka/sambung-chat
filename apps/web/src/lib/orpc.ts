@@ -3,8 +3,19 @@ import type { AppRouterClient } from '@sambung-chat/api/routers/index';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 
-// Use PUBLIC_API_URL from environment (backend URL)
-const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+// Get API URL - use relative path for same-origin requests
+// For SSR, we need full URL. For CSR, relative path works with cookies
+const getApiUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    // CSR: Use relative path (browser will prepend current origin)
+    // This ensures cookies are sent with the request
+    return ''; // Empty string = relative to current origin
+  }
+  // SSR: Need full URL
+  return import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
+};
+
+const PUBLIC_API_URL = getApiUrl();
 
 /**
  * CSRF Token Manager
@@ -22,7 +33,8 @@ class CsrfTokenManager {
    */
   private async fetchToken(): Promise<string | null> {
     try {
-      const response = await fetch(`${PUBLIC_API_URL}/rpc/getCsrfToken`, {
+      const url = PUBLIC_API_URL ? `${PUBLIC_API_URL}/rpc/getCsrfToken` : '/rpc/getCsrfToken';
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +126,7 @@ function isMutationRequest(method: string = 'POST'): boolean {
  * Custom RPCLink that adds CSRF token to requests
  */
 export const link = new RPCLink({
-  url: `${PUBLIC_API_URL}/rpc`,
+  url: PUBLIC_API_URL ? `${PUBLIC_API_URL}/rpc` : '/rpc',
   async fetch(url, options) {
     // Clone options to avoid mutation
     const modifiedOptions: RequestInit = {
