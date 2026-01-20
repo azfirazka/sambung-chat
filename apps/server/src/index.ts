@@ -16,6 +16,7 @@ import { streamText, convertToModelMessages } from 'ai';
 import { eq, and } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { securityMiddleware } from './middleware/security';
 
 const app = new Hono();
 
@@ -33,6 +34,11 @@ app.use(
     maxAge: 86400,
   })
 );
+
+// ============================================================================
+// SECURITY HEADERS - Applied after CORS, before route handlers
+// ============================================================================
+app.use('/*', securityMiddleware());
 
 // ============================================================================
 // BETTER AUTH HANDLER
