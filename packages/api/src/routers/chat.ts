@@ -294,6 +294,49 @@ export const chatRouter = {
 
       const results = await query;
 
-      return results;
+      // If searching in messages and a query was provided, fetch matching message snippets
+      let resultsWithSnippets = results;
+      if (input.searchInMessages && input.query && results.length > 0) {
+        const chatIds = results.map((r) => r.id);
+
+        // Get all matching messages for these chats
+        const matchingMessages = await db
+          .select({
+            id: messages.id,
+            chatId: messages.chatId,
+            role: messages.role,
+            content: messages.content,
+            createdAt: messages.createdAt,
+          })
+          .from(messages)
+          .where(
+            and(
+              sql`${messages.chatId} = ANY(${chatIds})`,
+              sql`${messages.content} ILIKE ${`%${input.query}%`}`
+            )
+          )
+          .orderBy(asc(messages.createdAt));
+
+        // Group messages by chatId and limit to top 3 per chat
+        const messagesByChat = new Map<string, typeof matchingMessages>();
+        for (const msg of matchingMessages) {
+          if (!messagesByChat.has(msg.chatId)) {
+            messagesByChat.set(msg.chatId, []);
+          }
+          const chatMessages = messagesByChat.get(msg.chatId)!;
+          // Limit to 3 matching messages per chat to avoid huge responses
+          if (chatMessages.length < 3) {
+            chatMessages.push(msg);
+          }
+        }
+
+        // Attach matching messages to each chat result
+        resultsWithSnippets = results.map((chat) => ({
+          ...chat,
+          matchingMessages: messagesByChat.get(chat.id) || [],
+        }));
+      }
+
+      return resultsWithSnippets;
     }),
 };
