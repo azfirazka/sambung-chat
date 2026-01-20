@@ -4,6 +4,7 @@
     "": {
       "name": "sambung-chat",
       "dependencies": {
+        "@ai-sdk/anthropic": "^3.0.15",
         "@ai-sdk/openai": "^3.0.12",
         "@ai-sdk/openai-compatible": "^2.0.4",
         "@sambung-chat/env": "workspace:*",
@@ -34,6 +35,7 @@
     "apps/server": {
       "name": "server",
       "dependencies": {
+        "@ai-sdk/anthropic": "catalog:",
         "@ai-sdk/devtools": "^0.0.2",
         "@ai-sdk/openai": "catalog:",
         "@ai-sdk/openai-compatible": "catalog:",
@@ -172,6 +174,7 @@
     },
   },
   "catalog": {
+    "@ai-sdk/anthropic": "^3.0.15",
     "@ai-sdk/openai": "^1.0.0",
     "@ai-sdk/openai-compatible": "^2.0.3",
     "@orpc/client": "^1.12.2",
@@ -194,6 +197,8 @@
   },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.31", "", {}, "sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA=="],
+
+    "@ai-sdk/anthropic": ["@ai-sdk/anthropic@3.0.15", "", { "dependencies": { "@ai-sdk/provider": "3.0.4", "@ai-sdk/provider-utils": "4.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-FCNy6pABPe5Qb1VPbdLLIi/XkQN2g/fKUcl1GcXxIU3Ofr+vOND8cyZfH20cMODR523FSGfwswJoJic8skr8qg=="],
 
     "@ai-sdk/devtools": ["@ai-sdk/devtools@0.0.2", "", { "dependencies": { "@ai-sdk/provider": "3.0.0", "@hono/node-server": "^1.13.7", "hono": "^4.6.14" }, "bin": { "devtools": "bin/cli.js" } }, "sha512-iU/3gpyPPwUM2+G2HkdUJ5eQI5ti6/tplUoZL4EUUIJi2EBKHcvl03Boe72wlgpmMmk9HlpnsUjapHKUto7MgQ=="],
 
