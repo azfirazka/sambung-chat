@@ -9,6 +9,7 @@
   import { Input } from '$lib/components/ui/input/index.js';
   import { autofocus } from '$lib/actions/autofocus.js';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+  import { exportAllChats, type ChatsByFolder } from '$lib/utils/chat-export';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import FileJsonIcon from '@lucide/svelte/icons/file-json';
   import CodeIcon from '@lucide/svelte/icons/code';
@@ -371,13 +372,50 @@
     exportFormat = format;
 
     try {
-      // Placeholder for subtask 3.2 implementation
-      // TODO: Fetch all chats with messages via orpc.chat.getChatsByFolder()
-      // TODO: Call exportAllChats() with appropriate format
-      console.log(`Export all chats as ${format}`);
+      // Fetch all chats with messages and folder information
+      const chatsByFolder = await orpc.chat.getChatsByFolder();
+
+      // Map format from UI to export utility format
+      let exportFormat: 'json' | 'md' | 'zip' | 'zip-optimized';
+      if (format === 'zip') {
+        exportFormat = 'zip-optimized'; // Use optimized ZIP with both formats
+      } else {
+        exportFormat = format;
+      }
+
+      // Export with progress tracking
+      const result = await exportAllChats(
+        chatsByFolder as ChatsByFolder,
+        exportFormat,
+        {
+          onProgress: (current, total, message) => {
+            // Progress tracking could be added here in future
+            // For now, the export operation shows loading state
+          },
+          onError: (chat, error) => {
+            // Log error but continue exporting
+            console.warn(`Failed to export chat "${chat.title}":`, error);
+            return true; // Continue with remaining chats
+          }
+        }
+      );
+
+      // Show success message
+      if (result.success) {
+        alert(`Successfully exported ${result.exported} chat(s)!`);
+      } else {
+        // Partial success - some chats failed
+        alert(
+          `Export completed with warnings:\n` +
+          `✓ Exported: ${result.exported} chat(s)\n` +
+          `✗ Failed: ${result.failed} chat(s)\n\n` +
+          `Check console for details.`
+        );
+      }
     } catch (err) {
       console.error('Failed to export chats:', err);
-      alert('Failed to export chats. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to export chats: ${errorMessage}\n\nPlease try again.`);
     } finally {
       exporting = false;
       exportFormat = null;
