@@ -95,14 +95,21 @@ export const rpcHandler = new RPCHandler(appRouter, {
 
 // RPC middleware - applies context to RPC routes
 app.use('/rpc/*', async (c, next) => {
-  const context = await createContext({ context: c });
-  const rpcResult = await rpcHandler.handle(c.req.raw, {
-    prefix: '/rpc',
-    context: context,
-  });
-  if (rpcResult.matched) {
-    return c.newResponse(rpcResult.response.body, rpcResult.response);
+  try {
+    const context = await createContext({ context: c });
+    const rpcResult = await rpcHandler.handle(c.req.raw, {
+      prefix: '/rpc',
+      context: context,
+    });
+
+    if (rpcResult.matched) {
+      return c.newResponse(rpcResult.response.body, rpcResult.response);
+    }
+  } catch (error) {
+    console.error('[RPC] Error:', error);
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
+
   await next();
 });
 

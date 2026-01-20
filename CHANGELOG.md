@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-01-20
+
+### Fixed
+
+- **RPC Routing**: Fix 404 errors on all RPC endpoints by correcting client-side URL format ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:25))
+  - Change `/rpc/app.getCsrfToken` to `/rpc/getCsrfToken` (remove incorrect `app.` prefix)
+  - ORPC routes are flat on `appRouter`, not nested under `app` namespace
+  - All RPC endpoints now work correctly: `healthCheck`, `getCsrfToken`, `chat`, `message`, `folder`, `model`
+  - Simplified server middleware by removing unnecessary manual routing workaround
+
+- **Server RPC Middleware**: Clean up excessive debug logging from RPC middleware ([apps/server/src/index.ts](apps/server/src/index.ts:97))
+  - Remove verbose procedure path logging
+  - Remove manual routing fallback (RPCHandler works correctly with proper URLs)
+  - Keep only error logging for debugging issues
+
+---
+
 ## [0.0.5] - 2026-01-20
 
 ### Security
@@ -30,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reject origins with embedded credentials (username:password@)
   - Only allow http:// and https:// protocols
   - Sanitize origins by removing trailing slashes
-  - Warn about wildcard (*) origins - highly insecure
+  - Warn about wildcard (\*) origins - highly insecure
   - Warn about HTTP and localhost in production
   - Log all allowed CORS origins on startup for transparency
 
@@ -97,26 +114,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- **CSRF Protection Tests**: Add 40 comprehensive tests for CSRF utilities and integration ([packages/api/src/utils/__tests__/csrf.test.ts](packages/api/src/utils/__tests__/csrf.test.ts:1), [packages/api/src/__tests__/csrf.test.ts](packages/api/src/__tests__/csrf.test.ts:1))
+- **CSRF Protection Tests**: Add 40 comprehensive tests for CSRF utilities and integration ([packages/api/src/utils/**tests**/csrf.test.ts](packages/api/src/utils/__tests__/csrf.test.ts:1), [packages/api/src/**tests**/csrf.test.ts](packages/api/src/__tests__/csrf.test.ts:1))
   - Token generation, validation, and expiration
   - Timing attack protection
   - Rate limiting behavior
   - Security properties (entropy, uniqueness)
   - Edge cases and error scenarios
 
-- **CORS Validation Tests**: Add 44 comprehensive tests for CORS validation ([apps/server/__tests__/cors.test.ts](apps/server/__tests__/cors.test.ts:1))
+- **CORS Validation Tests**: Add 44 comprehensive tests for CORS validation ([apps/server/**tests**/cors.test.ts](apps/server/__tests__/cors.test.ts:1))
   - Valid and invalid CORS origins
   - Origin sanitization
   - Security warnings (wildcard, HTTP, localhost in production)
   - Edge cases (duplicates, paths, query params, IPs)
 
-- **SameSite Cookie Tests**: Add 34 comprehensive tests for SameSite configuration ([packages/auth/__tests__/cookies.test.ts](packages/auth/__tests__/cookies.test.ts:1))
+- **SameSite Cookie Tests**: Add 34 comprehensive tests for SameSite configuration ([packages/auth/**tests**/cookies.test.ts](packages/auth/__tests__/cookies.test.ts:1))
   - Production and development defaults
   - Explicit SameSite settings (strict, lax, none)
   - Validation rules and security warnings
   - Cookie behavior across contexts
 
-- **Rate Limiter Tests**: Add 9 tests for rate limiting functionality ([packages/api/src/utils/__tests__/rate-limiter.test.ts](packages/api/src/utils/__tests__/rate-limiter.test.ts:1))
+- **Rate Limiter Tests**: Add 9 tests for rate limiting functionality ([packages/api/src/utils/**tests**/rate-limiter.test.ts](packages/api/src/utils/__tests__/rate-limiter.test.ts:1))
   - Rate limiting functionality
   - Automatic cleanup of old entries
   - Remaining requests calculation
