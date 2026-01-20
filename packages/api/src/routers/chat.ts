@@ -1,6 +1,7 @@
 import { db } from '@sambung-chat/db';
 import { chats } from '@sambung-chat/db/schema/chat';
 import { messages } from '@sambung-chat/db/schema/chat';
+import { models } from '@sambung-chat/db/schema/model';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import z from 'zod';
 import { protectedProcedure } from '../index';
@@ -186,11 +187,45 @@ export const chatRouter = {
         conditions.push(eq(chats.pinned, true));
       }
 
-      const results = await db
-        .select()
-        .from(chats)
-        .where(and(...conditions))
-        .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      // Build the query - join with models table if needed for provider/modelId filters
+      const needsModelJoin = input.provider !== undefined || input.modelId !== undefined;
+
+      let query;
+      if (needsModelJoin) {
+        // Add provider filter
+        if (input.provider !== undefined) {
+          conditions.push(eq(models.provider, input.provider));
+        }
+
+        // Add modelId filter
+        if (input.modelId !== undefined) {
+          conditions.push(eq(models.modelId, input.modelId));
+        }
+
+        query = db
+          .select({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(models, eq(chats.modelId, models.id))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else {
+        query = db
+          .select()
+          .from(chats)
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      }
+
+      const results = await query;
 
       return results;
     }),
