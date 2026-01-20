@@ -1,10 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { wrapLanguageModel } from 'ai';
-import { devToolsMiddleware } from '@ai-sdk/devtools';
-
-// Type for the language model (inferred from AI SDK)
-type LanguageModel = ReturnType<typeof wrapLanguageModel>;
 
 /**
  * Supported AI providers
@@ -85,66 +80,49 @@ export interface ProviderConfig {
  * Creates an OpenAI-compatible provider instance
  *
  * @param config - Provider configuration
- * @returns Wrapped language model with dev tools middleware
+ * @returns Language model instance
  */
-function createOpenAIProvider(config: ProviderConfig): LanguageModel {
+function createOpenAIProvider(config: ProviderConfig) {
   const openai = createOpenAICompatible({
     name: config.provider === 'custom' ? 'custom' : config.provider,
     baseURL: sanitizeBaseURL(config.baseURL) || 'https://api.openai.com/v1',
     apiKey: config.apiKey,
   });
 
-  const model = openai(config.modelId);
-
-  return wrapLanguageModel({
-    model,
-    middleware: devToolsMiddleware(),
-  });
+  return openai(config.modelId);
 }
 
 /**
  * Creates an Anthropic provider instance
  *
  * @param config - Provider configuration
- * @returns Wrapped language model with dev tools middleware
+ * @returns Language model instance
  */
-function createAnthropicProvider(config: ProviderConfig): LanguageModel {
-  // Create Anthropic provider instance with custom settings
+function createAnthropicProvider(config: ProviderConfig) {
   const anthropicProvider = createAnthropic({
     apiKey: config.apiKey,
     baseURL: sanitizeBaseURL(config.baseURL) || 'https://api.anthropic.com',
   });
 
-  // Create the model from the provider
-  const model = anthropicProvider(config.modelId);
-
-  return wrapLanguageModel({
-    model,
-    middleware: devToolsMiddleware(),
-  });
+  return anthropicProvider(config.modelId);
 }
 
 /**
  * Creates a Google AI provider instance
  *
  * @param config - Provider configuration
- * @returns Wrapped language model with dev tools middleware
+ * @returns Language model instance
  *
  * @throws {Error} When @ai-sdk/google is not installed or API key is missing
  */
-function createGoogleProvider(config: ProviderConfig): LanguageModel {
+function createGoogleProvider(config: ProviderConfig) {
   try {
     // Import dynamically to avoid issues if @ai-sdk/google is not installed
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { google } = require('@ai-sdk/google');
 
-    const model = google(config.modelId, {
+    return google(config.modelId, {
       apiKey: config.apiKey,
-    });
-
-    return wrapLanguageModel({
-      model,
-      middleware: devToolsMiddleware(),
     });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
@@ -160,42 +138,32 @@ function createGoogleProvider(config: ProviderConfig): LanguageModel {
  * Creates a Groq provider instance
  *
  * @param config - Provider configuration
- * @returns Wrapped language model with dev tools middleware
+ * @returns Language model instance
  */
-function createGroqProvider(config: ProviderConfig): LanguageModel {
+function createGroqProvider(config: ProviderConfig) {
   const groq = createOpenAICompatible({
     name: 'groq',
     baseURL: sanitizeBaseURL(config.baseURL) || 'https://api.groq.com/openai/v1',
     apiKey: config.apiKey,
   });
 
-  const model = groq(config.modelId);
-
-  return wrapLanguageModel({
-    model,
-    middleware: devToolsMiddleware(),
-  });
+  return groq(config.modelId);
 }
 
 /**
  * Creates an Ollama provider instance
  *
  * @param config - Provider configuration
- * @returns Wrapped language model with dev tools middleware
+ * @returns Language model instance
  */
-function createOllamaProvider(config: ProviderConfig): LanguageModel {
+function createOllamaProvider(config: ProviderConfig) {
   const ollama = createOpenAICompatible({
     name: 'ollama',
     baseURL: sanitizeBaseURL(config.baseURL) || 'http://localhost:11434/v1',
     apiKey: config.apiKey || 'ollama', // Ollama doesn't require API key, but library expects one
   });
 
-  const model = ollama(config.modelId);
-
-  return wrapLanguageModel({
-    model,
-    middleware: devToolsMiddleware(),
-  });
+  return ollama(config.modelId);
 }
 
 /**
@@ -238,7 +206,7 @@ function createOllamaProvider(config: ProviderConfig): LanguageModel {
  *
  * @throws {Error} When required API key is missing for the provider
  */
-export function createAIProvider(config: ProviderConfig): LanguageModel {
+export function createAIProvider(config: ProviderConfig) {
   switch (config.provider) {
     case 'openai':
       return createOpenAIProvider(config);

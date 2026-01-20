@@ -34,7 +34,9 @@ ALTER TABLE "folders" ALTER COLUMN "id" SET DATA TYPE text;--> statement-breakpo
 ALTER TABLE "messages" ALTER COLUMN "id" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "messages" ALTER COLUMN "chat_id" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "prompts" ALTER COLUMN "id" SET DATA TYPE text;--> statement-breakpoint
-ALTER TABLE "api_keys" ADD COLUMN "name" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "api_keys" ADD COLUMN "name" text;--> statement-breakpoint
+UPDATE "api_keys" SET "name" = CONCAT('API Key ', id) WHERE "name" IS NULL;--> statement-breakpoint
+ALTER TABLE "api_keys" ALTER COLUMN "name" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "api_keys" ADD COLUMN "is_active" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "agents" ADD CONSTRAINT "agents_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "models" ADD CONSTRAINT "models_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

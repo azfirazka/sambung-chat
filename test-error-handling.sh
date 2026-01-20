@@ -36,10 +36,10 @@ test_case() {
 
     if eval "$test_command"; then
         echo -e "${GREEN}✓ PASSED${NC}: $test_name"
-        ((PASSED++))
+        ((PASSED+=1))
     else
         echo -e "${RED}✗ FAILED${NC}: $test_name"
-        ((FAILED++))
+        ((FAILED+=1))
     fi
     echo ""
 }
@@ -114,14 +114,14 @@ echo "Response: $body"
 if [ "$http_code" = "400" ]; then
     if check_error_message "$body" "messages cannot be empty"; then
         echo -e "${GREEN}✓ PASSED${NC}: Correct error message for empty messages"
-        ((PASSED++))
+        ((PASSED+=1))
     else
         echo -e "${YELLOW}⚠ PARTIAL${NC}: Correct status code but unexpected message"
-        ((PASSED++))
+        ((PASSED+=1))
     fi
 else
     echo -e "${RED}✗ FAILED${NC}: Expected 400, got $http_code"
-    ((FAILED++))
+    ((FAILED+=1))
 fi
 echo ""
 
@@ -140,14 +140,14 @@ echo "Response: $body"
 if [ "$http_code" = "400" ]; then
     if check_error_message "$body" "messages must be an array"; then
         echo -e "${GREEN}✓ PASSED${NC}: Correct error for missing messages"
-        ((PASSED++))
+        ((PASSED+=1))
     else
         echo -e "${YELLOW}⚠ PARTIAL${NC}: Correct status but unexpected message"
-        ((PASSED++))
+        ((PASSED+=1))
     fi
 else
     echo -e "${RED}✗ FAILED${NC}: Expected 400, got $http_code"
-    ((FAILED++))
+    ((FAILED+=1))
 fi
 echo ""
 
@@ -166,14 +166,14 @@ echo "Response: $body"
 if [ "$http_code" = "400" ]; then
     if check_error_message "$body" "Invalid message role"; then
         echo -e "${GREEN}✓ PASSED${NC}: Correct error for invalid role"
-        ((PASSED++))
+        ((PASSED+=1))
     else
         echo -e "${YELLOW}⚠ PARTIAL${NC}: Correct status but unexpected message"
-        ((PASSED++))
+        ((PASSED+=1))
     fi
 else
     echo -e "${RED}✗ FAILED${NC}: Expected 400, got $http_code"
-    ((FAILED++))
+    ((FAILED+=1))
 fi
 echo ""
 
@@ -192,14 +192,14 @@ echo "Response: $body"
 if [ "$http_code" = "400" ]; then
     if check_error_message "$body" "parts" && check_error_message "$body" "array"; then
         echo -e "${GREEN}✓ PASSED${NC}: Correct error for missing parts"
-        ((PASSED++))
+        ((PASSED+=1))
     else
         echo -e "${YELLOW}⚠ PARTIAL${NC}: Correct status but unexpected message"
-        ((PASSED++))
+        ((PASSED+=1))
     fi
 else
     echo -e "${RED}✗ FAILED${NC}: Expected 400, got $http_code"
-    ((FAILED++))
+    ((FAILED+=1))
 fi
 echo ""
 
