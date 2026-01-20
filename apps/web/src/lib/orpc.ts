@@ -3,19 +3,25 @@ import type { AppRouterClient } from '@sambung-chat/api/routers/index';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 
-// Get API URL - use relative path for same-origin requests
-// For SSR, we need full URL. For CSR, relative path works with cookies
+// Get API URL dynamically - use same origin for cookie forwarding
 const getApiUrl = (): string => {
   if (typeof window !== 'undefined') {
-    // CSR: Use relative path (browser will prepend current origin)
-    // This ensures cookies are sent with the request
-    return ''; // Empty string = relative to current origin
+    // CSR: Use current origin for same-origin requests (cookies work)
+    // e.g., "http://localhost:5174"
+    return window.location.origin;
   }
-  // SSR: Need full URL
+  // SSR: Need full URL from env
   return import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
 };
 
-const PUBLIC_API_URL = getApiUrl();
+// Initial API URL (will be updated in browser if needed)
+let API_URL = getApiUrl();
+
+// Update API URL when DOM is ready
+if (typeof window !== 'undefined') {
+  // Ensure we have the correct origin after page load
+  API_URL = window.location.origin;
+}
 
 /**
  * CSRF Token Manager
@@ -33,8 +39,7 @@ class CsrfTokenManager {
    */
   private async fetchToken(): Promise<string | null> {
     try {
-      const url = PUBLIC_API_URL ? `${PUBLIC_API_URL}/rpc/getCsrfToken` : '/rpc/getCsrfToken';
-      const response = await fetch(url, {
+      const response = await fetch(`${API_URL}/rpc/getCsrfToken`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +131,7 @@ function isMutationRequest(method: string = 'POST'): boolean {
  * Custom RPCLink that adds CSRF token to requests
  */
 export const link = new RPCLink({
-  url: PUBLIC_API_URL ? `${PUBLIC_API_URL}/rpc` : '/rpc',
+  url: `${API_URL}/rpc`,
   async fetch(url, options) {
     // Clone options to avoid mutation
     const modifiedOptions: RequestInit = {

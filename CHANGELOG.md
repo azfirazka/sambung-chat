@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2026-01-20
+
+### Fixed
+
+- **CSRF Token Same-Origin Requests**: Fix CSRF token 500 errors by using dynamic API_URL variable ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:42))
+  - Changed `fetchToken()` to use `API_URL` variable instead of `PUBLIC_API_URL` constant
+  - Changed `RPCLink` to use `API_URL` variable instead of `PUBLIC_API_URL` constant
+  - `API_URL` is dynamically set to `window.location.origin` in browser for same-origin requests
+  - This ensures both CSRF token fetch and all RPC requests use the same origin
+  - Session cookies are now properly included in all requests to CSRF-protected endpoints
+  - Fixes 500 Internal Server Error on `/rpc/model/getAll`, `/rpc/chat/search`, etc.
+  - Fixes 403 FORBIDDEN errors caused by missing CSRF tokens in mutation requests
+
+**Technical Details**:
+
+- The `API_URL` variable is set using `getApiUrl()` which returns `window.location.origin` in browser
+- This makes all requests same-origin, allowing automatic cookie forwarding
+- Both CSRF token fetch and RPC calls now use consistent URL resolution
+
+---
+
 ## [0.0.8] - 2026-01-20
 
 ### Fixed
