@@ -17,6 +17,7 @@
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import FilterIcon from '@lucide/svelte/icons/filter';
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 
   // Types
   interface MatchingMessage {
@@ -123,6 +124,18 @@
     custom: 'Custom',
   };
 
+  // Computed - check if any filters are active (for showing "Clear All" button)
+  let hasActiveFilters = $derived(
+    !isInitialLoad &&
+      (searchQuery !== '' ||
+        selectedFolderId !== '' ||
+        showPinnedOnly ||
+        selectedProviders.length > 0 ||
+        selectedModelIds.length > 0 ||
+        dateFrom !== '' ||
+        dateTo !== '')
+  );
+
   // Group chats by folder and time period
   let groupedChats = $derived(() => {
     const pinnedChats: Chat[] = [];
@@ -199,6 +212,18 @@
     if (!isInitialLoad) {
       loadChats();
     }
+  }
+
+  // Clear all filters and reset to default view
+  function handleClearAllFilters() {
+    searchQuery = '';
+    selectedFolderId = '';
+    showPinnedOnly = false;
+    selectedProviders = [];
+    selectedModelIds = [];
+    dateFrom = '';
+    dateTo = '';
+    loadChats();
   }
 
   // Load chats with search & filters
@@ -670,6 +695,22 @@
         </Button>
       {/if}
     </div>
+
+    <!-- Clear All Filters Button -->
+    {#if hasActiveFilters()}
+      <div class="mt-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onclick={handleClearAllFilters}
+          class="w-full justify-start text-xs"
+          title="Clear all filters and reset to default view"
+        >
+          <RotateCcwIcon class="mr-2 size-3.5" />
+          Clear All Filters
+        </Button>
+      </div>
+    {/if}
   </Sidebar.Header>
 
   <!-- Content -->
