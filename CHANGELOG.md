@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-01-20
+
+### Security
+
+- **CSRF Protection**: Implement comprehensive CSRF token validation for all state-changing operations ([packages/api/src/utils/csrf.ts](packages/api/src/utils/csrf.ts:1))
+  - Add cryptographically secure token generation with 256-bit entropy
+  - Add HMAC-SHA256 signature verification to prevent token tampering
+  - Add constant-time comparison to prevent timing attacks
+  - Add token expiration with 1-hour default lifetime
+  - Add rate limiting (10 req/min) on CSRF token endpoint
+  - Apply `withCsrfProtection` middleware to all 10 mutation routes
+  - Protected routes: chat (5 mutations), message (2 mutations), folder (3 mutations)
+
+- **SameSite Cookie Hardening**: Update Better Auth configuration with secure defaults ([packages/auth/src/index.ts](packages/auth/src/index.ts:60))
+  - Add `SAME_SITE_COOKIE` environment variable with validation
+  - Default to `strict` in production for maximum CSRF protection
+  - Default to `lax` in development for OAuth-friendly testing
+  - Add validation to ensure `none` requires secure cookies
+  - Add security warnings for insecure configurations
+
+- **CORS Validation**: Add origin validation and sanitization ([packages/env/src/server.ts](packages/env/src/server.ts:377))
+  - Validate CORS_ORIGIN values as properly formatted URLs
+  - Reject origins with embedded credentials (username:password@)
+  - Only allow http:// and https:// protocols
+  - Sanitize origins by removing trailing slashes
+  - Warn about wildcard (*) origins - highly insecure
+  - Warn about HTTP and localhost in production
+  - Log all allowed CORS origins on startup for transparency
+
+### Added
+
+- **CSRF Token Endpoint**: Add public endpoint to fetch CSRF tokens for authenticated sessions ([packages/api/src/routers/index.ts](packages/api/src/routers/index.ts:1))
+  - Endpoint: `GET /rpc/app.getCsrfToken`
+  - Returns `{ token, authenticated: true, expiresIn: 3600 }` for authenticated users
+  - Returns `{ token: null, authenticated: false }` for unauthenticated users
+  - Rate limited to 10 requests per minute per user/IP
+
+- **CSRF Token Manager**: Add automatic CSRF token management in frontend ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:1))
+  - In-memory token storage (never stored in localStorage for security)
+  - Automatic token fetching on app load
+  - Automatic token refresh on 403 Forbidden responses
+  - All requests include `X-CSRF-Token` header
+  - Prevention of concurrent token fetches with tokenPromise mechanism
+  - Graceful handling of unauthenticated users
+
+- **Rate Limiter Utility**: Add in-memory rate limiting to prevent token enumeration ([packages/api/src/utils/rate-limiter.ts](packages/api/src/utils/rate-limiter.ts:1))
+  - Automatic cleanup of old entries every 5 minutes
+  - Tracks by user ID (authenticated) or IP address (anonymous)
+  - Configurable max requests and time window
+  - Used by CSRF token endpoint (10 req/min)
+
+- **Environment Validation**: Add validation helpers for security configuration ([packages/env/src/server.ts](packages/env/src/server.ts:1))
+  - `getValidatedSameSiteSetting()`: Validate and return SameSite cookie setting
+  - `getValidatedCorsOrigins()`: Validate and return array of CORS origins
+  - Comprehensive logging and security warnings
+  - Environment-aware defaults (production vs development)
+
+### Changed
+
+- **Better Auth Configuration**: Update cookie configuration to use dynamic SameSite setting ([packages/auth/src/index.ts](packages/auth/src/index.ts:60))
+  - Replace hardcoded `sameSite: 'lax'` with dynamic `sameSiteSetting` variable
+  - Add logging to display current SameSite cookie setting on startup
+  - Maintain backward compatibility with existing setups
+
+- **CORS Configuration**: Update server to use validated CORS origins ([apps/server/src/index.ts](apps/server/src/index.ts:1))
+  - Replace direct `env.CORS_ORIGIN.split(',')` with `getValidatedCorsOrigins()`
+  - Add `X-CSRF-Token` to CORS allowed headers
+  - Origins are validated on server startup before CORS middleware is configured
+
+- **API Context**: Add clientIp to request context for better rate limiting ([packages/api/src/context.ts](packages/api/src/context.ts:1))
+  - Extract IP from X-Forwarded-For, X-Real-IP, or CF-Connecting-IP headers
+  - Fallback to 'unknown' if headers not available
+  - Used for rate limiting anonymous requests
+
+### Documentation
+
+- **Security Documentation**: Add comprehensive security guide ([docs/security.md](docs/security.md:1))
+  - CSRF protection implementation details
+  - SameSite cookie configuration guide
+  - CORS security best practices
+  - Deployment security checklist
+  - Troubleshooting guide for common security issues
+
+- **Environment Configuration**: Enhance .env.example with security documentation ([.env.example](.env.example:1))
+  - Document SAME_SITE_COOKIE variable with security recommendations
+  - Add CORS_ORIGIN security best practices
+  - Provide examples for development, production, and staging
+  - Add security risks section with attack scenarios
+  - Add troubleshooting guide for common CORS errors
+
+### Tests
+
+- **CSRF Protection Tests**: Add 40 comprehensive tests for CSRF utilities and integration ([packages/api/src/utils/__tests__/csrf.test.ts](packages/api/src/utils/__tests__/csrf.test.ts:1), [packages/api/src/__tests__/csrf.test.ts](packages/api/src/__tests__/csrf.test.ts:1))
+  - Token generation, validation, and expiration
+  - Timing attack protection
+  - Rate limiting behavior
+  - Security properties (entropy, uniqueness)
+  - Edge cases and error scenarios
+
+- **CORS Validation Tests**: Add 44 comprehensive tests for CORS validation ([apps/server/__tests__/cors.test.ts](apps/server/__tests__/cors.test.ts:1))
+  - Valid and invalid CORS origins
+  - Origin sanitization
+  - Security warnings (wildcard, HTTP, localhost in production)
+  - Edge cases (duplicates, paths, query params, IPs)
+
+- **SameSite Cookie Tests**: Add 34 comprehensive tests for SameSite configuration ([packages/auth/__tests__/cookies.test.ts](packages/auth/__tests__/cookies.test.ts:1))
+  - Production and development defaults
+  - Explicit SameSite settings (strict, lax, none)
+  - Validation rules and security warnings
+  - Cookie behavior across contexts
+
+- **Rate Limiter Tests**: Add 9 tests for rate limiting functionality ([packages/api/src/utils/__tests__/rate-limiter.test.ts](packages/api/src/utils/__tests__/rate-limiter.test.ts:1))
+  - Rate limiting functionality
+  - Automatic cleanup of old entries
+  - Remaining requests calculation
+  - Reset functionality
+
+### Performance
+
+- **Token Storage**: Use in-memory storage for CSRF tokens (cleared on page refresh)
+- **Automatic Cleanup**: Rate limiter automatically removes old entries every 5 minutes
+- **Concurrent Request Prevention**: CSRF token manager prevents duplicate token fetches
+
+---
+
 ## [0.0.4] - 2026-01-19
 
 ### Fixed
