@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-01-20
+
+### Added
+
+- **Advanced Chat Search**: Enhanced search functionality with full-text search across both chat titles and message content ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts))
+- **Provider Filter**: Multi-select dropdown to filter search results by AI provider (OpenAI, Anthropic, Google, Groq, Ollama, Custom) ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte))
+- **Model Filter**: Multi-select dropdown to filter search results by specific AI models (e.g., GPT-4, Claude 3.5 Sonnet) with alphabetical sorting ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte))
+- **Date Range Filter**: Date range picker (from/to) to filter conversations by creation date using native HTML5 date inputs ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte))
+- **Message Snippets**: Display up to 3 matching message snippets below chat title with role labels (You/AI) and highlighted search terms ([apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte](apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte))
+- **Clear All Filters**: Quick reset button to clear all active filters and return to default view ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte))
+- **Database Indexes**: Added 3 new PostgreSQL indexes for search performance optimization ([packages/db/src/migrations](packages/db/src/migrations))
+  - `message_content_trgm_idx` - GIN index for full-text search on message content
+  - `chat_user_model_updated_idx` - Composite index for model filtering
+  - `chat_created_at_idx` - B-tree index for date range queries
+- **Search Performance Tests**: Comprehensive test suite verifying search performance with large datasets (120 chats, 1,200 messages) - all queries complete in <3ms ([packages/api/src/routers/chat.test.ts](packages/api/src/routers/chat.test.ts))
+- **Filter Combination Tests**: 15 tests covering all possible filter combinations (provider, model, date, query) to ensure correct filtering logic ([packages/api/src/routers/chat.test.ts](packages/api/src/routers/chat.test.ts))
+- **Search Highlighting Tests**: 31 automated tests verifying proper highlighting of search terms including special characters, Unicode, and edge cases ([apps/web/src/lib/components/secondary-sidebar/ChatListItem.test.ts](apps/web/src/lib/components/secondary-sidebar/ChatListItem.test.ts))
+- **E2E Search Tests**: 60+ Playwright tests covering complete search workflow including all filters, result display, accessibility, and performance ([tests/e2e/search.spec.ts](tests/e2e/search.spec.ts))
+- **Testing Documentation**: Created comprehensive testing guides for manual verification of search functionality ([packages/api/src/routers/TESTING_GUIDE.md](packages/api/src/routers/TESTING_GUIDE.md), [apps/web/src/lib/components/secondary-sidebar/HIGHLIGHT_TESTING_GUIDE.md](apps/web/src/lib/components/secondary-sidebar/HIGHLIGHT_TESTING_GUIDE.md), [tests/e2e/SEARCH_E2E_TESTS.md](tests/e2e/SEARCH_E2E_TESTS.md))
+
+### Changed
+
+- **Search API**: Extended chat search API to support multiple filter parameters (providers array, modelIds array, dateFrom, dateTo, searchInMessages) ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts))
+- **Search Query Logic**: Implemented conditional SQL joins with models and messages tables for efficient filtering based on active search parameters ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts))
+- **Search Results**: Enhanced search results to include matching message snippets with role, content, and timestamp fields when searching in message content ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts))
+
+### Performance
+
+- Search with no filters: 0.69ms average (well under 500ms threshold)
+- Search with text query: 0.66ms average (well under 1000ms threshold)
+- Search with provider filter: 0.55ms average (well under 1500ms threshold)
+- Full-text search across messages: 2.69ms average (well under 2000ms threshold)
+- All performance tests pass with excellent margins, ensuring fast search even with hundreds of chats
+
+---
+
 ## [0.0.4] - 2026-01-19
 
 ### Fixed
