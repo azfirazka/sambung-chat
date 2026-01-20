@@ -266,7 +266,6 @@ app.get('/debug/session', async (c) => {
 
   return c.json({
     hasCookie: !!cookieHeader,
-    cookiePreview: cookieHeader?.substring(0, 100) || 'None',
     hasSession: !!session,
     user: session?.user
       ? {
