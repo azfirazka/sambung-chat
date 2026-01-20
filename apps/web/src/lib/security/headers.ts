@@ -78,7 +78,8 @@ export function getCSPHeader(config: CSPConfig = { reportOnly: false }): string 
     `default-src 'self'`,
 
     // Scripts: Only allow same-origin (no external scripts)
-    `script-src 'self'${isDev ? " 'unsafe-eval'" : ''}`,
+    // Allow unsafe-eval and unsafe-inline in development for Vite HMR
+    `script-src 'self'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : ''}`,
 
     // Styles: Allow inline styles for shadcn-svelte components
     `style-src 'self' 'unsafe-inline'`,
