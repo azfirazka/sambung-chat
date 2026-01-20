@@ -1,6 +1,6 @@
 {
   "active": true,
-  "spec": "014-remove-verbose-logging-of-sensitive-session-and-au",
+  "spec": "015-implement-csrf-protection-and-samesite-cookie-hard",
   "state": "complete",
   "subtasks": {
     "completed": 0,
@@ -9,17 +9,17 @@
     "failed": 0
   },
   "phase": {
-    "current": "",
-    "id": 0,
-    "total": 0
+    "current": "Phase 4: Testing & Validation",
+    "id": null,
+    "total": 5
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 14,
-    "started_at": "2026-01-20T12:53:59.378492"
+    "number": 17,
+    "started_at": "2026-01-20T12:54:01.105484"
   },
-  "last_update": "2026-01-20T13:28:06.364578"
+  "last_update": "2026-01-20T14:25:50.489905"
 }

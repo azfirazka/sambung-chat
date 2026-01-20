@@ -16,44 +16,24 @@ const envSchema = createEnv({
     PORT: z.coerce.number().default(3000),
 
     // ═══════════════════════════════════════════════════════════════════
-    // ENCRYPTION CONFIGURATION
+    // SECURITY CONFIGURATION
     // ═══════════════════════════════════════════════════════════════════
 
     /**
-     * Encryption key for API key storage (AES-256-GCM).
+     * SameSite attribute for session cookies.
      *
-     * This key is used to encrypt API keys at rest in the database.
-     * Must be a 32-byte base64-encoded key (256 bits).
+     * Security levels:
+     * - 'strict': Best security - cookies only sent in first-party context
+     * - 'lax': Moderate security - cookies sent with top-level navigations
+     * - 'none': Lowest security - cookies sent in all contexts (requires secure=true)
      *
-     * Generate one with:
-     * - OpenSSL: openssl rand -base64 32
-     * - Node.js: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-     * - Bun: bun -e "console.log(crypto.randomBytes(32).toString('base64'))"
+     * Recommended: 'strict' for production, 'lax' for development
      *
-     * SECURITY: Keep this key secret! Rotate it only with proper migration.
-     * Losing this key will make all encrypted API keys permanently unreadable.
+     * @default 'strict' in production, 'lax' in development
      *
-     * @example "dGhpc2lzYW5leGFtcGxlb2ZhMzJieXRlYmFzZTY0ZW5jb2RlZGtleQ=="
+     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
      */
-    ENCRYPTION_KEY: z
-      .string()
-      .min(1, 'ENCRYPTION_KEY is required for API key encryption')
-      .refine(
-        (val) => {
-          try {
-            const decoded = Buffer.from(val, 'base64');
-            // Check if it's valid base64 and exactly 32 bytes (256 bits)
-            return decoded.length === 32;
-          } catch {
-            return false;
-          }
-        },
-        {
-          message:
-            'ENCRYPTION_KEY must be a 32-byte base64-encoded key (256 bits). ' +
-            'Generate one with: openssl rand -base64 32',
-        }
-      ),
+    SAME_SITE_COOKIE: z.enum(['lax', 'strict', 'none']).optional(),
 
     // ═══════════════════════════════════════════════════════════════════
     // AUTHENTICATION METHOD CONFIGURATION
@@ -69,15 +49,161 @@ const envSchema = createEnv({
     PUBLIC_EMAIL_PASSWORD_ENABLED: z.string().optional(),
 
     // ═══════════════════════════════════════════════════════════════════
-    // AI PROVIDER CONFIGURATION
+    // AI PROVIDER SELECTION
     // ═══════════════════════════════════════════════════════════════════
-    //
-    // AI providers are now configured via the web UI (Settings → Models).
-    // API keys are stored securely in the database (encrypted with AES-256-GCM).
-    //
-    // No environment variables are needed for AI provider configuration.
-    //
+
+    /**
+     * Primary AI provider selection.
+     * Can be a single provider or comma-separated fallback chain.
+     *
+     * Examples:
+     * - "openai" - Use OpenAI
+     * - "anthropic" - Use Anthropic
+     * - "openai,anthropic,groq" - Fallback chain (try OpenAI, then Anthropic, then Groq)
+     *
+     * @default undefined - Auto-select based on available API keys
+     */
+    AI_PROVIDER: z.string().optional(),
+
+    /**
+     * Default AI model (used when provider-specific model is not set).
+     *
+     * Examples: "gpt-4o-mini", "claude-3-5-sonnet-20241022", "gemini-2.5-flash"
+     */
+    AI_MODEL: z.string().optional(),
+
     // ═══════════════════════════════════════════════════════════════════
+    // OPENAI CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * OpenAI API key.
+     * Get your key from: https://platform.openai.com/api-keys
+     *
+     * Format: sk-...
+     */
+    OPENAI_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * OpenAI model selection.
+     * Defaults to gpt-4o-mini if not specified.
+     *
+     * Options: gpt-4o-mini, gpt-4o, o1-mini, o1-preview
+     */
+    OPENAI_MODEL: z.string().optional(),
+
+    /**
+     * Custom OpenAI base URL (for proxies or Azure deployments).
+     * Defaults to https://api.openai.com/v1
+     */
+    OPENAI_BASE_URL: z.string().url().optional(),
+
+    /**
+     * OpenAI organization ID (for org-level billing).
+     */
+    OPENAI_ORGANIZATION: z.string().optional(),
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ANTHROPIC CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Anthropic API key.
+     * Get your key from: https://console.anthropic.com/
+     *
+     * Format: sk-ant-...
+     */
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * Anthropic model selection.
+     * Defaults to claude-3-5-sonnet-20241022 if not specified.
+     *
+     * Options: claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022, claude-3-opus-20240229
+     */
+    ANTHROPIC_MODEL: z.string().optional(),
+
+    /**
+     * Custom Anthropic base URL.
+     * Defaults to https://api.anthropic.com
+     */
+    ANTHROPIC_BASE_URL: z.string().url().optional(),
+
+    /**
+     * Anthropic API version.
+     * Defaults to latest if not specified.
+     */
+    ANTHROPIC_VERSION: z.string().optional(),
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GOOGLE CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Google Generative AI API key (preferred).
+     * Get your key from: https://aistudio.google.com/app/apikey
+     *
+     * Format: AIza...
+     *
+     * Alternative: GOOGLE_API_KEY (also accepted for backward compatibility)
+     */
+    GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
+    GOOGLE_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * Google model selection.
+     * Defaults to gemini-2.5-flash if not specified.
+     *
+     * Options: gemini-2.5-flash, gemini-2.5-pro
+     */
+    GOOGLE_MODEL: z.string().optional(),
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GROQ CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Groq API key.
+     * Get your key from: https://console.groq.com/keys
+     *
+     * Format: gsk_...
+     */
+    GROQ_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * Groq model selection.
+     * Defaults to llama-3.3-70b-versatile if not specified.
+     *
+     * Options: llama-3.3-70b-versatile, llama-3.1-70b-versatile, mixtral-8x7b-32768
+     */
+    GROQ_MODEL: z.string().optional(),
+
+    /**
+     * Custom Groq base URL.
+     * Defaults to https://api.groq.com/openai/v1
+     */
+    GROQ_BASE_URL: z.string().url().optional(),
+
+    // ═══════════════════════════════════════════════════════════════════
+    // OLLAMA CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Ollama model selection.
+     * Defaults to llama3.2 if not specified.
+     *
+     * Note: Ollama runs locally, so no API key is required.
+     * Make sure to pull the model first: ollama pull llama3.2
+     *
+     * Options: llama3.2, llama3.1, mistral, codellama, gemma2, etc.
+     */
+    OLLAMA_MODEL: z.string().optional(),
+
+    /**
+     * Ollama server URL.
+     * Defaults to http://localhost:11434/v1
+     */
+    OLLAMA_BASE_URL: z.string().url().optional(),
 
     // ═══════════════════════════════════════════════════════════════════
     // KEYCLOAK OIDC CONFIGURATION
@@ -114,161 +240,250 @@ const envSchema = createEnv({
      * Example: https://keycloak.example.com/realms/myrealm
      */
     KEYCLOAK_ISSUER: z.string().url().optional(),
-
-    // ═══════════════════════════════════════════════════════════════════
-    // SECURITY HEADERS CONFIGURATION
-    // ═══════════════════════════════════════════════════════════════════
-
-    /**
-     * Enable security headers in production.
-     * Set to "false" to disable security headers (useful for development/debugging).
-     *
-     * @default "true" in production, "false" in development
-     */
-    SECURITY_HEADERS_ENABLED: z.string().optional(),
-
-    /**
-     * Content Security Policy (CSP) header.
-     * Controls which resources the browser is allowed to load.
-     *
-     * Format: semicolon-separated directives
-     * Example: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
-     *
-     * Leave undefined to use default policy (enables necessary resources for the app).
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
-     */
-    CSP_HEADER: z.string().optional(),
-
-    /**
-     * Enable CSP Report-Only mode.
-     * When set to "true", CSP violations are reported but not enforced.
-     * Useful for testing CSP policies before enforcing them.
-     *
-     * @default "false"
-     */
-    CSP_REPORT_ONLY: z.string().optional(),
-
-    /**
-     * HTTP Strict Transport Security (HSTS) max-age in seconds.
-     * Tells browsers to only use HTTPS for the specified duration.
-     *
-     * Recommended values:
-     * - 31536000 (1 year) for production
-     * - 0 (disable) for development
-     *
-     * @default undefined (uses environment-based defaults)
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
-     */
-    HSTS_MAX_AGE: z.coerce.number().optional(),
-
-    /**
-     * HSTS includeSubDomains directive.
-     * When set to "true", HSTS applies to all subdomains.
-     *
-     * @default "true" in production
-     */
-    HSTS_INCLUDE_SUBDOMAINS: z.string().optional(),
-
-    /**
-     * HSTS preload directive.
-     * When set to "true", allows domain inclusion in HSTS preload list.
-     *
-     * @default "false"
-     *
-     * @see https://hstspreload.org/
-     */
-    HSTS_PRELOAD: z.string().optional(),
-
-    /**
-     * X-Frame-Options header.
-     * Controls whether the page can be embedded in frames/iframes.
-     *
-     * Options:
-     * - "DENY": No framing allowed
-     * - "SAMEORIGIN": Only allow framing from same origin
-     * - "ALLOW-FROM uri": Allow framing from specific URI (deprecated)
-     *
-     * @default "SAMEORIGIN"
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
-     */
-    X_FRAME_OPTIONS: z.string().optional(),
-
-    /**
-     * X-Content-Type-Options header.
-     * Prevents MIME type sniffing.
-     *
-     * Set to "nosniff" to enable (recommended).
-     *
-     * @default "nosniff"
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
-     */
-    X_CONTENT_TYPE_OPTIONS: z.string().optional(),
-
-    /**
-     * Referrer-Policy header.
-     * Controls how much referrer information is sent.
-     *
-     * Options:
-     * - "no-referrer": No referrer information
-     * - "no-referrer-when-downgrade": Full URL when same protocol, otherwise no referrer
-     * - "strict-origin-when-cross-origin": Origin only when cross-origin (recommended)
-     * - "same-origin": Same origin only
-     *
-     * @default "strict-origin-when-cross-origin"
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
-     */
-    REFERRER_POLICY: z.string().optional(),
-
-    /**
-     * Permissions-Policy header.
-     * Controls which browser features/APIs can be used.
-     *
-     * Format: comma-separated feature=origin directives
-     * Example: "geolocation=(), camera=(self), microphone=()"
-     *
-     * Leave undefined to use default restrictive policy.
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy
-     */
-    PERMISSIONS_POLICY: z.string().optional(),
-
-    /**
-     * Cross-Origin-Embedder-Policy (COOP) header.
-     * Isolates the process from same-origin documents.
-     *
-     * Options:
-     * - "unsafe-none": No isolation (default)
-     * - "same-origin": Same-origin isolation
-     *
-     * @default "unsafe-none"
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
-     */
-    CROSS_ORIGIN_OPENER_POLICY: z.string().optional(),
-
-    /**
-     * Cross-Origin-Resource-Policy (CORP) header.
-     * Controls how the resource can be shared across origins.
-     *
-     * Options:
-     * - "same-origin": Same origin only
-     * - "same-site": Same site only
-     * - "cross-origin": Any origin
-     *
-     * @default "same-origin"
-     *
-     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
-     */
-    CROSS_ORIGIN_RESOURCE_POLICY: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });
 
+/**
+ * Validates and returns the SameSite cookie setting.
+ *
+ * Rules:
+ * - Defaults to 'strict' in production, 'lax' in development
+ * - 'none' is only allowed with secure cookies (production)
+ * - Logs the final setting for debugging
+ *
+ * @throws Error if 'none' is used without secure cookies
+ */
+export function getValidatedSameSiteSetting(): 'lax' | 'strict' | 'none' {
+  // Read directly from process.env for testability
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const sameSiteCookie = process.env.SAME_SITE_COOKIE;
+
+  const isProduction = nodeEnv === 'production';
+  const isSecure = isProduction; // Secure cookies are only enabled in production
+
+  // Get the user-configured value or use default
+  // Empty string should be treated as undefined
+  const configuredValue = sameSiteCookie && sameSiteCookie.trim() !== '' ? sameSiteCookie : undefined;
+  const defaultValue: 'lax' | 'strict' | 'none' = isProduction ? 'strict' : 'lax';
+
+  // Validate that configured value is one of the allowed values
+  const validValues = ['lax', 'strict', 'none'] as const;
+  const isValidConfig = configuredValue && validValues.includes(configuredValue as any);
+
+  const sameSiteValue: 'lax' | 'strict' | 'none' = isValidConfig
+    ? (configuredValue as 'lax' | 'strict' | 'none')
+    : defaultValue;
+
+  // Validate that 'none' is only used with secure cookies
+  if (sameSiteValue === 'none' && !isSecure) {
+    throw new Error(
+      'SAME_SITE_COOKIE=none requires secure cookies (NODE_ENV=production). ' +
+        'Either set NODE_ENV=production or use SAME_SITE_COOKIE=strict|lax'
+    );
+  }
+
+  // Log the final setting for security debugging
+  if (configuredValue) {
+    console.log(`[SECURITY] SAME_SITE_COOKIE explicitly set to: ${sameSiteValue}`);
+  } else {
+    console.log(`[SECURITY] SAME_SITE_COOKIE using default: ${sameSiteValue} (${nodeEnv})`);
+  }
+
+  // Warn if using 'lax' in production
+  if (isProduction && sameSiteValue === 'lax') {
+    console.warn(
+      '[SECURITY] WARNING: SAME_SITE_COOKIE=lax in production allows link-based CSRF attacks. ' +
+        'Consider using SAME_SITE_COOKIE=strict for better security.'
+    );
+  }
+
+  // Warn if using 'none'
+  if (sameSiteValue === 'none') {
+    console.warn(
+      '[SECURITY] WARNING: SAME_SITE_COOKIE=none provides minimal CSRF protection. ' +
+        'Only use this if you have a specific requirement for cross-site cookie access.'
+    );
+  }
+
+  return sameSiteValue;
+}
+
+// Validate that at least one AI provider is configured
+function validateAIProviders(env: typeof envSchema): void {
+  // Check if at least one provider API key is configured
+  const hasAnyProvider =
+    env.OPENAI_API_KEY ||
+    env.ANTHROPIC_API_KEY ||
+    env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    env.GOOGLE_API_KEY ||
+    env.GROQ_API_KEY ||
+    env.AI_PROVIDER === 'ollama'; // Ollama doesn't need API key
+
+  if (!hasAnyProvider) {
+    throw new Error(
+      'At least one AI provider API key is required. Please configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, GROQ_API_KEY, or set AI_PROVIDER=ollama'
+    );
+  }
+
+  // If AI_PROVIDER is set, validate that all specified providers have API keys
+  if (env.AI_PROVIDER) {
+    const providers = env.AI_PROVIDER.split(',').map((p) => p.trim().toLowerCase());
+    const availableProviders = {
+      openai: !!env.OPENAI_API_KEY,
+      anthropic: !!env.ANTHROPIC_API_KEY,
+      google: !!(env.GOOGLE_GENERATIVE_AI_API_KEY || env.GOOGLE_API_KEY),
+      groq: !!env.GROQ_API_KEY,
+      ollama: true, // Always available (no API key needed)
+    };
+
+    for (const provider of providers) {
+      if (!availableProviders[provider as keyof typeof availableProviders]) {
+        throw new Error(
+          `Provider "${provider}" is specified in AI_PROVIDER but is missing required API key or configuration.`
+        );
+      }
+    }
+  }
+}
+
 // Validate and export the environment
+// Only run AI provider validation in Node.js/server context
+const isBrowserContext = typeof process === 'undefined';
+
+if (!isBrowserContext) {
+  // Server context - validate AI providers
+  try {
+    validateAIProviders(envSchema);
+  } catch (error) {
+    // Only throw in production, allow test/dev to continue with warning
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+    // For test/dev, just log warning
+    console.warn('AI provider validation warning:', error);
+  }
+}
+
+/**
+ * Validates and returns sanitized CORS origins.
+ *
+ * Rules:
+ * - Validates each origin as a properly formatted URL
+ * - Rejects malformed URLs
+ * - Warns about wildcard or overly permissive origins
+ * - Logs all allowed origins on startup
+ * - Trims whitespace and removes trailing slashes
+ * - Rejects origins with embedded credentials (username:password@)
+ *
+ * @returns Array of validated and sanitized CORS origins
+ * @throws Error if any origin is malformed
+ */
+export function getValidatedCorsOrigins(): string[] {
+  const corsOrigin = process.env.CORS_ORIGIN;
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const defaultOrigin = 'http://localhost:5174';
+
+  // Use default if not configured
+  const rawOrigins = corsOrigin
+    ? corsOrigin.split(',').map((origin) => origin.trim())
+    : [defaultOrigin];
+
+  const validatedOrigins: string[] = [];
+  const warnings: string[] = [];
+
+  for (const origin of rawOrigins) {
+    // Skip empty origins
+    if (!origin) {
+      continue;
+    }
+
+    // Check for wildcard
+    if (origin === '*' || origin === '*') {
+      warnings.push(
+        '[SECURITY] WARNING: CORS_ORIGIN=* allows requests from ANY origin. ' +
+          'This is highly insecure and should NEVER be used in production.'
+      );
+      validatedOrigins.push('*');
+      continue;
+    }
+
+    // Reject origins with embedded credentials
+    if (origin.includes('@') && origin.includes('://')) {
+      const urlParts = origin.split('://');
+      if (urlParts[1]?.includes('@')) {
+        throw new Error(
+          `Invalid CORS origin "${origin}": Origins with embedded credentials (username:password@) are not allowed.`
+        );
+      }
+    }
+
+    // Validate URL format
+    try {
+      const url = new URL(origin);
+
+      // Ensure protocol is http or https
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new Error(
+          `Only http:// and https:// protocols are allowed.`
+        );
+      }
+
+      // Sanitize: remove trailing slash
+      let sanitizedOrigin = url.href;
+      if (sanitizedOrigin.endsWith('/')) {
+        sanitizedOrigin = sanitizedOrigin.slice(0, -1);
+      }
+
+      validatedOrigins.push(sanitizedOrigin);
+
+      // Warn about HTTP in production
+      if (nodeEnv === 'production' && url.protocol === 'http:') {
+        warnings.push(
+          `[SECURITY] WARNING: CORS origin "${sanitizedOrigin}" uses HTTP in production. ` +
+            `HTTPS should be used for security.`
+        );
+      }
+
+      // Warn about localhost in production
+      if (nodeEnv === 'production' && url.hostname === 'localhost') {
+        warnings.push(
+          `[SECURITY] WARNING: CORS origin "${sanitizedOrigin}" points to localhost in production. ` +
+            `This is likely a misconfiguration.`
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        // Don't duplicate the error prefix if it's already there
+        const message = error.message.startsWith('Invalid CORS origin')
+          ? error.message
+          : `Invalid CORS origin "${origin}": ${error.message}`;
+        throw new Error(message);
+      }
+      throw new Error(`Invalid CORS origin "${origin}": Malformed URL`);
+    }
+  }
+
+  // Log all warnings
+  for (const warning of warnings) {
+    console.warn(warning);
+  }
+
+  // Log all allowed origins
+  console.log(
+    `[SECURITY] CORS origins: ${validatedOrigins.length === 1 ? validatedOrigins[0] : validatedOrigins.join(', ')}`
+  );
+
+  // Warn if no origins configured
+  if (validatedOrigins.length === 0) {
+    console.warn(
+      '[SECURITY] WARNING: No valid CORS origins configured. Using default: http://localhost:5174'
+    );
+    return [defaultOrigin];
+  }
+
+  return validatedOrigins;
+}
+
 export const env = envSchema;

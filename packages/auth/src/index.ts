@@ -1,6 +1,6 @@
 import { db } from '@sambung-chat/db';
 import * as schema from '@sambung-chat/db/schema/auth';
-import { env } from '@sambung-chat/env/server';
+import { env, getValidatedSameSiteSetting } from '@sambung-chat/env/server';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { genericOAuth, keycloak } from 'better-auth/plugins';
@@ -10,6 +10,10 @@ const isEmailPasswordEnabled = env.EMAIL_PASSWORD_ENABLED !== 'false';
 
 const keycloakIssuer =
   env.KEYCLOAK_ISSUER || `${env.KEYCLOAK_URL || ''}/realms/${env.KEYCLOAK_REALM || ''}`;
+
+// Get and log the validated SameSite cookie setting
+const sameSiteSetting = getValidatedSameSiteSetting();
+console.log('[AUTH CONFIG] SameSite cookie setting:', sameSiteSetting);
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -39,7 +43,7 @@ export const auth = betterAuth({
       enabled: false,
     },
     defaultCookieAttributes: {
-      sameSite: 'lax', // Use 'lax' for localhost (works with Vite proxy on same domain)
+      sameSite: sameSiteSetting, // Use validated setting from environment (strict in production, lax in development)
       secure: env.NODE_ENV === 'production', // Secure cookies only in production
       httpOnly: true,
       maxAge: 60 * 60 * 24 * 7, // 7 days
