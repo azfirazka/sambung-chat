@@ -158,6 +158,11 @@ export const chatRouter = {
         query: z.string().optional(),
         folderId: ulidOptionalSchema,
         pinnedOnly: z.boolean().optional(),
+        provider: z.enum(['openai', 'anthropic', 'google', 'groq', 'ollama', 'custom']).optional(),
+        modelId: z.string().optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        searchInMessages: z.boolean().optional(),
       })
     )
     .handler(async ({ input, context }) => {
