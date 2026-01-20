@@ -1,3 +1,5 @@
+import JSZip from 'jszip';
+
 // Types for chat export
 // IMPORTANT: All IDs use ULID strings (26 chars), not integers
 // See docs/ULID-STANDARD.md for more information
@@ -22,6 +24,21 @@ export interface ChatExport {
   createdAt: Date;
   updatedAt: Date;
   messages: ChatMessage[];
+  folder?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ChatFolder {
+  id: string;
+  name: string;
+  chats: ChatExport[];
+}
+
+export interface ChatsByFolder {
+  folders: ChatFolder[];
+  uncategorized: ChatExport[];
 }
 
 /**
@@ -145,4 +162,163 @@ export function exportMultipleChats(chats: ChatExport[], filename?: string): voi
 
   const content = JSON.stringify(chats, null, 2);
   downloadFile(content, finalFilename, 'application/json');
+}
+
+/**
+ * Sanitize filename for ZIP compatibility
+ * Removes or replaces characters that are problematic in filenames
+ */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*]/g, '_') // Replace invalid filename characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+    .slice(0, 100); // Limit length to 100 characters
+}
+
+/**
+ * Sanitize folder name for ZIP compatibility
+ * Similar to sanitizeFilename but preserves some structure
+ */
+function sanitizeFolderName(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*]/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+}
+
+/**
+ * Generate filename for a chat export
+ */
+function generateChatFilename(chat: ChatExport, format: 'json' | 'md'): string {
+  const safeTitle = sanitizeFilename(chat.title);
+  const timestamp = new Date(chat.createdAt).toISOString().split('T')[0];
+  return `${safeTitle}_${timestamp}.${format}`;
+}
+
+/**
+ * Export chats as ZIP file with folder structure preserved
+ * @param chatsByFolder Chats organized by folders
+ * @param format Export format ('json' or 'md')
+ * @param filename Optional custom filename for the ZIP
+ */
+export async function exportChatsAsZIP(
+  chatsByFolder: ChatsByFolder,
+  format: 'json' | 'md',
+  filename?: string
+): Promise<void> {
+  const zip = new JSZip();
+  const timestamp = new Date().toISOString().split('T')[0];
+  const defaultFilename = `sambung_chats_export_${timestamp}.zip`;
+  const finalFilename = filename || defaultFilename;
+
+  // Add chats in folders
+  for (const folder of chatsByFolder.folders) {
+    const folderName = sanitizeFolderName(folder.name);
+
+    for (const chat of folder.chats) {
+      const chatFilename = generateChatFilename(chat, format);
+      const folderPath = `${folderName}/${chatFilename}`;
+
+      let content: string;
+      if (format === 'json') {
+        content = exportToJSON(chat);
+      } else {
+        content = exportToMarkdown(chat);
+      }
+
+      zip.file(folderPath, content);
+    }
+  }
+
+  // Add uncategorized chats at root level
+  for (const chat of chatsByFolder.uncategorized) {
+    const chatFilename = generateChatFilename(chat, format);
+    let content: string;
+
+    if (format === 'json') {
+      content = exportToJSON(chat);
+    } else {
+      content = exportToMarkdown(chat);
+    }
+
+    zip.file(chatFilename, content);
+  }
+
+  // Generate ZIP file and trigger download
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = finalFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Export all chats as ZIP with both JSON and Markdown formats
+ * Creates a ZIP with subfolders for each format
+ * @param chatsByFolder Chats organized by folders
+ * @param filename Optional custom filename for the ZIP
+ */
+export async function exportChatsAsZIPOptimized(
+  chatsByFolder: ChatsByFolder,
+  filename?: string
+): Promise<void> {
+  const zip = new JSZip();
+  const timestamp = new Date().toISOString().split('T')[0];
+  const defaultFilename = `sambung_chats_export_${timestamp}.zip`;
+  const finalFilename = filename || defaultFilename;
+
+  // Create folders for each format
+  const jsonFolder = zip.folder('json');
+  const markdownFolder = zip.folder('markdown');
+
+  if (!jsonFolder || !markdownFolder) {
+    throw new Error('Failed to create ZIP folders');
+  }
+
+  // Add chats in folders
+  for (const folder of chatsByFolder.folders) {
+    const folderName = sanitizeFolderName(folder.name);
+
+    // Create subfolders in each format folder
+    const jsonSubfolder = jsonFolder.folder(folderName);
+    const markdownSubfolder = markdownFolder.folder(folderName);
+
+    if (!jsonSubfolder || !markdownSubfolder) continue;
+
+    for (const chat of folder.chats) {
+      const chatFilename = generateChatFilename(chat, 'json');
+      const mdFilename = generateChatFilename(chat, 'md');
+
+      jsonSubfolder.file(chatFilename, exportToJSON(chat));
+      markdownSubfolder.file(mdFilename, exportToMarkdown(chat));
+    }
+  }
+
+  // Add uncategorized chats at root level
+  for (const chat of chatsByFolder.uncategorized) {
+    const chatFilename = generateChatFilename(chat, 'json');
+    const mdFilename = generateChatFilename(chat, 'md');
+
+    jsonFolder.file(chatFilename, exportToJSON(chat));
+    markdownFolder.file(mdFilename, exportToMarkdown(chat));
+  }
+
+  // Generate ZIP file and trigger download
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(zipBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = finalFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
