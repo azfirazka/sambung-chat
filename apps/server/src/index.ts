@@ -132,7 +132,6 @@ app.post('/ai', async (c) => {
     });
 
     console.log('[AI] Session retrieved:', session ? 'Yes' : 'No');
-    console.log('[AI] User:', session?.user?.email || 'None');
 
     if (!session?.user) {
       console.log('[AI] Unauthorized - No session or user found');
