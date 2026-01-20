@@ -256,13 +256,25 @@ const envSchema = createEnv({
  * @throws Error if 'none' is used without secure cookies
  */
 export function getValidatedSameSiteSetting(): 'lax' | 'strict' | 'none' {
-  const isProduction = envSchema.NODE_ENV === 'production';
+  // Read directly from process.env for testability
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const sameSiteCookie = process.env.SAME_SITE_COOKIE;
+
+  const isProduction = nodeEnv === 'production';
   const isSecure = isProduction; // Secure cookies are only enabled in production
 
   // Get the user-configured value or use default
-  const configuredValue = envSchema.SAME_SITE_COOKIE;
+  // Empty string should be treated as undefined
+  const configuredValue = sameSiteCookie && sameSiteCookie.trim() !== '' ? sameSiteCookie : undefined;
   const defaultValue: 'lax' | 'strict' | 'none' = isProduction ? 'strict' : 'lax';
-  const sameSiteValue = configuredValue || defaultValue;
+
+  // Validate that configured value is one of the allowed values
+  const validValues = ['lax', 'strict', 'none'] as const;
+  const isValidConfig = configuredValue && validValues.includes(configuredValue as any);
+
+  const sameSiteValue: 'lax' | 'strict' | 'none' = isValidConfig
+    ? (configuredValue as 'lax' | 'strict' | 'none')
+    : defaultValue;
 
   // Validate that 'none' is only used with secure cookies
   if (sameSiteValue === 'none' && !isSecure) {
@@ -276,7 +288,7 @@ export function getValidatedSameSiteSetting(): 'lax' | 'strict' | 'none' {
   if (configuredValue) {
     console.log(`[SECURITY] SAME_SITE_COOKIE explicitly set to: ${sameSiteValue}`);
   } else {
-    console.log(`[SECURITY] SAME_SITE_COOKIE using default: ${sameSiteValue} (${isProduction ? 'production' : 'development'})`);
+    console.log(`[SECURITY] SAME_SITE_COOKIE using default: ${sameSiteValue} (${nodeEnv})`);
   }
 
   // Warn if using 'lax' in production
