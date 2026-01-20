@@ -103,6 +103,7 @@ describe('Content-Security-Policy', () => {
 
 		it('should include additional connect sources from config', () => {
 			const csp = getCSPHeader({
+				reportOnly: false,
 				connectSources: ['https://cdn.example.com'],
 			});
 
@@ -111,7 +112,7 @@ describe('Content-Security-Policy', () => {
 
 		it('should include report-uri when provided', () => {
 			const reportUri = 'https://csp-report.example.com/report';
-			const csp = getCSPHeader({ reportUri });
+			const csp = getCSPHeader({ reportOnly: false, reportUri });
 
 			expect(csp).toContain(`report-uri ${reportUri}`);
 		});
