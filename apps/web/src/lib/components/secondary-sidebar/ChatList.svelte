@@ -76,6 +76,8 @@
   let showPinnedOnly = $state(false);
   let selectedProviders = $state<Array<'openai' | 'anthropic' | 'google' | 'groq' | 'ollama' | 'custom'>>([]);
   let selectedModelIds = $state<Array<string>>([]);
+  let dateFrom = $state<string>('');
+  let dateTo = $state<string>('');
   let collapsedFolders = $state<Record<string, boolean>>({});
   let isInitialLoad = $state(true);
 
@@ -184,6 +186,12 @@
     }
   }
 
+  function handleDateChange() {
+    if (!isInitialLoad) {
+      loadChats();
+    }
+  }
+
   // Load chats with search & filters
   async function loadChats() {
     // Use searching state for filter changes, loading for initial load
@@ -201,6 +209,8 @@
         pinnedOnly: showPinnedOnly || undefined,
         providers: selectedProviders.length > 0 ? selectedProviders : undefined,
         modelIds: selectedModelIds.length > 0 ? selectedModelIds : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
       } as any);
       chats = result as Chat[];
     } catch (err) {
@@ -599,6 +609,57 @@
         </DropdownMenu.DropdownMenu>
       </div>
     {/if}
+
+    <!-- Date Range Filter -->
+    <div class="mt-2 flex items-center gap-2">
+      <div class="flex-1">
+        <Input
+          type="date"
+          value={dateFrom}
+          onchange={(e) => {
+            dateFrom = e.currentTarget.value;
+            handleDateChange();
+          }}
+          class="h-8 text-xs"
+          placeholder="From date"
+        />
+      </div>
+      <span class="text-muted-foreground text-xs">to</span>
+      <div class="flex-1">
+        <Input
+          type="date"
+          value={dateTo}
+          onchange={(e) => {
+            dateTo = e.currentTarget.value;
+            handleDateChange();
+          }}
+          class="h-8 text-xs"
+          placeholder="To date"
+        />
+      </div>
+      {#if dateFrom || dateTo}
+        <Button
+          size="sm"
+          variant="ghost"
+          onclick={() => {
+            dateFrom = '';
+            dateTo = '';
+            handleDateChange();
+          }}
+          class="h-8 px-2"
+          title="Clear date range"
+        >
+          <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </Button>
+      {/if}
+    </div>
   </Sidebar.Header>
 
   <!-- Content -->
