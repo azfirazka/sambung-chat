@@ -42,6 +42,39 @@ export interface ChatsByFolder {
 }
 
 /**
+ * Progress callback for batch export operations
+ * @param current Current number of items processed
+ * @param total Total number of items to process
+ * @param message Optional status message
+ */
+export type ExportProgressCallback = (
+  current: number,
+  total: number,
+  message?: string
+) => void;
+
+/**
+ * Error callback for failed exports
+ * @param chat The chat that failed to export
+ * @param error The error that occurred
+ * @returns boolean - true to continue exporting, false to abort
+ */
+export type ExportErrorCallback = (
+  chat: ChatExport,
+  error: Error
+) => boolean | void;
+
+/**
+ * Result of a batch export operation
+ */
+export interface BatchExportResult {
+  success: boolean;
+  exported: number;
+  failed: number;
+  errors: Array<{ chat: ChatExport; error: Error }>;
+}
+
+/**
  * Convert chat to JSON format
  */
 export function exportToJSON(chat: ChatExport): string {
@@ -217,14 +250,117 @@ export function exportChat(chat: ChatExport, format: 'json' | 'md' | 'txt', chat
 
 /**
  * Export multiple chats as a single JSON file
+ * @param chats Array of chats to export
+ * @param filename Optional custom filename
+ * @param onProgress Optional progress callback
+ * @param onError Optional error callback (returns true to continue, false to abort)
+ * @returns Promise<BatchExportResult> Export statistics
  */
-export function exportMultipleChats(chats: ChatExport[], filename?: string): void {
+export async function exportMultipleChats(
+  chats: ChatExport[],
+  filename?: string,
+  onProgress?: ExportProgressCallback,
+  onError?: ExportErrorCallback
+): Promise<BatchExportResult> {
   const timestamp = new Date().toISOString().split('T')[0];
   const defaultFilename = `sambung_chats_export_${timestamp}.json`;
   const finalFilename = filename || defaultFilename;
 
-  const content = JSON.stringify(chats, null, 2);
-  downloadFile(content, finalFilename, 'application/json');
+  const totalChats = chats.length;
+  let processedChats = 0;
+  const errors: Array<{ chat: ChatExport; error: Error }> = [];
+  const successfulExports: ChatExport[] = [];
+
+  // Process each chat
+  for (const chat of chats) {
+    try {
+      // Validate chat has required fields
+      if (!chat.id || !chat.title) {
+        throw new Error('Chat missing required fields (id or title)');
+      }
+
+      successfulExports.push(chat);
+      processedChats++;
+
+      // Report progress
+      if (onProgress) {
+        onProgress(processedChats, totalChats, `Processed: ${chat.title}`);
+      }
+    } catch (error) {
+      const exportError = error instanceof Error ? error : new Error(String(error));
+      errors.push({ chat, error: exportError });
+
+      // Call error callback
+      if (onError) {
+        const shouldContinue = onError(chat, exportError);
+        if (shouldContinue === false) {
+          break; // Abort processing
+        }
+      }
+    }
+  }
+
+  // Download the file (even if some chats failed, we export what we could)
+  try {
+    const content = JSON.stringify(successfulExports, null, 2);
+    downloadFile(content, finalFilename, 'application/json');
+  } catch (error) {
+    const downloadError =
+      error instanceof Error ? error : new Error('Failed to download file');
+    throw downloadError;
+  }
+
+  return {
+    success: errors.length === 0,
+    exported: processedChats,
+    failed: errors.length,
+    errors
+  };
+}
+
+/**
+ * Batch export utility for exporting all chats with various formats
+ * Provides a unified interface for all export operations
+ *
+ * @param chatsByFolder Chats organized by folders
+ * @param format Export format ('json' | 'md' | 'zip' | 'zip-optimized')
+ * @param options Optional configuration
+ * @returns Promise<BatchExportResult> Export statistics
+ */
+export async function exportAllChats(
+  chatsByFolder: ChatsByFolder,
+  format: 'json' | 'md' | 'zip' | 'zip-optimized',
+  options?: {
+    filename?: string;
+    onProgress?: ExportProgressCallback;
+    onError?: ExportErrorCallback;
+  }
+): Promise<BatchExportResult> {
+  const { filename, onProgress, onError } = options || {};
+
+  switch (format) {
+    case 'json': {
+      // Flatten all chats into a single array for JSON export
+      const allChats = [
+        ...chatsByFolder.uncategorized,
+        ...chatsByFolder.folders.flatMap((folder) => folder.chats)
+      ];
+
+      return exportMultipleChats(allChats, filename, onProgress, onError);
+    }
+
+    case 'md':
+      return exportChatsAsZIP(chatsByFolder, 'md', filename, onProgress, onError);
+
+    case 'zip':
+      return exportChatsAsZIP(chatsByFolder, 'json', filename, onProgress, onError);
+
+    case 'zip-optimized':
+      return exportChatsAsZIPOptimized(chatsByFolder, filename, onProgress, onError);
+
+    default:
+      throw new Error(`Unsupported export format: ${format}`);
+  }
 }
 
 /**
@@ -267,48 +403,98 @@ function generateChatFilename(chat: ChatExport, format: 'json' | 'md'): string {
  * @param chatsByFolder Chats organized by folders
  * @param format Export format ('json' or 'md')
  * @param filename Optional custom filename for the ZIP
+ * @param onProgress Optional progress callback
+ * @param onError Optional error callback (returns true to continue, false to abort)
+ * @returns Promise<BatchExportResult> Export statistics
  */
 export async function exportChatsAsZIP(
   chatsByFolder: ChatsByFolder,
   format: 'json' | 'md',
-  filename?: string
-): Promise<void> {
+  filename?: string,
+  onProgress?: ExportProgressCallback,
+  onError?: ExportErrorCallback
+): Promise<BatchExportResult> {
   const zip = new JSZip();
   const timestamp = new Date().toISOString().split('T')[0];
   const defaultFilename = `sambung_chats_export_${timestamp}.zip`;
   const finalFilename = filename || defaultFilename;
+
+  // Calculate total chats for progress tracking
+  const totalChats =
+    chatsByFolder.folders.reduce((sum, folder) => sum + folder.chats.length, 0) +
+    chatsByFolder.uncategorized.length;
+  let processedChats = 0;
+  const errors: Array<{ chat: ChatExport; error: Error }> = [];
 
   // Add chats in folders
   for (const folder of chatsByFolder.folders) {
     const folderName = sanitizeFolderName(folder.name);
 
     for (const chat of folder.chats) {
-      const chatFilename = generateChatFilename(chat, format);
-      const folderPath = `${folderName}/${chatFilename}`;
+      try {
+        const chatFilename = generateChatFilename(chat, format);
+        const folderPath = `${folderName}/${chatFilename}`;
 
+        let content: string;
+        if (format === 'json') {
+          content = exportToJSON(chat);
+        } else {
+          content = exportToMarkdown(chat);
+        }
+
+        zip.file(folderPath, content);
+        processedChats++;
+
+        // Report progress
+        if (onProgress) {
+          onProgress(processedChats, totalChats, `Exported: ${chat.title}`);
+        }
+      } catch (error) {
+        const exportError = error instanceof Error ? error : new Error(String(error));
+        errors.push({ chat, error: exportError });
+
+        // Call error callback
+        if (onError) {
+          const shouldContinue = onError(chat, exportError);
+          if (shouldContinue === false) {
+            throw exportError;
+          }
+        }
+      }
+    }
+  }
+
+  // Add uncategorized chats at root level
+  for (const chat of chatsByFolder.uncategorized) {
+    try {
+      const chatFilename = generateChatFilename(chat, format);
       let content: string;
+
       if (format === 'json') {
         content = exportToJSON(chat);
       } else {
         content = exportToMarkdown(chat);
       }
 
-      zip.file(folderPath, content);
+      zip.file(chatFilename, content);
+      processedChats++;
+
+      // Report progress
+      if (onProgress) {
+        onProgress(processedChats, totalChats, `Exported: ${chat.title}`);
+      }
+    } catch (error) {
+      const exportError = error instanceof Error ? error : new Error(String(error));
+      errors.push({ chat, error: exportError });
+
+      // Call error callback
+      if (onError) {
+        const shouldContinue = onError(chat, exportError);
+        if (shouldContinue === false) {
+          throw exportError;
+        }
+      }
     }
-  }
-
-  // Add uncategorized chats at root level
-  for (const chat of chatsByFolder.uncategorized) {
-    const chatFilename = generateChatFilename(chat, format);
-    let content: string;
-
-    if (format === 'json') {
-      content = exportToJSON(chat);
-    } else {
-      content = exportToMarkdown(chat);
-    }
-
-    zip.file(chatFilename, content);
   }
 
   // Generate ZIP file and trigger download
@@ -321,6 +507,13 @@ export async function exportChatsAsZIP(
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  return {
+    success: errors.length === 0,
+    exported: processedChats,
+    failed: errors.length,
+    errors
+  };
 }
 
 /**
@@ -328,11 +521,16 @@ export async function exportChatsAsZIP(
  * Creates a ZIP with subfolders for each format
  * @param chatsByFolder Chats organized by folders
  * @param filename Optional custom filename for the ZIP
+ * @param onProgress Optional progress callback
+ * @param onError Optional error callback (returns true to continue, false to abort)
+ * @returns Promise<BatchExportResult> Export statistics
  */
 export async function exportChatsAsZIPOptimized(
   chatsByFolder: ChatsByFolder,
-  filename?: string
-): Promise<void> {
+  filename?: string,
+  onProgress?: ExportProgressCallback,
+  onError?: ExportErrorCallback
+): Promise<BatchExportResult> {
   const zip = new JSZip();
   const timestamp = new Date().toISOString().split('T')[0];
   const defaultFilename = `sambung_chats_export_${timestamp}.zip`;
@@ -346,6 +544,13 @@ export async function exportChatsAsZIPOptimized(
     throw new Error('Failed to create ZIP folders');
   }
 
+  // Calculate total chats for progress tracking
+  const totalChats =
+    chatsByFolder.folders.reduce((sum, folder) => sum + folder.chats.length, 0) +
+    chatsByFolder.uncategorized.length;
+  let processedChats = 0;
+  const errors: Array<{ chat: ChatExport; error: Error }> = [];
+
   // Add chats in folders
   for (const folder of chatsByFolder.folders) {
     const folderName = sanitizeFolderName(folder.name);
@@ -357,21 +562,59 @@ export async function exportChatsAsZIPOptimized(
     if (!jsonSubfolder || !markdownSubfolder) continue;
 
     for (const chat of folder.chats) {
-      const chatFilename = generateChatFilename(chat, 'json');
-      const mdFilename = generateChatFilename(chat, 'md');
+      try {
+        const chatFilename = generateChatFilename(chat, 'json');
+        const mdFilename = generateChatFilename(chat, 'md');
 
-      jsonSubfolder.file(chatFilename, exportToJSON(chat));
-      markdownSubfolder.file(mdFilename, exportToMarkdown(chat));
+        jsonSubfolder.file(chatFilename, exportToJSON(chat));
+        markdownSubfolder.file(mdFilename, exportToMarkdown(chat));
+        processedChats++;
+
+        // Report progress
+        if (onProgress) {
+          onProgress(processedChats, totalChats, `Exported: ${chat.title}`);
+        }
+      } catch (error) {
+        const exportError = error instanceof Error ? error : new Error(String(error));
+        errors.push({ chat, error: exportError });
+
+        // Call error callback
+        if (onError) {
+          const shouldContinue = onError(chat, exportError);
+          if (shouldContinue === false) {
+            throw exportError;
+          }
+        }
+      }
     }
   }
 
   // Add uncategorized chats at root level
   for (const chat of chatsByFolder.uncategorized) {
-    const chatFilename = generateChatFilename(chat, 'json');
-    const mdFilename = generateChatFilename(chat, 'md');
+    try {
+      const chatFilename = generateChatFilename(chat, 'json');
+      const mdFilename = generateChatFilename(chat, 'md');
 
-    jsonFolder.file(chatFilename, exportToJSON(chat));
-    markdownFolder.file(mdFilename, exportToMarkdown(chat));
+      jsonFolder.file(chatFilename, exportToJSON(chat));
+      markdownFolder.file(mdFilename, exportToMarkdown(chat));
+      processedChats++;
+
+      // Report progress
+      if (onProgress) {
+        onProgress(processedChats, totalChats, `Exported: ${chat.title}`);
+      }
+    } catch (error) {
+      const exportError = error instanceof Error ? error : new Error(String(error));
+      errors.push({ chat, error: exportError });
+
+      // Call error callback
+      if (onError) {
+        const shouldContinue = onError(chat, exportError);
+        if (shouldContinue === false) {
+          throw exportError;
+        }
+      }
+    }
   }
 
   // Generate ZIP file and trigger download
@@ -384,4 +627,11 @@ export async function exportChatsAsZIPOptimized(
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  return {
+    success: errors.length === 0,
+    exported: processedChats,
+    failed: errors.length,
+    errors
+  };
 }
