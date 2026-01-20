@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2026-01-20
+
+### Fixed
+
+- **AI Endpoint API Key Decryption**: Fix "Invalid API key" error in `/ai` endpoint by implementing proper AES-256-GCM decryption ([apps/server/src/index.ts](apps/server/src/index.ts:130-142))
+  - Added `getDecryptedApiKey` helper function to decrypt API keys from database
+  - Previously API keys were not decrypted in `/ai` endpoint (only RPC endpoints were fixed)
+  - Now both endpoints (`/rpc/ai.stream` and `/ai`) properly decrypt stored API keys
+
+- **METHOD_NOT_SUPPORTED Error**: Fix ORPC error for OPTIONS requests by adding explicit handler ([apps/server/src/index.ts](apps/server/src/index.ts:97-99))
+  - Added `app.options('/rpc/*', ...)` handler to properly handle CORS preflight requests
+  - Prevents 405 errors when browser sends OPTIONS requests before actual RPC calls
+
+- **Model Management UI**: Add missing API Key selector field to model creation/edit forms ([apps/web/src/routes/app/settings/models-manager.svelte](apps/web/src/routes/app/settings/models-manager.svelte))
+  - Added API key dropdown that filters keys based on selected provider
+  - Users can now select stored API keys instead of relying solely on environment variables
+  - Shows key name and last 4 digits for easy identification
+  - Added link to API Keys management page for quick access
+
+### Changed
+
+- **Better Model Logging**: Enhanced logging in `/ai` endpoint to show both modelId and display name ([apps/server/src/index.ts](apps/server/src/index.ts:223))
+  - Logs now show: `[AI] Using active model: {provider} {modelId} {name}`
+  - Helps debug issues where display name differs from actual model ID
+
+### Technical Notes
+
+- **Model Fields**: Database has two separate fields:
+  - `name`: Display name (e.g., "Trial GLM", "GPT-4o")
+  - `modelId`: Actual model ID passed to API (e.g., "glm-4", "gpt-4o")
+- Ensure `modelId` contains the correct API model identifier, not the display name
+
+---
+
+## [0.0.9] - 2026-01-20
+
+### Fixed
+
+- **API Key Decryption**: Fix "Invalid API key" error for custom models by implementing proper AES-256-GCM decryption in AI router ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:58-87))
+  - `getDecryptedApiKey` function now properly decrypts API keys using the `decrypt` function from encryption module
+  - Previously returned encrypted key directly, causing authentication failures with AI providers
+
+- **Base URL Sanitization**: Prevent duplicate `/chat/completions` path in OpenAI-compatible provider URLs ([packages/api/src/lib/ai-provider-factory.ts](packages/api/src/lib/ai-provider-factory.ts:33-66))
+  - Added `sanitizeBaseURL` function that automatically removes endpoint paths like `/chat/completions`, `/completions` from user input
+  - Applied sanitization to all OpenAI-compatible providers (OpenAI, Custom, Groq, Ollama) and Anthropic
+  - Fixes issue where input like `https://api.example.com/v1/chat/completions` resulted in double path `https://api.example.com/v1/chat/completions/chat/completions`
+  - Now both `https://api.example.com/v1` and `https://api.example.com/v1/chat/completions` work correctly
+
+- **Provider Config Types**: Fix TypeScript errors by correcting property name from `model` to `modelId` in ProviderConfig ([packages/api/src/routers/ai.ts](packages/api/src/routers/ai.ts:151))
+  - Updated `getModelConfig` to use correct property name `modelId` instead of `model`
+  - Fixed all references to use `modelConfig.modelId` instead of `modelConfig.model`
+
+---
+
 ## [0.0.8] - 2026-01-20
 
 ### Added

@@ -25,7 +25,8 @@ import { ORPCError, eventIterator } from '@orpc/server';
 import { streamText, generateText } from 'ai';
 import { protectedProcedure } from '../index';
 import { ulidSchema } from '../utils/validation';
-import { createProvider, type ProviderConfig } from '../lib/providers';
+import { createAIProvider, type ProviderConfig } from '../lib/ai-provider-factory';
+import { decrypt } from '../lib/encryption';
 
 /**
  * Chat message schema for AI completion requests
@@ -55,15 +56,7 @@ const completionSettingsSchema = z.object({
  * @throws {ORPCError} If API key is not found or decryption fails
  */
 async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
-  // TODO: Implement proper decryption logic
-  // For now, this is a placeholder that assumes encrypted keys are stored
-  // In a production environment, you would use a proper encryption library
-
-  const apiKeyResults = await db
-    .select()
-    .from(apiKeys)
-    .where(eq(apiKeys.id, apiKeyId))
-    .limit(1);
+  const apiKeyResults = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
 
   if (apiKeyResults.length === 0) {
     throw new ORPCError('NOT_FOUND', {
@@ -79,10 +72,14 @@ async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
     });
   }
 
-  // Placeholder: Return encrypted key for now
-  // In production, you would decrypt this using a proper encryption scheme
-  // Example: await decrypt(apiKey.encryptedKey)
-  return apiKey.encryptedKey;
+  // Decrypt the API key using AES-256-GCM
+  try {
+    return decrypt(apiKey.encryptedKey);
+  } catch (error) {
+    throw new ORPCError('INTERNAL_SERVER_ERROR', {
+      message: 'Failed to decrypt API key',
+    });
+  }
 }
 
 /**
@@ -109,10 +106,7 @@ async function messageExists(
     .limit(1);
 
   // Check if the most recent message with this role has the same content
-  return (
-    existingMessages.length > 0 &&
-    existingMessages[0]?.content === content
-  );
+  return existingMessages.length > 0 && existingMessages[0]?.content === content;
 }
 
 /**
@@ -147,7 +141,7 @@ async function getModelConfig(modelId: string, userId: string): Promise<Provider
   // Build provider configuration
   const config: ProviderConfig = {
     provider: model.provider as any,
-    model: model.modelId,
+    modelId: model.modelId,
   };
 
   // Add API key if available
@@ -171,21 +165,57 @@ async function getModelConfig(modelId: string, userId: string): Promise<Provider
  * Error type constants for better error categorization
  */
 const ERROR_PATTERNS = {
-  RATE_LIMIT: ['rate limit', 'rate_limit_exceeded', '429', 'quota', 'too many requests', 'requests exceeded'],
-  AUTHENTICATION: ['api key', 'unauthorized', '401', '403', 'authentication', 'invalid api key', 'incorrect api key'],
-  MODEL_NOT_FOUND: ['model not found', 'invalid model', '404', 'model does not exist', 'no such model'],
-  CONTEXT_EXCEEDED: ['context', 'context_length_exceeded', 'tokens', 'too long', 'maximum', 'exceeds maximum length'],
+  RATE_LIMIT: [
+    'rate limit',
+    'rate_limit_exceeded',
+    '429',
+    'quota',
+    'too many requests',
+    'requests exceeded',
+  ],
+  AUTHENTICATION: [
+    'api key',
+    'unauthorized',
+    '401',
+    '403',
+    'authentication',
+    'invalid api key',
+    'incorrect api key',
+  ],
+  MODEL_NOT_FOUND: [
+    'model not found',
+    'invalid model',
+    '404',
+    'model does not exist',
+    'no such model',
+  ],
+  CONTEXT_EXCEEDED: [
+    'context',
+    'context_length_exceeded',
+    'tokens',
+    'too long',
+    'maximum',
+    'exceeds maximum length',
+  ],
   CONTENT_POLICY: ['content policy', 'content_filter', 'safety', 'moderation', 'policy violation'],
   INVALID_REQUEST: ['invalid', 'validation', 'schema', 'malformed', 'bad request', '400'],
   NETWORK: ['network', 'connection', 'fetch', 'econnrefused', 'etimedout', 'timeout', 'dns'],
-  SERVICE_UNAVAILABLE: ['503', 'service unavailable', 'maintenance', 'overloaded', 'temporarily unavailable'],
+  SERVICE_UNAVAILABLE: [
+    '503',
+    'service unavailable',
+    'maintenance',
+    'overloaded',
+    'temporarily unavailable',
+  ],
   PAYMENT_REQUIRED: ['payment', 'billing', 'insufficient', '402', 'quota exceeded'],
 } as const;
 
 /**
  * Type guard to check if error is an AI SDK error with additional properties
  */
-function isAIError(error: unknown): error is Error & { cause?: unknown; statusCode?: number; code?: string } {
+function isAIError(
+  error: unknown
+): error is Error & { cause?: unknown; statusCode?: number; code?: string } {
   return error instanceof Error;
 }
 
@@ -275,14 +305,16 @@ function handleAIError(error: unknown): never {
   // Context window exceeded
   if (matchesPattern(errorMessage, ERROR_PATTERNS.CONTEXT_EXCEEDED)) {
     throw new ORPCError('BAD_REQUEST', {
-      message: 'The conversation is too long. Please start a new chat or reduce the message length.',
+      message:
+        'The conversation is too long. Please start a new chat or reduce the message length.',
     });
   }
 
   // Content policy violations
   if (matchesPattern(errorMessage, ERROR_PATTERNS.CONTENT_POLICY)) {
     throw new ORPCError('BAD_REQUEST', {
-      message: 'The content was flagged by the safety filter. Please modify your message and try again.',
+      message:
+        'The content was flagged by the safety filter. Please modify your message and try again.',
     });
   }
 
@@ -316,7 +348,8 @@ function handleAIError(error: unknown): never {
 
   // Generic server error with sanitized message
   throw new ORPCError('INTERNAL_SERVER_ERROR', {
-    message: sanitizeErrorMessage(error.message) || 'An error occurred while processing your request',
+    message:
+      sanitizeErrorMessage(error.message) || 'An error occurred while processing your request',
   });
 }
 
@@ -344,7 +377,7 @@ export const aiRouter = {
         const modelConfig = await getModelConfig(input.modelId, userId);
 
         // Create the language model
-        const model = createProvider(modelConfig);
+        const model = createAIProvider(modelConfig);
 
         // Prepare AI SDK settings
         const aiSettings: any = {};
@@ -389,11 +422,7 @@ export const aiRouter = {
             // Save user message if it's the last message and not already saved
             const lastMessage = input.messages[input.messages.length - 1];
             if (lastMessage && lastMessage.role === 'user') {
-              const userMsgExists = await messageExists(
-                input.chatId,
-                'user',
-                lastMessage.content
-              );
+              const userMsgExists = await messageExists(input.chatId, 'user', lastMessage.content);
 
               if (!userMsgExists) {
                 await db.insert(messages).values({
@@ -410,17 +439,14 @@ export const aiRouter = {
               role: 'assistant',
               content: result.text,
               metadata: {
-                model: modelConfig.model,
+                model: modelConfig.modelId,
                 tokens: result.usage?.totalTokens,
                 finishReason: result.finishReason,
               },
             });
 
             // Update chat timestamp
-            await db
-              .update(chats)
-              .set({ updatedAt: new Date() })
-              .where(eq(chats.id, input.chatId));
+            await db.update(chats).set({ updatedAt: new Date() }).where(eq(chats.id, input.chatId));
           }
         }
 
@@ -469,11 +495,13 @@ export const aiRouter = {
           z.object({
             type: z.literal('finish'),
             finishReason: z.string().optional(),
-            usage: z.object({
-              promptTokens: z.number().optional(),
-              completionTokens: z.number().optional(),
-              totalTokens: z.number().optional(),
-            }).optional(),
+            usage: z
+              .object({
+                promptTokens: z.number().optional(),
+                completionTokens: z.number().optional(),
+                totalTokens: z.number().optional(),
+              })
+              .optional(),
           }),
           z.object({
             type: z.literal('error'),
@@ -496,7 +524,7 @@ export const aiRouter = {
         const modelConfig = await getModelConfig(input.modelId, userId);
 
         // Create the language model
-        const model = createProvider(modelConfig);
+        const model = createAIProvider(modelConfig);
 
         // Prepare AI SDK settings
         const aiSettings: any = {};
@@ -534,11 +562,7 @@ export const aiRouter = {
             // Save user message if not already saved
             const lastMessage = input.messages[input.messages.length - 1];
             if (lastMessage && lastMessage.role === 'user') {
-              const userMsgExists = await messageExists(
-                input.chatId,
-                'user',
-                lastMessage.content
-              );
+              const userMsgExists = await messageExists(input.chatId, 'user', lastMessage.content);
 
               if (!userMsgExists) {
                 await db.insert(messages).values({
@@ -596,7 +620,7 @@ export const aiRouter = {
             .set({
               content: fullText,
               metadata: {
-                model: modelConfig.model,
+                model: modelConfig.modelId,
                 tokens: finalUsage?.totalTokens,
                 finishReason: finalFinishReason,
               },
@@ -604,10 +628,7 @@ export const aiRouter = {
             .where(eq(messages.id, assistantMessageId));
 
           // Update chat timestamp
-          await db
-            .update(chats)
-            .set({ updatedAt: new Date() })
-            .where(eq(chats.id, input.chatId));
+          await db.update(chats).set({ updatedAt: new Date() }).where(eq(chats.id, input.chatId));
         }
 
         // Send final completion message
@@ -665,10 +686,7 @@ export const aiRouter = {
   listModels: protectedProcedure.handler(async ({ context }) => {
     const userId = context.session.user.id;
 
-    const userModels = await db
-      .select()
-      .from(models)
-      .where(eq(models.userId, userId));
+    const userModels = await db.select().from(models).where(eq(models.userId, userId));
 
     return userModels;
   }),
@@ -685,7 +703,7 @@ export const aiRouter = {
 
       try {
         const modelConfig = await getModelConfig(input.modelId, userId);
-        const model = createProvider(modelConfig);
+        const model = createAIProvider(modelConfig);
 
         // Make a simple test request
         await generateText({

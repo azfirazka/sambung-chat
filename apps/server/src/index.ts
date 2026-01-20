@@ -5,10 +5,12 @@ import { RPCHandler } from '@orpc/server/fetch';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import { createContext } from '@sambung-chat/api/context';
 import { appRouter } from '@sambung-chat/api/routers/index';
-import { createAIProvider } from '@sambung-chat/api/lib/ai-provider-factory';
+import { createAIProvider, type ProviderConfig } from '@sambung-chat/api/lib/ai-provider-factory';
+import { decrypt } from '@sambung-chat/api/lib/encryption';
 import { auth } from '@sambung-chat/auth';
 import { db } from '@sambung-chat/db';
 import { models } from '@sambung-chat/db/schema/model';
+import { apiKeys } from '@sambung-chat/db/schema/api-key';
 import { env } from '@sambung-chat/env/server';
 import { streamText, convertToModelMessages } from 'ai';
 import { eq, and } from 'drizzle-orm';
@@ -93,7 +95,13 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 // RPC middleware - applies context to RPC routes
-app.use('/rpc/*', async (c, next) => {
+// Handle OPTIONS first for CORS preflight
+app.options('/rpc/*', (c) => {
+  return c.text('', 200);
+});
+
+// Handle GET/POST for RPC calls
+app.all('/rpc/*', async (c, next) => {
   const context = await createContext({ context: c });
   const rpcResult = await rpcHandler.handle(c.req.raw, {
     prefix: '/rpc',
@@ -116,6 +124,19 @@ app.use('/api-reference/*', async (c, next) => {
   }
   await next();
 });
+
+/**
+ * Helper function to get decrypted API key
+ */
+async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
+  const apiKeyResults = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
+
+  if (apiKeyResults.length === 0 || !apiKeyResults[0]) {
+    throw new Error('API key not found');
+  }
+
+  return decrypt(apiKeyResults[0].encryptedKey);
+}
 
 // ============================================================================
 // AI ENDPOINT
@@ -184,7 +205,7 @@ app.post('/ai', async (c) => {
       .from(models)
       .where(and(eq(models.userId, userId), eq(models.isActive, true)));
 
-    let providerConfig;
+    let providerConfig: ProviderConfig;
 
     if (activeModels.length === 0) {
       // No active model set, use default OpenAI configuration
@@ -196,9 +217,15 @@ app.post('/ai', async (c) => {
     } else {
       // Use user's active model
       const activeModel = activeModels[0]!;
-      console.log('[AI] Using active model:', activeModel.provider, activeModel.modelId);
+      console.log(
+        '[AI] Using active model:',
+        activeModel.provider,
+        activeModel.modelId,
+        activeModel.name
+      );
 
-      providerConfig = {
+      // Build provider config with decrypted API key
+      const config: ProviderConfig = {
         provider: activeModel.provider as
           | 'openai'
           | 'anthropic'
@@ -208,9 +235,26 @@ app.post('/ai', async (c) => {
           | 'custom',
         modelId: activeModel.modelId,
         baseURL: activeModel.baseUrl ?? undefined,
-        // TODO: Implement API key decryption from activeModel.apiKeyId
-        // For now, rely on environment variables
       };
+
+      // Add decrypted API key if available
+      if (activeModel.apiKeyId) {
+        try {
+          config.apiKey = await getDecryptedApiKey(activeModel.apiKeyId);
+          console.log('[AI] API key loaded from database');
+        } catch (error) {
+          console.error('[AI] Failed to load API key:', error);
+          return c.json(
+            {
+              error: 'Configuration error',
+              details: 'Failed to decrypt API key. Please reconfigure your model.',
+            },
+            500
+          );
+        }
+      }
+
+      providerConfig = config;
     }
 
     // Validate request parameters based on provider

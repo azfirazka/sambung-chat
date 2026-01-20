@@ -17,7 +17,15 @@ import { groqModels, type GroqModel } from '../lib/groq-models';
 import { ollamaModels, type OllamaModel } from '../lib/ollama-models';
 
 // Provider enum for validation
-const providerEnum = z.enum(['openai', 'anthropic', 'google', 'groq', 'ollama', 'custom']);
+const providerEnum = z.enum([
+  'openai',
+  'anthropic',
+  'google',
+  'groq',
+  'ollama',
+  'openrouter',
+  'custom',
+]);
 
 // Settings schema for model parameters
 const modelSettingsSchema = z.object({
@@ -120,6 +128,7 @@ export const modelRouter = {
     .input(
       z.object({
         id: ulidSchema,
+        modelId: z.string().min(1).max(255).optional(),
         name: z.string().min(1).max(255).optional(),
         baseUrl: z.string().url().optional(),
         apiKeyId: ulidSchema.optional(),
@@ -130,7 +139,31 @@ export const modelRouter = {
     )
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
-      const { id, isActive, ...data } = input;
+      const { id, isActive, modelId, ...rest } = input;
+
+      // Build update data
+      const data: Record<string, any> = { ...rest };
+
+      // If modelId is being updated, validate it for Anthropic
+      if (modelId) {
+        // Get the model to check its provider
+        const existingModel = await db
+          .select()
+          .from(models)
+          .where(and(eq(models.id, id), eq(models.userId, userId)))
+          .limit(1);
+
+        if (existingModel.length > 0 && existingModel[0]?.provider === 'anthropic') {
+          if (!isValidAnthropicModel(modelId)) {
+            const validModelIds = getAnthropicModelIds().join(', ');
+            throw new ORPCError('BAD_REQUEST', {
+              message: `Invalid Anthropic model ID: "${modelId}". Valid models: ${validModelIds}`,
+            });
+          }
+        }
+
+        data.modelId = modelId;
+      }
 
       // If setting as active, deactivate all other models for this user
       if (isActive) {

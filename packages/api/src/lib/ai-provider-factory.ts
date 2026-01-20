@@ -10,7 +10,67 @@ type LanguageModel = ReturnType<typeof wrapLanguageModel>;
 /**
  * Supported AI providers
  */
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'groq' | 'ollama' | 'custom';
+export type AIProvider =
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'groq'
+  | 'ollama'
+  | 'openrouter'
+  | 'custom';
+
+/**
+ * Sanitizes base URL by removing common endpoint paths that AI SDK adds automatically
+ *
+ * AI SDK automatically appends `/chat/completions` to base URLs, so we need to
+ * remove these paths if users accidentally include them in their input.
+ *
+ * @param baseURL - The base URL to sanitize
+ * @returns Sanitized base URL without endpoint paths
+ *
+ * @example
+ * ```ts
+ * sanitizeBaseURL('https://api.example.com/v1/chat/completions')
+ * // Returns: 'https://api.example.com/v1'
+ *
+ * sanitizeBaseURL('https://api.example.com/v1')
+ * // Returns: 'https://api.example.com/v1'
+ * ```
+ */
+export function sanitizeBaseURL(baseURL: string | undefined): string | undefined {
+  if (!baseURL) return undefined;
+
+  try {
+    const url = new URL(baseURL);
+    let pathname = url.pathname;
+
+    // Remove common endpoint paths that AI SDK adds automatically
+    const pathsToRemove = [
+      '/chat/completions',
+      '/completions',
+      '/v1/chat/completions',
+      '/v1/completions',
+    ];
+
+    for (const pathToRemove of pathsToRemove) {
+      if (pathname.endsWith(pathToRemove)) {
+        pathname = pathname.slice(0, -pathToRemove.length);
+        break;
+      }
+    }
+
+    // Remove trailing slash unless it's the root
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1);
+    }
+
+    url.pathname = pathname;
+    return url.toString();
+  } catch (error) {
+    // If URL parsing fails, return original
+    return baseURL;
+  }
+}
 
 /**
  * Provider configuration options
@@ -31,7 +91,10 @@ export interface ProviderConfig {
 function createOpenAIProvider(config: ProviderConfig): LanguageModel {
   const openai = createOpenAICompatible({
     name: config.provider === 'custom' ? 'custom' : config.provider,
-    baseURL: config.baseURL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    baseURL:
+      sanitizeBaseURL(config.baseURL) ||
+      sanitizeBaseURL(env.OPENAI_BASE_URL) ||
+      'https://api.openai.com/v1',
     apiKey: config.apiKey || env.OPENAI_API_KEY || '',
   });
 
@@ -61,7 +124,7 @@ function createAnthropicProvider(config: ProviderConfig): LanguageModel {
   // Create Anthropic provider instance with custom settings
   const anthropicProvider = createAnthropic({
     apiKey,
-    baseURL: config.baseURL || env.ANTHROPIC_BASE_URL,
+    baseURL: sanitizeBaseURL(config.baseURL) || sanitizeBaseURL(env.ANTHROPIC_BASE_URL),
   });
 
   // Create the model from the provider
@@ -122,7 +185,10 @@ function createGoogleProvider(config: ProviderConfig): LanguageModel {
 function createGroqProvider(config: ProviderConfig): LanguageModel {
   const groq = createOpenAICompatible({
     name: 'groq',
-    baseURL: config.baseURL || env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
+    baseURL:
+      sanitizeBaseURL(config.baseURL) ||
+      sanitizeBaseURL(env.GROQ_BASE_URL) ||
+      'https://api.groq.com/openai/v1',
     apiKey: config.apiKey || env.GROQ_API_KEY || '',
   });
 
@@ -143,7 +209,10 @@ function createGroqProvider(config: ProviderConfig): LanguageModel {
 function createOllamaProvider(config: ProviderConfig): LanguageModel {
   const ollama = createOpenAICompatible({
     name: 'ollama',
-    baseURL: config.baseURL || env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
+    baseURL:
+      sanitizeBaseURL(config.baseURL) ||
+      sanitizeBaseURL(env.OLLAMA_BASE_URL) ||
+      'http://localhost:11434/v1',
     apiKey: config.apiKey || 'ollama', // Ollama doesn't require API key, but library expects one
   });
 
@@ -198,7 +267,6 @@ function createOllamaProvider(config: ProviderConfig): LanguageModel {
 export function createAIProvider(config: ProviderConfig): LanguageModel {
   switch (config.provider) {
     case 'openai':
-    case 'custom':
       return createOpenAIProvider(config);
 
     case 'anthropic':
@@ -212,6 +280,15 @@ export function createAIProvider(config: ProviderConfig): LanguageModel {
 
     case 'ollama':
       return createOllamaProvider(config);
+
+    case 'openrouter':
+      return createOpenAIProvider({
+        ...config,
+        baseURL: sanitizeBaseURL(config.baseURL) || 'https://openrouter.ai/api/v1',
+      });
+
+    case 'custom':
+      return createOpenAIProvider(config);
 
     default: {
       // TypeScript exhaustiveness check
@@ -230,7 +307,6 @@ export function createAIProvider(config: ProviderConfig): LanguageModel {
 export function isProviderConfigured(provider: AIProvider): boolean {
   switch (provider) {
     case 'openai':
-    case 'custom':
       return !!env.OPENAI_API_KEY;
 
     case 'anthropic':
@@ -244,6 +320,13 @@ export function isProviderConfigured(provider: AIProvider): boolean {
 
     case 'ollama':
       return true; // Ollama doesn't require API key
+
+    case 'openrouter':
+      // OpenRouter API key should be provided via model config
+      return true;
+
+    case 'custom':
+      return true; // Custom provider may use stored API keys
 
     default: {
       // TypeScript exhaustiveness check
