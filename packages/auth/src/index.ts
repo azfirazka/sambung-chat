@@ -59,5 +59,3 @@ export const auth = betterAuth({
     }),
   ],
 });
-
-console.log('[AUTH CONFIG] Better Auth initialized successfully');
