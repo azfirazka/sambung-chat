@@ -46,8 +46,15 @@ interface CSPConfig {
  */
 export function getCSPHeader(config: CSPConfig = { reportOnly: false }): string {
   // Get NODE_ENV from server environment
-  const nodeEnv = typeof process !== 'undefined' ? process.env.NODE_ENV : 'development';
-  const isDev = nodeEnv === 'development';
+  // In Vite/SvelteKit dev mode, default to development for safety
+  const nodeEnv =
+    typeof process !== 'undefined' ? process.env.NODE_ENV || 'development' : 'development';
+  const isDev = nodeEnv !== 'production'; // Treat non-production as development
+
+  // Log CSP mode for debugging (remove in production if desired)
+  if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    console.log(`[CSP] Mode: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'} (NODE_ENV=${nodeEnv})`);
+  }
 
   // Get PUBLIC_API_URL from server environment
   // In SvelteKit hooks.server.ts, PUBLIC_ vars are available via process.env
@@ -209,12 +216,9 @@ export function getPermissionsPolicyHeader(): string {
     // Gyroscope: Disable (not needed)
     'gyroscope=()',
 
-    // Speaker selection: Disable
-    'speaker-selection=()',
-
-    // VR/AR: Disable
-    'vr=()',
-    'xr=()',
+    // XR/VR: Disable (not needed)
+    // Use xr-spatial-tracking instead of deprecated vr/xr
+    'xr-spatial-tracking=()',
   ];
 
   return policies.join(', ');

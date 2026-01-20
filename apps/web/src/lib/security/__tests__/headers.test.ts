@@ -52,11 +52,12 @@ describe('Content-Security-Policy', () => {
       process.env.NODE_ENV = 'test';
     });
 
-    it('should return CSP header with default config', () => {
+    it('should return CSP header with default config (test environment = development mode)', () => {
       const csp = getCSPHeader();
 
       expect(csp).toContain("default-src 'self'");
-      expect(csp).toContain("script-src 'self'");
+      // Test environment is treated as development (not production)
+      expect(csp).toContain("script-src 'self' 'unsafe-eval' 'unsafe-inline'");
       expect(csp).toContain("style-src 'self' 'unsafe-inline'");
       expect(csp).toContain("img-src 'self' data: https:");
       expect(csp).toContain("font-src 'self'");
@@ -262,22 +263,10 @@ describe('Permissions-Policy', () => {
       expect(policy).toContain('gyroscope=()');
     });
 
-    it('should disable speaker-selection', () => {
+    it('should disable XR/VR spatial tracking', () => {
       const policy = getPermissionsPolicyHeader();
 
-      expect(policy).toContain('speaker-selection=()');
-    });
-
-    it('should disable VR', () => {
-      const policy = getPermissionsPolicyHeader();
-
-      expect(policy).toContain('vr=()');
-    });
-
-    it('should disable XR', () => {
-      const policy = getPermissionsPolicyHeader();
-
-      expect(policy).toContain('xr=()');
+      expect(policy).toContain('xr-spatial-tracking=()');
     });
 
     it('should allow geolocation from same origin', () => {
