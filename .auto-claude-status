@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "013-add-comprehensive-security-headers-to-prevent-xss-",
-  "state": "completed",
+  "spec": "014-remove-verbose-logging-of-sensitive-session-and-au",
+  "state": "complete",
   "subtasks": {
-    "completed": 32,
-    "total": 32,
-    "in_progress": 0,
+    "completed": 0,
+    "total": 0,
+    "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Documentation & Cleanup",
-    "id": null,
-    "total": 5
+    "current": "",
+    "id": 0,
+    "total": 0
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 34,
-    "started_at": "2026-01-20T12:53:56.660879"
+    "number": 14,
+    "started_at": "2026-01-20T12:53:59.378492"
   },
-  "last_update": "2026-01-20T17:15:00.000000+00:00"
+  "last_update": "2026-01-20T13:28:06.364578"
 }

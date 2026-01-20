@@ -7,18 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.5] - 2026-01-20
 
+### Fixed
+
+- **Security - Debug Endpoint PII Exposure**: Remove user email and name from `/debug/session` endpoint response to prevent GDPR/CCPA violation through unauthenticated debug endpoint ([apps/server/src/index.ts](apps/server/src/index.ts:267-277))
+- **Security - Cookie Preview Exposure**: Remove `cookiePreview` field from `/debug/session` endpoint that exposed first 100 characters of session cookies ([apps/server/src/index.ts](apps/server/src/index.ts:267-277))
+- **Security - Auth Configuration Logging**: Remove console.log statements that exposed DATABASE_URL, BETTER_AUTH_URL, CORS_ORIGIN, and Keycloak credentials ([packages/auth/src/index.ts](packages/auth/src/index.ts:8-31))
+- **Security - Session Token Logging**: Remove logging of complete cookie header including session tokens from `/ai` endpoint ([apps/server/src/index.ts](apps/server/src/index.ts:127-143))
+- **Security - User Email Logging**: Remove logging of user email addresses from `/ai` endpoint ([apps/server/src/index.ts](apps/server/src/index.ts:135))
+- **Security - Session Status Logging**: Remove logging of session retrieval status and unauthorized attempts ([apps/server/src/index.ts](apps/server/src/index.ts:134-137))
+- **Security - Error Object Logging**: Sanitize error logging in `/ai` endpoint to prevent stack trace and sensitive data exposure ([apps/server/src/index.ts](apps/server/src/index.ts:198))
+
 ### Security
 
-- **Security Headers**: Add comprehensive security headers to prevent XSS, clickjacking, MIME-sniffing, and other web attacks
-  - Frontend (SvelteKit): Implemented 7 security headers including Content-Security-Policy with 12 directives, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Strict-Transport-Security, Permissions-Policy, Referrer-Policy, and Cross-Origin-Opener-Policy ([apps/web/src/lib/security/headers.ts](apps/web/src/lib/security/headers.ts), [apps/web/src/hooks.server.ts](apps/web/src/hooks.server.ts))
-  - Backend (Hono): Implemented 5 API-specific security headers including X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Strict-Transport-Security (production only), Permissions-Policy (all features disabled), and Cross-Origin-Resource-Policy (same-site) ([apps/server/src/middleware/security.ts](apps/server/src/middleware/security.ts), [apps/server/src/index.ts](apps/server/src/index.ts:37))
-  - Environment Configuration: Added 12 optional environment variables for flexible security header configuration (SECURITY_HEADERS_ENABLED, CSP_HEADER, CSP_REPORT_ONLY, HSTS_MAX_AGE, HSTS_INCLUDE_SUBDOMAINS, HSTS_PRELOAD, X_FRAME_OPTIONS, X_CONTENT_TYPE_OPTIONS, REFERRER_POLICY, PERMISSIONS_POLICY, CROSS_ORIGIN_OPENER_POLICY, CROSS_ORIGIN_RESOURCE_POLICY) ([packages/env/src/server.ts](packages/env/src/server.ts))
-  - Testing: Created 168 comprehensive unit tests (74 SvelteKit + 70 Hono) verifying all security headers, environment configurations, and OWASP/SOC2/PCI-DSS compliance ([apps/web/src/lib/security/**tests**/headers.test.ts](apps/web/src/lib/security/__tests__/headers.test.ts), [apps/server/src/middleware/**tests**/security.test.ts](apps/server/src/middleware/__tests__/security.test.ts))
-  - Documentation: Created comprehensive security headers guide with CSP directives reference, environment variables, troubleshooting, and compliance mapping ([docs/security-headers.md](docs/security-headers.md))
+- **OWASP A09:2021 Compliance**: Addressed Security Logging and Monitoring Failures by removing all sensitive data from application logs
+- **GDPR/CCPA Compliance**: Prevented PII exposure in logs and debug endpoints
+- **Session Security**: Eliminated session token exposure in logs and debug responses
 
-### Added
-
-- **Security Documentation**: Add comprehensive security headers documentation explaining implementation, configuration, testing, and compliance requirements
+---
 
 ## [0.0.4] - 2026-01-19
 
