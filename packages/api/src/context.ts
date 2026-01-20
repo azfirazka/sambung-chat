@@ -20,7 +20,10 @@ function getClientIp(context: HonoContext): string {
   const forwardedFor = context.req.raw.headers.get('x-forwarded-for');
   if (forwardedFor) {
     // Take the first IP (original client)
-    return forwardedFor.split(',')[0].trim();
+    const firstIp = forwardedFor.split(',')[0]?.trim();
+    if (firstIp) {
+      return firstIp;
+    }
   }
 
   // Check X-Real-IP header
@@ -41,8 +44,10 @@ function getClientIp(context: HonoContext): string {
 }
 
 export async function createContext({ context }: CreateContextOptions) {
+  const headers = context.req.raw.headers;
+
   const session = await auth.api.getSession({
-    headers: context.req.raw.headers,
+    headers,
   });
 
   const clientIp = getClientIp(context);
@@ -50,6 +55,7 @@ export async function createContext({ context }: CreateContextOptions) {
   return {
     session,
     clientIp,
+    headers,
   };
 }
 

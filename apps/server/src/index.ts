@@ -23,7 +23,7 @@ app.use(
   cors({
     origin: (env.CORS_ORIGIN || 'http://localhost:5174').split(','),
     allowMethods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'],
-    allowHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie', 'X-CSRF-Token'],
     exposeHeaders: ['Set-Cookie', 'Content-Length', 'Content-Type'],
     credentials: true,
     maxAge: 86400,

@@ -2,14 +2,6 @@ import { env } from '@sambung-chat/env/server';
 import crypto from 'node:crypto';
 
 /**
- * CSRF token structure with timestamp for expiration
- */
-interface CsrfTokenData {
-  token: string;
-  timestamp: number;
-}
-
-/**
  * Default CSRF token expiration time (1 hour in milliseconds)
  */
 const DEFAULT_TOKEN_EXPIRATION = 60 * 60 * 1000;
@@ -43,10 +35,6 @@ export function generateCsrfToken(): string {
 
   // Add timestamp for expiration
   const timestamp = Date.now();
-  const tokenData: CsrfTokenData = {
-    token: randomToken,
-    timestamp,
-  };
 
   // Create the token payload
   const payload = `${randomToken}|${timestamp}`;
@@ -98,9 +86,20 @@ export function validateCsrfToken(tokenString: string, maxAge: number = DEFAULT_
   const [randomToken, timestampStr, providedSignature] = parts;
 
   // Verify timestamp is a valid number
+  if (!timestampStr) {
+    console.warn('[SECURITY] CSRF token has missing timestamp');
+    return false;
+  }
+
   const timestamp = parseInt(timestampStr, 10);
   if (isNaN(timestamp)) {
     console.warn('[SECURITY] CSRF token has invalid timestamp');
+    return false;
+  }
+
+  // Verify signature is present
+  if (!providedSignature) {
+    console.warn('[SECURITY] CSRF token has missing signature');
     return false;
   }
 
@@ -120,10 +119,16 @@ export function validateCsrfToken(tokenString: string, maxAge: number = DEFAULT_
 
   // Use constant-time comparison to prevent timing attacks
   // This prevents attackers from learning if their guess is partially correct
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(expectedSignature, 'hex'),
-    Buffer.from(providedSignature, 'hex')
-  );
+  let isValid = false;
+  try {
+    isValid = crypto.timingSafeEqual(
+      Buffer.from(expectedSignature, 'hex'),
+      Buffer.from(providedSignature, 'hex')
+    );
+  } catch (error) {
+    console.warn('[SECURITY] CSRF token signature verification error:', error);
+    return false;
+  }
 
   if (!isValid) {
     console.warn('[SECURITY] CSRF token signature verification failed');
@@ -150,7 +155,12 @@ export function getCsrfTokenTimestamp(tokenString: string): Date | null {
     return null;
   }
 
-  const timestamp = parseInt(parts[1], 10);
+  const timestampStr = parts[1];
+  if (!timestampStr) {
+    return null;
+  }
+
+  const timestamp = parseInt(timestampStr, 10);
   if (isNaN(timestamp)) {
     return null;
   }

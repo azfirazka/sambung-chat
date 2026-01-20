@@ -80,7 +80,6 @@ describe('CSRF Utilities', () => {
       const parts = token.split('|');
       const recentTimestamp = Date.now() - 30 * 60 * 1000; // 30 minutes ago
       parts[1] = recentTimestamp.toString();
-      const recentToken = parts.join('|');
 
       // Signature will be invalid but let's test expiration logic separately
       const timestamp = parseInt(parts[1], 10);
