@@ -368,18 +368,13 @@
     try {
       const exportData = {
         ...chatData,
-        messages: chat.messages.map((msg, idx) => {
-          const textPart = msg.parts?.find(
-            (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
-          );
-          const content = textPart && 'text' in textPart ? textPart.text : '';
-          return {
-            id: chatId() || '', // Use ULID string
-            role: msg.role,
-            content: content,
-            createdAt: new Date(),
-          };
-        }),
+        messages: chatData.messages.map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          metadata: msg.metadata,
+          createdAt: msg.createdAt,
+        })),
       };
       exportChat(exportData, format, chatId() || undefined);
     } catch (err) {
