@@ -1,11 +1,11 @@
 {
   "active": true,
   "spec": "013-add-comprehensive-security-headers-to-prevent-xss-",
-  "state": "building",
+  "state": "completed",
   "subtasks": {
-    "completed": 30,
+    "completed": 32,
     "total": 32,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 32,
+    "number": 34,
     "started_at": "2026-01-20T12:53:56.660879"
   },
-  "last_update": "2026-01-20T15:20:47.571094"
+  "last_update": "2026-01-20T17:15:00.000000+00:00"
 }
