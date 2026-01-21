@@ -6,13 +6,14 @@
  * Run with: bun test packages/api/src/routers/model.test.ts
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { openaiModels } from '../lib/openai-models';
 import { anthropicModels } from '../lib/anthropic-models';
 import { googleModels } from '../lib/google-models';
 import { groqModels } from '../lib/groq-models';
 import { ollamaModels } from '../lib/ollama-models';
-import { transformToAvailableModel, AvailableModel } from '../lib/model-types';
+import { transformToAvailableModel } from '../lib/model-types';
+import type { AvailableModel } from '../lib/model-types';
 
 // Set up minimal environment variables for testing (use process.env with fallbacks)
 process.env.DATABASE_URL =
@@ -100,7 +101,7 @@ describe('Model Router - getAvailableModels Transformation', () => {
 
       for (const provider of providers) {
         if (result[provider].length > 0) {
-          const model = result[provider][0];
+          const model = result[provider][0]!;
 
           expect(typeof model.id).toBe('string');
           expect(typeof model.name).toBe('string');
@@ -340,14 +341,14 @@ describe('Model Router - getAvailableModels Transformation', () => {
 
       // Try to mutate the result
       if (result1.openai.length > 0) {
-        const originalId = result1.openai[0].id;
-        result1.openai[0].id = 'mutated-id';
+        const originalId = result1.openai[0]!.id;
+        result1.openai[0]!.id = 'mutated-id';
 
         // Generate again
         const result2 = getAvailableModelsResult();
 
         // The new result should not be affected by our mutation
-        expect(result2.openai[0].id).toBe(originalId);
+        expect(result2.openai[0]!.id).toBe(originalId);
       }
     });
   });

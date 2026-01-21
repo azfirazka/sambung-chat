@@ -14,7 +14,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { transformToAvailableModel, BaseProviderModel, AvailableModel } from './model-types';
+import { transformToAvailableModel } from './model-types';
+import type { BaseProviderModel, AvailableModel } from './model-types';
 
 // Test model implementations that match BaseProviderModel interface
 interface TestModel extends BaseProviderModel {
@@ -354,9 +355,9 @@ describe('transformToAvailableModel', () => {
       const results = testModels.map(transformToAvailableModel);
 
       expect(results).toHaveLength(3);
-      expect(results[0].id).toBe('model-1');
-      expect(results[1].id).toBe('model-2');
-      expect(results[2].id).toBe('model-3');
+      expect(results[0]!.id).toBe('model-1');
+      expect(results[1]!.id).toBe('model-2');
+      expect(results[2]!.id).toBe('model-3');
 
       // Verify all results are AvailableModel type
       results.forEach((result) => {
@@ -392,7 +393,7 @@ describe('transformToAvailableModel', () => {
       const results = singleModel.map(transformToAvailableModel);
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('single-model');
+      expect(results[0]!.id).toBe('single-model');
     });
 
     it('should transform mixed provider models', () => {
