@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.17] - 2026-01-21
+
+### Added
+
+- **Consistent Sidebar Toggle**: Add global secondary sidebar toggle functionality across all pages ([apps/web/src/lib/stores/secondary-sidebar.ts](apps/web/src/lib/stores/secondary-sidebar.ts:1))
+  - Create `secondarySidebarStore` for global state management using Svelte stores
+  - Create reusable `SecondarySidebarTrigger` component for consistent toggle button
+  - Update agents, prompts, chat, and chat/[id] pages to use the trigger
+  - Remove duplicate collapse button from ChatList to avoid UX confusion
+
+- **Settings Navigation Sidebar**: Add dedicated settings navigation in secondary sidebar ([apps/web/src/lib/components/secondary-sidebar/SettingsNav.svelte](apps/web/src/lib/components/secondary-sidebar/SettingsNav.svelte:1))
+  - Settings pages now use consistent secondary sidebar pattern
+  - Navigation items: Account, API Keys, Models (in that order)
+  - Active state highlighting for current settings page
+
+- **Account Settings Page**: Create new account settings page with profile and security sections ([apps/web/src/routes/app/settings/account/+page.svelte](apps/web/src/routes/app/settings/account/+page.svelte:1))
+  - Display user profile information (name, email, avatar with initials)
+  - Account details section (display name, email, account ID)
+  - Security section with password change functionality
+  - Danger zone with account deletion option
+
+- **Models Settings Route**: Move models management to dedicated route ([apps/web/src/routes/app/settings/models/+page.svelte](apps/web/src/routes/app/settings/models/+page.svelte:1))
+  - Models page now at `/app/settings/models` instead of `/app/settings`
+  - Cleaner routing structure with dedicated settings routes
+
+### Changed
+
+- **Settings Routes Restructure**: Reorganize settings routing for better UX ([apps/web/src/routes/app/settings/+page.server.ts](apps/web/src/routes/app/settings/+page.server.ts:1))
+  - `/app/settings` now redirects to `/app/settings/account` (default settings page)
+  - `/app/settings/account` - Account settings page
+  - `/app/settings/api-keys` - API Keys management (existing)
+  - `/app/settings/models` - Models management (moved from root settings)
+
+- **NavUser Menu Updates**: Simplify and reorganize user dropdown menu ([apps/web/src/lib/components/nav-user.svelte](apps/web/src/lib/components/nav-user.svelte:1))
+  - Remove "Settings", "Billing", and "Upgrade to Pro" menu items
+  - Reorder menu: Account → API Keys → Models
+  - Add user initials extraction from name for avatar fallback
+  - Update menu items to link to new settings routes
+
+- **Settings Header Pattern**: Apply consistent header pattern across all settings pages ([apps/web/src/routes/app/settings/+page.svelte](apps/web/src/routes/app/settings/+page.svelte:1), [apps/web/src/routes/app/settings/api-keys/+page.svelte](apps/web/src/routes/app/settings/api-keys/+page.svelte:1))
+  - All settings pages now use `SecondarySidebarTrigger` component
+  - Consistent breadcrumb navigation with proper hierarchy
+  - Removed custom sidebars from individual settings pages
+
+### Fixed
+
+- **User Avatar Initials**: Display actual user initials instead of hardcoded "CN" ([apps/web/src/lib/components/nav-user.svelte](apps/web/src/lib/components/nav-user.svelte:19-28))
+  - Extract initials from user name (first letter of each word, max 2 characters)
+  - Applied to both trigger button and dropdown menu avatars
+  - Works with single or multi-word names
+
+---
+
 ## [0.0.16] - 2026-01-21
 
 ### Fixed
