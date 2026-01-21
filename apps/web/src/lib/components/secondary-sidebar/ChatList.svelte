@@ -142,8 +142,17 @@
     custom: 'Custom',
   };
 
-  // Computed - check if any filters are active (for showing "Clear All" button)
+  // Computed - check if advanced filters are active (for filter button state)
   let hasActiveFilters = $derived(
+    !isInitialLoad &&
+      (selectedProviders.length > 0 ||
+        selectedModelIds.length > 0 ||
+        dateFrom !== '' ||
+        dateTo !== '')
+  );
+
+  // Computed - check if any filters are active (for showing "Clear All" button)
+  let hasAnyFilters = $derived(
     !isInitialLoad &&
       (searchQuery !== '' ||
         selectedFolderId !== '' ||
@@ -1026,7 +1035,7 @@
         <Button
           variant="ghost"
           onclick={handleClearAllFilters}
-          disabled={!hasActiveFilters}
+          disabled={!hasAnyFilters}
           class="text-muted-foreground"
         >
           <RotateCcwIcon class="mr-2 size-4" />
