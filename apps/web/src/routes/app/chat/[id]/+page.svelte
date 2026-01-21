@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { orpc } from '$lib/orpc';
   import { Chat } from '@ai-sdk/svelte';
   import { DefaultChatTransport } from 'ai';
@@ -36,6 +37,7 @@
   let stoppedMessageContent = $state<string | null>(null);
   let isSubmitting = $state(false);
   let chatData = $state<Awaited<ReturnType<typeof orpc.chat.getById>> | null>(null);
+  let activeModel = $state<Awaited<ReturnType<typeof orpc.model.getActive>> | null>(null);
   let loading = $state(true);
   const MAX_RETRIES = 3;
 
@@ -52,10 +54,9 @@
     if (typeof input === 'string' && input.includes('/api/ai')) {
       const body = init?.body ? JSON.parse(init.body as string) : {};
 
-      // Add modelId from chatData if available
-      if (chatData?.modelId) {
-        body.modelId = chatData.modelId;
-      }
+      // Don't send modelId - let backend use the active model instead
+      // This ensures chats always use the current active model, not outdated modelId
+      delete body.modelId;
 
       return fetch(input, {
         ...init,
@@ -271,7 +272,12 @@
 
     loading = true;
     try {
-      const data = await orpc.chat.getById({ id: chatId()! });
+      // Fetch chat data and active model in parallel
+      const [data, model] = await Promise.all([
+        orpc.chat.getById({ id: chatId()! }),
+        orpc.model.getActive(),
+      ]);
+
       if (data) {
         chatData = data;
 
@@ -314,6 +320,9 @@
           }
         }
       }
+
+      // Store active model for display (always set, even if data is null)
+      activeModel = model;
     } catch (err) {
       console.error('Failed to load chat:', err);
       const errorObj = err instanceof Error ? err : new Error('Failed to load chat');
@@ -668,9 +677,10 @@
               <ClockIcon class="size-3" />
               {chatStats().lastActivity || 'N/A'}
             </span>
-            {#if chatData.modelId}
-              <span class="text-muted-foreground flex items-center gap-1">
-                <span class="font-masonic text-xs">{chatData.modelId}</span>
+            {#if activeModel}
+              <span class="flex items-center gap-1">
+                <CodeIcon class="size-3" />
+                {activeModel.name}
               </span>
             {/if}
           </p>
@@ -719,20 +729,70 @@
     {:else}
       <div class="mx-auto max-w-3xl space-y-6">
         {#each messages as message, index (message.id || index)}
+          {@const isLast = index === messages.length - 1}
+          {@const isStreamingMessage =
+            message.role === 'assistant' && isLast && isStreamingResponse && !wasStopped}
+          {@const isStoppedMessage =
+            message.role === 'assistant' && isLast && wasStopped && !isStreamingResponse}
+          {@const isThisStoppedMessage = message.id === stoppedMessageId}
           {@const messageText =
             (message.parts?.find((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
               ?.text as string) || ''}
           <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
             <div
-              class="max-w-[80%] rounded-lg px-4 py-2 {message.role === 'user'
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-muted text-card-foreground'}"
+              class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base {message.role ===
+              'user'
+                ? 'bg-accent text-accent-foreground rounded-tr-sm'
+                : 'bg-muted text-card-foreground rounded-tl-sm'}"
             >
+              <p
+                class="mb-1.5 text-xs font-medium opacity-70"
+                class:text-accent-foreground={message.role === 'user'}
+                class:text-muted-foreground={message.role === 'assistant'}
+              >
+                {message.role === 'user' ? 'You' : 'AI Assistant'}
+                {#if isStreamingMessage}
+                  <span class="ml-2 inline-flex items-center gap-1">
+                    <span class="animate-pulse">●</span>
+                    <span class="animate-pulse" style="animation-delay: 0.2s">●</span>
+                    <span class="animate-pulse" style="animation-delay: 0.4s">●</span>
+                  </span>
+                {:else if isStoppedMessage}
+                  <span class="text-muted-foreground ml-2 inline-flex items-center gap-1">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect x="6" y="6" width="12" height="12" rx="1" />
+                    </svg>
+                    <span>Stopped</span>
+                  </span>
+                {/if}
+              </p>
+
               {#if message.role === 'assistant'}
                 <div
-                  class="prose-p:text-card-foreground prose prose-sm max-w-none dark:prose-invert"
+                  class="markdown-content prose-p:text-card-foreground prose prose-sm max-w-none dark:prose-invert"
+                  class:opacity-70={isThisStoppedMessage}
                 >
-                  {@html renderMarkdownSync(messageText)}
+                  {#if isThisStoppedMessage && stoppedMessageContent}
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
+                    {@html stoppedMessageContent}
+                  {:else}
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
+                    {@html renderMarkdownSync(messageText)}
+                    {#if isStreamingMessage && !messageText}
+                      <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
+                      ></span>
+                    {/if}
+                  {/if}
                 </div>
                 <!-- Token display for assistant messages -->
                 <div class="mt-2">
@@ -753,6 +813,29 @@
                 <div class="whitespace-pre-wrap">{messageText}</div>
               {/if}
             </div>
+
+            {#if isStoppedMessage}
+              <div
+                in:fade={{ duration: 300 }}
+                class="text-muted-foreground mt-2 ml-4 flex items-center gap-2 text-sm"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="shrink-0"
+                >
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+                <span class="italic">Generation stopped by user</span>
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
