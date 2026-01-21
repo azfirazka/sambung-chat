@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Now that apiKeyRouter is fixed, re-enabled the function to load API keys
   - API keys are now properly fetched and displayed in dropdown when creating/editing models
 
+- **LaTeX/KaTeX Rendering Fix**: Fix LaTeX placeholder format to avoid markdown interpretation ([apps/web/src/lib/markdown-renderer.ts](apps/web/src/lib/markdown-renderer.ts:69,81))
+  - Changed placeholder from `__LATEX_BLOCK_N__` to `%%%LATEX_BLOCK_N%%%`
+  - Double underscores were being interpreted as markdown bold syntax
+  - LaTeX math formulas now render correctly with KaTeX
+
 - **Direct Backend Connection**: Frontend now connects directly to backend server in development ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:6-25), [apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte:13-20), [apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:24-31))
   - Eliminates need for Vite proxy configuration restarts
   - ORPC client uses `http://localhost:SERVER_PORT` in development (default: 3000)

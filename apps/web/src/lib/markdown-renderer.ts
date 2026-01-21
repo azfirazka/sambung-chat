@@ -66,7 +66,7 @@ function protectLatexDelimiters(text: string): {
 
   // Protect block math ($$...$$)
   processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-    const placeholder = `__LATEX_BLOCK_${placeholderIndex}__`;
+    const placeholder = `%%%LATEX_BLOCK_${placeholderIndex}%%%`;
     latexMap.set(placeholder, { latex: latex.trim(), displayMode: true });
     placeholderIndex++;
     return placeholder;
@@ -78,7 +78,7 @@ function protectLatexDelimiters(text: string): {
     if (latex.length <= 2 && !/[0-9]/.test(latex)) {
       return match; // Keep original for currency-like patterns
     }
-    const placeholder = `__LATEX_INLINE_${placeholderIndex}__`;
+    const placeholder = `%%%LATEX_INLINE_${placeholderIndex}%%%`;
     latexMap.set(placeholder, { latex: latex.trim(), displayMode: false });
     placeholderIndex++;
     return placeholder;
