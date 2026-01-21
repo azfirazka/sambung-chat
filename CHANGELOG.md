@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added export: `apiKey: apiKeyRouter` to appRouter object
   - Fixes `/rpc/apiKey/getAll`, `/rpc/apiKey/create`, `/rpc/apiKey/update`, `/rpc/apiKey/delete`
 
+- **API Key Dropdown Not Showing**: Re-enable loadApiKeys function in model settings ([apps/web/src/routes/app/settings/models-manager.svelte](apps/web/src/routes/app/settings/models-manager.svelte:110-119))
+  - Function was commented out with TODO note, causing API key dropdown to be empty
+  - Now that apiKeyRouter is fixed, re-enabled the function to load API keys
+  - API keys are now properly fetched and displayed in dropdown when creating/editing models
+
 - **Direct Backend Connection**: Frontend now connects directly to backend server in development ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:6-25), [apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte:13-20), [apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:24-31))
   - Eliminates need for Vite proxy configuration restarts
   - ORPC client uses `http://localhost:SERVER_PORT` in development (default: 3000)
