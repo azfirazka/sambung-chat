@@ -313,6 +313,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automatic Cleanup**: Rate limiter automatically removes old entries every 5 minutes
 - **Concurrent Request Prevention**: CSRF token manager prevents duplicate token fetches
 
+### Changed
+
+- **Markdown Export Format**: Enhanced Markdown export with improved readability and structure ([apps/web/src/lib/utils/chat-export.ts](apps/web/src/lib/utils/chat-export.ts:103-180))
+  - Added blockquote-style metadata header with emojis and clear formatting
+  - Message-level timestamps with consistent date formatting
+  - Clear horizontal rule separators between messages
+  - Enhanced metadata section with bullet points and code formatting
+  - Support for system messages with dedicated icon
+  - Added message count and folder information to header
+
 ---
 
 ## [0.0.4] - 2026-01-19
