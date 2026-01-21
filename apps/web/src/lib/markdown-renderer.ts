@@ -1,7 +1,8 @@
 /**
- * Markdown Renderer with Syntax Highlighting
+ * Markdown Renderer with Syntax Highlighting and Mermaid Support
  *
  * Uses marked for parsing and basic code formatting
+ * Supports Mermaid diagrams for flowcharts, sequence diagrams, etc.
  */
 
 import { marked } from 'marked';
@@ -29,6 +30,9 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+// Counter for unique mermaid diagram IDs
+let mermaidCounter = 0;
+
 // Custom renderer for code blocks
 const renderer = new marked.Renderer();
 
@@ -36,6 +40,21 @@ renderer.code = function (code: { text: string; lang?: string; escaped?: boolean
   const validLanguage = code.lang || 'text';
   const escapedLanguage = escapeHtml(validLanguage);
   const escapedCode = code.escaped ? code.text : escapeHtml(code.text);
+
+  // Check if this is a mermaid diagram
+  if (validLanguage === 'mermaid') {
+    const diagramId = `mermaid-diagram-${mermaidCounter++}`;
+    return `
+      <div class="relative group my-4">
+        <div class="flex items-center justify-between px-4 py-2 bg-purple-500/10 rounded-t-lg border-b border-purple-500/20">
+          <span class="text-xs font-mono text-purple-400">Mermaid Diagram</span>
+        </div>
+        <div class="p-4 rounded-b-lg bg-muted/30 flex justify-center">
+          <pre class="mermaid ${diagramId}" style="background: transparent;">${escapedCode}</pre>
+        </div>
+      </div>
+    `;
+  }
 
   // Create styled code block with language label
   return `
@@ -49,6 +68,27 @@ renderer.code = function (code: { text: string; lang?: string; escaped?: boolean
 };
 
 marked.setOptions({ renderer });
+
+/**
+ * Initialize Mermaid diagrams after rendering
+ * This should be called after the DOM is updated
+ */
+export function initMermaidDiagrams() {
+  if (typeof window !== 'undefined' && (window as any).mermaid) {
+    const mermaid = (window as any).mermaid;
+    // Initialize mermaid if not already initialized
+    if (!mermaid.isInitialized) {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose',
+      });
+      mermaid.isInitialized = true;
+    }
+    // Render all mermaid diagrams
+    mermaid.run();
+  }
+}
 
 /**
  * Render markdown to HTML (synchronous)

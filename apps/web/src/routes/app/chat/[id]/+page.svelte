@@ -4,7 +4,7 @@
   import { orpc } from '$lib/orpc';
   import { Chat } from '@ai-sdk/svelte';
   import { DefaultChatTransport } from 'ai';
-  import { renderMarkdownSync } from '$lib/markdown-renderer.js';
+  import { renderMarkdownSync, initMermaidDiagrams } from '$lib/markdown-renderer.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { exportChat } from '$lib/utils/chat-export';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -87,11 +87,14 @@
   let messagesContainer: HTMLDivElement | null = $state(null);
   let inputField: HTMLTextAreaElement | null = $state(null);
 
+  // Reactive messages array for streaming updates
+  let messages = $derived(chat.messages);
+
   // Chat statistics
   let chatStats = $derived(() => {
-    const userMessages = chat.messages.filter((m) => m.role === 'user');
-    const assistantMessages = chat.messages.filter((m) => m.role === 'assistant');
-    const totalWords = chat.messages.reduce((sum, msg) => {
+    const userMessages = messages.filter((m) => m.role === 'user');
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    const totalWords = messages.reduce((sum, msg) => {
       const textPart = msg.parts?.find(
         (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
       );
@@ -100,7 +103,7 @@
     }, 0);
 
     return {
-      messageCount: chat.messages.length,
+      messageCount: messages.length,
       userMessageCount: userMessages.length,
       assistantMessageCount: assistantMessages.length,
       totalWords,
@@ -116,7 +119,7 @@
 
   // Auto-scroll to bottom
   $effect(() => {
-    if (chat.messages.length > 0 && messagesContainer) {
+    if (messages.length > 0 && messagesContainer) {
       // Scroll to bottom immediately without animation on mount
       requestAnimationFrame(() => {
         messagesContainer?.scrollTo({
@@ -129,7 +132,7 @@
 
   // Auto-scroll when new messages arrive
   $effect(() => {
-    if (chat.messages.length > 0 && messagesContainer) {
+    if (messages.length > 0 && messagesContainer) {
       requestAnimationFrame(() => {
         messagesContainer?.scrollTo({
           top: messagesContainer.scrollHeight,
@@ -141,7 +144,7 @@
 
   // Focus input when not streaming
   $effect(() => {
-    if (!isStreamingResponse && !isRetrying && !isSubmitting && chat.messages.length > 0) {
+    if (!isStreamingResponse && !isRetrying && !isSubmitting && messages.length > 0) {
       setTimeout(() => {
         inputField?.focus();
       }, 100);
@@ -150,7 +153,7 @@
 
   // Clear error when not streaming and when user starts typing
   $effect(() => {
-    if (chat.messages.length > 0 && !isStreaming() && input.length > 0) {
+    if (messages.length > 0 && !isStreaming() && input.length > 0) {
       clearError();
     }
   });
@@ -230,8 +233,8 @@
 
   // Track tokens during streaming
   $effect(() => {
-    if (isStreamingResponse && chat.messages.length > 0) {
-      const lastMessage = chat.messages[chat.messages.length - 1];
+    if (isStreamingResponse && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.role === 'assistant') {
         streamingMessageId = lastMessage.id || null;
         const textPart = lastMessage.parts?.find(
@@ -244,6 +247,10 @@
       // Streaming just ended, keep the last token count
       streamingMessageId = null;
       streamingTokenCount = 0;
+      // Initialize Mermaid diagrams after streaming completes
+      requestAnimationFrame(() => {
+        initMermaidDiagrams();
+      });
     }
   });
 
@@ -319,6 +326,10 @@
       errorType = categorized.type;
     } finally {
       loading = false;
+      // Initialize Mermaid diagrams after loading chat
+      requestAnimationFrame(() => {
+        initMermaidDiagrams();
+      });
     }
   }
 
@@ -698,7 +709,7 @@
       <div class="flex h-full items-center justify-center">
         <div class="text-muted-foreground">Loading chat...</div>
       </div>
-    {:else if chat.messages.length === 0}
+    {:else if messages.length === 0}
       <div class="flex h-full items-center justify-center">
         <div class="text-muted-foreground text-center">
           <p class="mb-2 text-lg">Start a conversation</p>
@@ -707,7 +718,10 @@
       </div>
     {:else}
       <div class="mx-auto max-w-3xl space-y-6">
-        {#each chat.messages as message, index (message.id || index)}
+        {#each messages as message, index (message.id || index)}
+          {@const messageText =
+            (message.parts?.find((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
+              ?.text as string) || ''}
           <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
             <div
               class="max-w-[80%] rounded-lg px-4 py-2 {message.role === 'user'
@@ -718,11 +732,7 @@
                 <div
                   class="prose-p:text-card-foreground prose prose-sm max-w-none dark:prose-invert"
                 >
-                  {@html renderMarkdownSync(
-                    (message.parts?.find(
-                      (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
-                    )?.text as string) || ''
-                  )}
+                  {@html renderMarkdownSync(messageText)}
                 </div>
                 <!-- Token display for assistant messages -->
                 <div class="mt-2">
@@ -740,11 +750,7 @@
                   {/if}
                 </div>
               {:else}
-                <div class="whitespace-pre-wrap">
-                  {(message.parts?.find(
-                    (p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text'
-                  )?.text as string) || ''}
-                </div>
+                <div class="whitespace-pre-wrap">{messageText}</div>
               {/if}
             </div>
           </div>
