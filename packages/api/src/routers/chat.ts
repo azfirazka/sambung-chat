@@ -1,7 +1,8 @@
 import { db } from '@sambung-chat/db';
 import { chats, folders } from '@sambung-chat/db/schema/chat';
 import { messages } from '@sambung-chat/db/schema/chat';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { models } from '@sambung-chat/db/schema/model';
+import { eq, and, desc, asc, sql, gte, lte, inArray } from 'drizzle-orm';
 import z from 'zod';
 import { protectedProcedure, withCsrfProtection } from '../index';
 import { ulidSchema, ulidOptionalSchema } from '../utils/validation';
@@ -292,6 +293,13 @@ export const chatRouter = {
         query: z.string().optional(),
         folderId: ulidOptionalSchema,
         pinnedOnly: z.boolean().optional(),
+        providers: z
+          .array(z.enum(['openai', 'anthropic', 'google', 'groq', 'ollama', 'custom']))
+          .optional(),
+        modelIds: z.array(z.string()).optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        searchInMessages: z.boolean().optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -299,8 +307,17 @@ export const chatRouter = {
 
       const conditions = [eq(chats.userId, userId)];
 
+      // Build search conditions for title and/or message content
       if (input.query) {
-        conditions.push(sql`${chats.title} ILIKE ${`%${input.query}%`}`);
+        if (input.searchInMessages) {
+          // Search in both title and message content
+          conditions.push(
+            sql`(${chats.title} ILIKE ${`%${input.query}%`} OR ${messages.content} ILIKE ${`%${input.query}%`})`
+          );
+        } else {
+          // Search only in title
+          conditions.push(sql`${chats.title} ILIKE ${`%${input.query}%`}`);
+        }
       }
 
       if (input.folderId !== undefined) {
@@ -315,12 +332,147 @@ export const chatRouter = {
         conditions.push(eq(chats.pinned, true));
       }
 
-      const results = await db
-        .select()
-        .from(chats)
-        .where(and(...conditions))
-        .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      // Add date range filter
+      if (input.dateFrom) {
+        conditions.push(gte(chats.createdAt, new Date(input.dateFrom)));
+      }
 
-      return results;
+      if (input.dateTo) {
+        conditions.push(lte(chats.createdAt, new Date(input.dateTo)));
+      }
+
+      // Build the query - join with models and/or messages tables as needed
+      const needsModelJoin = input.providers !== undefined || input.modelIds !== undefined;
+      const needsMessagesJoin = input.searchInMessages && input.query !== undefined;
+
+      let query;
+      if (needsModelJoin && needsMessagesJoin) {
+        // Add providers filter (multi-select)
+        if (input.providers !== undefined && input.providers.length > 0) {
+          conditions.push(inArray(models.provider, input.providers));
+        }
+
+        // Add modelIds filter (multi-select)
+        if (input.modelIds !== undefined && input.modelIds.length > 0) {
+          conditions.push(inArray(models.id, input.modelIds));
+        }
+
+        // Join with both models and messages tables
+        // Use DISTINCT ON to avoid duplicate chats when multiple messages match
+        query = db
+          .selectDistinct({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(models, eq(chats.modelId, models.id))
+          .innerJoin(messages, eq(chats.id, messages.chatId))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else if (needsModelJoin) {
+        // Add providers filter (multi-select)
+        if (input.providers !== undefined && input.providers.length > 0) {
+          conditions.push(inArray(models.provider, input.providers));
+        }
+
+        // Add modelIds filter (multi-select)
+        if (input.modelIds !== undefined && input.modelIds.length > 0) {
+          conditions.push(inArray(models.id, input.modelIds));
+        }
+
+        query = db
+          .select({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(models, eq(chats.modelId, models.id))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else if (needsMessagesJoin) {
+        // Join only with messages table
+        // Use DISTINCT ON to avoid duplicate chats when multiple messages match
+        query = db
+          .selectDistinct({
+            id: chats.id,
+            userId: chats.userId,
+            title: chats.title,
+            modelId: chats.modelId,
+            folderId: chats.folderId,
+            pinned: chats.pinned,
+            createdAt: chats.createdAt,
+            updatedAt: chats.updatedAt,
+          })
+          .from(chats)
+          .innerJoin(messages, eq(chats.id, messages.chatId))
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      } else {
+        // No joins needed
+        query = db
+          .select()
+          .from(chats)
+          .where(and(...conditions))
+          .orderBy(desc(chats.pinned), desc(chats.updatedAt));
+      }
+
+      const results = await query;
+
+      // If searching in messages and a query was provided, fetch matching message snippets
+      let resultsWithSnippets = results;
+      if (input.searchInMessages && input.query && results.length > 0) {
+        const chatIds = results.map((r) => r.id);
+
+        // Get all matching messages for these chats
+        const matchingMessages = await db
+          .select({
+            id: messages.id,
+            chatId: messages.chatId,
+            role: messages.role,
+            content: messages.content,
+            createdAt: messages.createdAt,
+          })
+          .from(messages)
+          .where(
+            and(
+              sql`${messages.chatId} = ANY(${chatIds})`,
+              sql`${messages.content} ILIKE ${`%${input.query}%`}`
+            )
+          )
+          .orderBy(asc(messages.createdAt));
+
+        // Group messages by chatId and limit to top 3 per chat
+        const messagesByChat = new Map<string, typeof matchingMessages>();
+        for (const msg of matchingMessages) {
+          if (!messagesByChat.has(msg.chatId)) {
+            messagesByChat.set(msg.chatId, []);
+          }
+          const chatMessages = messagesByChat.get(msg.chatId)!;
+          // Limit to 3 matching messages per chat to avoid huge responses
+          if (chatMessages.length < 3) {
+            chatMessages.push(msg);
+          }
+        }
+
+        // Attach matching messages to each chat result
+        resultsWithSnippets = results.map((chat) => ({
+          ...chat,
+          matchingMessages: messagesByChat.get(chat.id) || [],
+        }));
+      }
+
+      return resultsWithSnippets;
     }),
 };

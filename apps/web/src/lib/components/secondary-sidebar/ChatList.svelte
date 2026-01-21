@@ -21,8 +21,18 @@
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import FilterIcon from '@lucide/svelte/icons/filter';
+  import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
 
   // Types
+  interface MatchingMessage {
+    id: string;
+    chatId: string;
+    role: string;
+    content: string;
+    createdAt: Date;
+  }
+
   interface Chat {
     id: string;
     title: string;
@@ -31,6 +41,7 @@
     folderId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    matchingMessages?: MatchingMessage[];
   }
 
   interface Folder {
@@ -38,6 +49,27 @@
     name: string;
     userId: string;
     createdAt: Date;
+  }
+
+  interface Model {
+    id: string;
+    provider: string;
+    modelId: string;
+    name: string;
+    baseUrl?: string;
+    apiKeyId?: string;
+    isActive: boolean;
+    avatarUrl?: string;
+    settings?: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+      topK?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+    };
+    createdAt: Date;
+    updatedAt: Date;
   }
 
   interface Props {
@@ -50,12 +82,19 @@
   // State
   let chats = $state<Chat[]>([]);
   let folders = $state<Folder[]>([]);
+  let models = $state<Model[]>([]);
   let loading = $state(true);
   let searching = $state(false);
   let error = $state<string | null>(null);
   let searchQuery = $state('');
   let selectedFolderId = $state<string>('');
   let showPinnedOnly = $state(false);
+  let selectedProviders = $state<
+    Array<'openai' | 'anthropic' | 'google' | 'groq' | 'ollama' | 'custom'>
+  >([]);
+  let selectedModelIds = $state<Array<string>>([]);
+  let dateFrom = $state<string>('');
+  let dateTo = $state<string>('');
   let collapsedFolders = $state<Record<string, boolean>>({});
   let isInitialLoad = $state(true);
 
@@ -69,6 +108,46 @@
 
   // Computed - filtered chats (API handles filtering, just return chats)
   let filteredChats = $derived(() => chats);
+
+  // Computed - unique providers from user's models
+  let availableProviders = $derived(() => {
+    const providerSet = new Set(models.map((m) => m.provider));
+    return Array.from(providerSet).sort() as Array<
+      'openai' | 'anthropic' | 'google' | 'groq' | 'ollama' | 'custom'
+    >;
+  });
+
+  // Computed - available models filtered by selected providers
+  let availableModels = $derived(() => {
+    if (selectedProviders.length === 0) {
+      return models.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return models
+      .filter((m) => selectedProviders.includes(m.provider as any))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  // Computed - provider labels for display
+  const providerLabels: Record<string, string> = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    google: 'Google',
+    groq: 'Groq',
+    ollama: 'Ollama',
+    custom: 'Custom',
+  };
+
+  // Computed - check if any filters are active (for showing "Clear All" button)
+  let hasActiveFilters = $derived(
+    !isInitialLoad &&
+      (searchQuery !== '' ||
+        selectedFolderId !== '' ||
+        showPinnedOnly ||
+        selectedProviders.length > 0 ||
+        selectedModelIds.length > 0 ||
+        dateFrom !== '' ||
+        dateTo !== '')
+  );
 
   // Group chats by folder and time period
   let groupedChats = $derived(() => {
@@ -128,6 +207,38 @@
     }
   }
 
+  function handleProvidersChange() {
+    if (!isInitialLoad) {
+      // Clear model selection when providers change
+      selectedModelIds = [];
+      loadChats();
+    }
+  }
+
+  function handleModelsChange() {
+    if (!isInitialLoad) {
+      loadChats();
+    }
+  }
+
+  function handleDateChange() {
+    if (!isInitialLoad) {
+      loadChats();
+    }
+  }
+
+  // Clear all filters and reset to default view
+  function handleClearAllFilters() {
+    searchQuery = '';
+    selectedFolderId = '';
+    showPinnedOnly = false;
+    selectedProviders = [];
+    selectedModelIds = [];
+    dateFrom = '';
+    dateTo = '';
+    loadChats();
+  }
+
   // Load chats with search & filters
   async function loadChats() {
     // Use searching state for filter changes, loading for initial load
@@ -141,9 +252,14 @@
     try {
       const result = await orpc.chat.search({
         query: searchQuery || undefined,
+        searchInMessages: searchQuery ? true : undefined,
         folderId: selectedFolderId || undefined,
         pinnedOnly: showPinnedOnly || undefined,
-      });
+        providers: selectedProviders.length > 0 ? selectedProviders : undefined,
+        modelIds: selectedModelIds.length > 0 ? selectedModelIds : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      } as any);
       chats = result as Chat[];
     } catch (err) {
       console.error('Failed to load chats:', err);
@@ -177,10 +293,21 @@
     }
   }
 
+  // Load models
+  async function loadModels() {
+    try {
+      const result = await orpc.model.getAll();
+      models = result as Model[];
+    } catch (err) {
+      console.error('Failed to load models:', err);
+    }
+  }
+
   // Initial load
   onMount(() => {
     loadChats();
     loadFolders();
+    loadModels();
   });
 
   // Handle chat selection
@@ -514,6 +641,175 @@
         Pinned only
       </label>
     </div>
+
+    <!-- Provider Filter -->
+    {#if availableProviders().length > 0}
+      <div class="mt-2">
+        <DropdownMenu.DropdownMenu>
+          <DropdownMenu.Trigger
+            class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-sm focus:ring-1 focus:outline-none"
+            type="button"
+          >
+            <div class="flex items-center gap-2">
+              <FilterIcon class="size-3.5" />
+              <span class="text-muted-foreground text-xs">
+                {selectedProviders.length === 0
+                  ? 'All Providers'
+                  : `${selectedProviders.length} provider${selectedProviders.length > 1 ? 's' : ''} selected`}
+              </span>
+            </div>
+            <ChevronDownIcon class="size-3.5" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content class="w-56">
+            {#each availableProviders() as provider (provider)}
+              {@const isSelected = selectedProviders.includes(provider)}
+              <DropdownMenu.CheckboxItem
+                checked={isSelected}
+                onselect={() => {
+                  if (isSelected) {
+                    selectedProviders = selectedProviders.filter((p) => p !== provider);
+                  } else {
+                    selectedProviders = [...selectedProviders, provider];
+                  }
+                  handleProvidersChange();
+                }}
+              >
+                <span class="flex-1">{providerLabels[provider] || provider}</span>
+              </DropdownMenu.CheckboxItem>
+            {/each}
+            {#if selectedProviders.length > 0}
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item
+                onclick={() => {
+                  selectedProviders = [];
+                  handleProvidersChange();
+                }}
+              >
+                Clear providers
+              </DropdownMenu.Item>
+            {/if}
+          </DropdownMenu.Content>
+        </DropdownMenu.DropdownMenu>
+      </div>
+    {/if}
+
+    <!-- Model Filter -->
+    {#if availableModels().length > 0}
+      <div class="mt-2">
+        <DropdownMenu.DropdownMenu>
+          <DropdownMenu.Trigger
+            class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-sm focus:ring-1 focus:outline-none"
+            type="button"
+          >
+            <div class="flex items-center gap-2">
+              <FilterIcon class="size-3.5" />
+              <span class="text-muted-foreground text-xs">
+                {selectedModelIds.length === 0
+                  ? 'All Models'
+                  : `${selectedModelIds.length} model${selectedModelIds.length > 1 ? 's' : ''} selected`}
+              </span>
+            </div>
+            <ChevronDownIcon class="size-3.5" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content class="max-h-80 w-56 overflow-y-auto">
+            {#each availableModels() as model (model.id)}
+              {@const isSelected = selectedModelIds.includes(model.id)}
+              <DropdownMenu.CheckboxItem
+                checked={isSelected}
+                onselect={() => {
+                  if (isSelected) {
+                    selectedModelIds = selectedModelIds.filter((id) => id !== model.id);
+                  } else {
+                    selectedModelIds = [...selectedModelIds, model.id];
+                  }
+                  handleModelsChange();
+                }}
+              >
+                <span class="flex-1 truncate" title={model.name}>{model.name}</span>
+              </DropdownMenu.CheckboxItem>
+            {/each}
+            {#if selectedModelIds.length > 0}
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item
+                onclick={() => {
+                  selectedModelIds = [];
+                  handleModelsChange();
+                }}
+              >
+                Clear models
+              </DropdownMenu.Item>
+            {/if}
+          </DropdownMenu.Content>
+        </DropdownMenu.DropdownMenu>
+      </div>
+    {/if}
+
+    <!-- Date Range Filter -->
+    <div class="mt-2 flex items-center gap-2">
+      <div class="flex-1">
+        <Input
+          type="date"
+          value={dateFrom}
+          onchange={(e) => {
+            dateFrom = e.currentTarget.value;
+            handleDateChange();
+          }}
+          class="h-8 text-xs"
+          placeholder="From date"
+        />
+      </div>
+      <span class="text-muted-foreground text-xs">to</span>
+      <div class="flex-1">
+        <Input
+          type="date"
+          value={dateTo}
+          onchange={(e) => {
+            dateTo = e.currentTarget.value;
+            handleDateChange();
+          }}
+          class="h-8 text-xs"
+          placeholder="To date"
+        />
+      </div>
+      {#if dateFrom || dateTo}
+        <Button
+          size="sm"
+          variant="ghost"
+          onclick={() => {
+            dateFrom = '';
+            dateTo = '';
+            handleDateChange();
+          }}
+          class="h-8 px-2"
+          title="Clear date range"
+        >
+          <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </Button>
+      {/if}
+    </div>
+
+    <!-- Clear All Filters Button -->
+    {#if hasActiveFilters}
+      <div class="mt-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onclick={handleClearAllFilters}
+          class="w-full justify-start text-xs"
+          title="Clear all filters and reset to default view"
+        >
+          <RotateCcwIcon class="mr-2 size-3.5" />
+          Clear All Filters
+        </Button>
+      </div>
+    {/if}
   </Sidebar.Header>
 
   <!-- Content -->
@@ -573,6 +869,7 @@
                   onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                   onCreateFolder={() => createFolder(chat.id)}
                   {searchQuery}
+                  matchingMessages={chat.matchingMessages}
                 />
               {/each}
             </div>
@@ -689,6 +986,7 @@
                       onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                       onCreateFolder={() => createFolder(chat.id)}
                       {searchQuery}
+                      matchingMessages={chat.matchingMessages}
                     />
                   {/each}
                 {/if}
@@ -716,6 +1014,7 @@
                   onMoveToFolder={(folderId) => moveChatToFolder(chat.id, folderId)}
                   onCreateFolder={() => createFolder(chat.id)}
                   {searchQuery}
+                  matchingMessages={chat.matchingMessages}
                 />
               {/each}
             </div>
