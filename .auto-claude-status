@@ -3,23 +3,23 @@
   "spec": "006-extract-repetitive-model-transformation-in-getavai",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 4,
     "total": 8,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Refactor getAvailableModels Procedure",
+    "current": "Add Tests for Refactoring",
     "id": null,
-    "total": 1
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 4,
-    "started_at": "2026-01-22T00:45:22.803827"
+    "number": 6,
+    "started_at": "2026-01-22T01:15:00.000000"
   },
-  "last_update": "2026-01-22T00:54:16.423088"
+  "last_update": "2026-01-22T01:15:30.000000"
 }
