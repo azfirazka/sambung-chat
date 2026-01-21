@@ -24,6 +24,7 @@
  */
 
 import { createHash } from 'crypto';
+import { z } from 'zod';
 import type { Context } from '../context';
 
 /**
@@ -31,7 +32,30 @@ import type { Context } from '../context';
  * - private: Cache for single user (browser cache)
  * - public: Cache can be stored by any cache (CDN, proxy)
  */
-type CacheScope = 'private' | 'public';
+export type CacheScope = 'private' | 'public';
+
+/**
+ * Zod schema for validating cache scope
+ */
+export const cacheScopeSchema = z.enum(['private', 'public']);
+
+/**
+ * Zod schema for validating cache configuration options
+ *
+ * @example
+ * ```ts
+ * const result = cacheOptionsSchema.safeParse({ maxAge: 300, scope: 'private' });
+ * if (result.success) {
+ *   // Valid cache options
+ * }
+ * ```
+ */
+export const cacheOptionsSchema = z.object({
+  maxAge: z.number().int().positive('maxAge must be a positive integer'),
+  scope: cacheScopeSchema.optional(),
+  noTransform: z.boolean().optional(),
+  mustRevalidate: z.boolean().optional(),
+});
 
 /**
  * Cache configuration options
@@ -55,6 +79,23 @@ const DEFAULT_CACHE_OPTIONS: CacheOptions = {
   scope: 'private',
   noTransform: true,
 };
+
+/**
+ * Validate if an object is a valid cache options configuration
+ *
+ * @param options - The object to validate
+ * @returns true if the object is valid cache options
+ *
+ * @example
+ * ```ts
+ * if (isValidCacheOptions({ maxAge: 300, scope: 'private' })) {
+ *   // Use the options
+ * }
+ * ```
+ */
+export function isValidCacheOptions(options: unknown): boolean {
+  return cacheOptionsSchema.safeParse(options).success;
+}
 
 /**
  * Generate an ETag for the given data
@@ -237,25 +278,109 @@ export const cacheHeadersMiddleware = (o: any) => (options: Partial<CacheOptions
  * @example
  * ```ts
  * // Short-lived cache (1 minute) - frequently changing data
- * cacheHeadersMiddleware(CACHE_DURATIONS.SHORT)
+ * cacheHeadersMiddleware(o)(CACHE_DURATIONS.SHORT)
  *
  * // Medium-lived cache (5 minutes) - moderately dynamic data
- * cacheHeadersMiddleware(CACHE_DURATIONS.MEDIUM)
+ * cacheHeadersMiddleware(o)(CACHE_DURATIONS.MEDIUM)
  *
  * // Long-lived cache (15 minutes) - rarely changing data
- * cacheHeadersMiddleware(CACHE_DURATIONS.LONG)
+ * cacheHeadersMiddleware(o)(CACHE_DURATIONS.LONG)
  * ```
  */
 export const CACHE_DURATIONS = {
+  /** 30 seconds - for very frequently changing data */
+  VERY_SHORT: { maxAge: 30, scope: 'private' as const, noTransform: true as const },
+
   /** 1 minute - for frequently changing data */
-  SHORT: { maxAge: 60, scope: 'private' as const },
+  SHORT: { maxAge: 60, scope: 'private' as const, noTransform: true as const },
 
   /** 5 minutes - default for most user-specific data */
-  MEDIUM: { maxAge: 300, scope: 'private' as const },
+  MEDIUM: { maxAge: 300, scope: 'private' as const, noTransform: true as const },
 
   /** 15 minutes - for rarely changing data */
-  LONG: { maxAge: 900, scope: 'private' as const },
+  LONG: { maxAge: 900, scope: 'private' as const, noTransform: true as const },
+
+  /** 1 hour - for static configuration data */
+  VERY_LONG: { maxAge: 3600, scope: 'private' as const, noTransform: true as const },
 } as const;
+
+/**
+ * Cache configuration presets for specific use cases
+ *
+ * These presets combine duration and scope for common scenarios
+ * in the SambungChat application.
+ *
+ * @example
+ * ```ts
+ * // Use for folder/model configuration (rarely changes)
+ * cacheHeadersMiddleware(o)(CACHE_PRESETS.CONFIGURATION)
+ *
+ * // Use for chat list (moderately dynamic)
+ * cacheHeadersMiddleware(o)(CACHE_PRESETS.CHAT_LIST)
+ *
+ * // Use for messages (frequently changes)
+ * cacheHeadersMiddleware(o)(CACHE_PRESETS.MESSAGES)
+ * ```
+ */
+export const CACHE_PRESETS = {
+  /** Configuration data - folders, models, API keys (15 minutes) */
+  CONFIGURATION: { maxAge: 900, scope: 'private' as const, noTransform: true as const },
+
+  /** Chat list - user's chat overview (5 minutes) */
+  CHAT_LIST: { maxAge: 300, scope: 'private' as const, noTransform: true as const },
+
+  /** Message list - chat messages (1 minute) */
+  MESSAGES: { maxAge: 60, scope: 'private' as const, noTransform: true as const },
+
+  /** Public data - can be cached by CDN (15 minutes, public) */
+  PUBLIC: { maxAge: 900, scope: 'public' as const, noTransform: true as const },
+} as const;
+
+/**
+ * Type for cache preset keys
+ */
+export type CachePresetKey = keyof typeof CACHE_PRESETS;
+
+/**
+ * Type for cache duration keys
+ */
+export type CacheDurationKey = keyof typeof CACHE_DURATIONS;
+
+/**
+ * Get a cache preset by key
+ *
+ * This is a type-safe helper to retrieve cache presets.
+ *
+ * @param preset - The preset key
+ * @returns The cache configuration for the preset
+ *
+ * @example
+ * ```ts
+ * const config = getCachePreset('CONFIGURATION');
+ * // Returns: { maxAge: 900, scope: 'private', noTransform: true }
+ * ```
+ */
+export function getCachePreset(preset: CachePresetKey): CacheOptions {
+  return CACHE_PRESETS[preset];
+}
+
+/**
+ * Get a cache duration by key
+ *
+ * This is a type-safe helper to retrieve cache durations.
+ *
+ * @param duration - The duration key
+ * @returns The cache configuration for the duration
+ *
+ * @example
+ * ```ts
+ * const config = getCacheDuration('MEDIUM');
+ * // Returns: { maxAge: 300, scope: 'private', noTransform: true }
+ * ```
+ */
+export function getCacheDuration(duration: CacheDurationKey): CacheOptions {
+  return CACHE_DURATIONS[duration];
+}
 
 /**
  * Helper to extract cache metadata from ORPC response
