@@ -4,17 +4,68 @@ Welcome to the SambungChat documentation! This hub provides comprehensive guides
 
 ## Quick Links
 
-| Document                                                            | Description                                 |
-| ------------------------------------------------------------------- | ------------------------------------------- |
-| [Teams Concept](./teams-concept.md)                                 | Team model, access control, workspaces      |
-| [Routes Structure](./routes.md)                                     | Complete URL structure and routing          |
-| [Database Schema](./database.md)                                    | Database tables and relationships           |
-| [Internationalization](./i18n.md)                                   | Multi-language support guide (svelte-i18n)  |
-| [AI Provider Integration Guide](./ai-provider-integration-guide.md) | Complete guide for adding AI providers      |
-| [API Key Encryption Setup](./setup/api-keys.md)                     | Encryption key generation and configuration |
-| [troubleshooting](./troubleshooting.md)                             | Common issues and solutions                 |
-| [ui-package-guide](./ui-package-guide.md)                           | UI package development guide                |
-| [Architecture](./architecture.md)                                   | System architecture with diagrams           |
+| Category      | Document                                                      | Description                       |
+| ------------- | ------------------------------------------------------------- | --------------------------------- |
+| **Planning**  | [Roadmap Overview](./roadmap/overview.md)                     | High-level roadmap (Phase 1-5)    |
+| **Planning**  | [Current Status](./status/current.md)                         | Real-time development status      |
+| **Planning**  | [MVP Phase 1](./roadmap/mvp-phase-1.md)                       | Detailed MVP breakdown            |
+| **Team**      | [Teams Concept](./teams-concept.md)                           | Team model, access control        |
+| **Team**      | [Routes Structure](./routes.md)                               | Complete URL structure            |
+| **Team**      | [Database Schema](./database.md)                              | Database tables and relationships |
+| **Guides**    | [AI Provider Integration](./ai-provider-integration-guide.md) | Adding AI providers               |
+| **Guides**    | [Internationalization](./i18n.md)                             | Multi-language support            |
+| **Guides**    | [API Key Encryption](./setup/api-keys.md)                     | Secure key management             |
+| **Reference** | [Troubleshooting](./troubleshooting.md)                       | Common issues and solutions       |
+| **Reference** | [Architecture](./architecture.md)                             | System architecture diagrams      |
+
+---
+
+## 🗺️ Planning & Roadmap
+
+### Roadmap Overview
+
+**[Roadmap Overview](./roadmap/overview.md)** - Development Roadmap (Phase 1-5)
+
+Complete development roadmap from MVP to v1.0.0:
+
+- **Phase 1 (MVP)**: Multi-model chat, team collaboration, prompt templates
+- **Phase 2 (Ecosystem)**: UI library extraction, plugin system, SDKs
+- **Phase 3 (Advanced)**: Conversation branching, RAG, analytics
+- **Phase 4 (Enterprise)**: Enhanced self-hosting, security hardening
+- **Phase 5 (Platform)**: Mobile apps, desktop apps, v1.0.0 stable
+
+**📖 [Read Roadmap Overview →](./roadmap/overview.md)**
+
+### Current Status
+
+**[Current Status](./status/current.md)** - Real-Time Development Status
+
+Up-to-date development progress and active work:
+
+- **Overall Progress**: 42% (28/67 tasks completed)
+- **Current Focus**: API key management UI, prompt templates
+- **Recent Activity**: Security headers, GitHub templates, query normalization
+- **Next Steps**: Settings UI, prompt library, E2E tests
+- **Blockers**: v0.1.0 release preparation
+
+**📖 [Read Current Status →](./status/current.md)**
+
+### MVP Phase 1 Detail
+
+**[MVP Phase 1 Detail](./roadmap/mvp-phase-1.md)** - Phase 1 (MVP Foundation) Breakdown
+
+Detailed weekly breakdown of Phase 1 development:
+
+- Week 1-2: Repository Setup & Infrastructure ✅ 100%
+- Week 3-4: Authentication & User Management ✅ 100%
+- Week 5-6: Multi-Model Chat Interface ✅ 75%
+- Week 7-8: Chat History Management 🔄 50%
+- Week 9: Prompt Templates ✅ 38%
+- Week 10: Settings & Preferences 🔄 20%
+- Week 11: Internationalization & Testing ⏳
+- Week 12: v0.1.0 Release 🔄 9%
+
+**📖 [Read MVP Phase 1 Detail →](./roadmap/mvp-phase-1.md)**
 
 ---
 
