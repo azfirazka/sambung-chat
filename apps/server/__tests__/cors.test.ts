@@ -54,7 +54,7 @@ describe('CORS Origin Validation', () => {
       expect(origins).toEqual([
         'http://localhost:5174',
         'https://example.com',
-        'https://api.example.com'
+        'https://api.example.com',
       ]);
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
@@ -82,7 +82,7 @@ describe('CORS Origin Validation', () => {
       expect(origins).toEqual([
         'http://localhost:3000',
         'http://localhost:5174',
-        'http://localhost:8080'
+        'http://localhost:8080',
       ]);
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
@@ -100,6 +100,7 @@ describe('CORS Origin Validation', () => {
       process.env.CORS_ORIGIN = 'https://example.com/,http://localhost:5174/';
       const origins = getValidatedCorsOrigins();
 
+      // url.origin strips trailing slashes (they're part of path)
       expect(origins).toEqual(['https://example.com', 'http://localhost:5174']);
     });
 
@@ -107,8 +108,8 @@ describe('CORS Origin Validation', () => {
       process.env.CORS_ORIGIN = 'https://example.com///';
       const origins = getValidatedCorsOrigins();
 
-      // URL constructor keeps all slashes, then our code removes one
-      expect(origins).toEqual(['https://example.com//']);
+      // url.origin strips path (trailing slashes are part of path)
+      expect(origins).toEqual(['https://example.com']);
     });
 
     it('should trim and remove trailing slashes combined', () => {
@@ -190,9 +191,7 @@ describe('CORS Origin Validation', () => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[SECURITY] WARNING: CORS_ORIGIN=*')
       );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('highly insecure')
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('highly insecure'));
     });
 
     it('should warn about wildcard in both development and production', () => {
@@ -201,9 +200,7 @@ describe('CORS Origin Validation', () => {
 
       getValidatedCorsOrigins();
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('highly insecure')
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('highly insecure'));
     });
   });
 
@@ -224,9 +221,7 @@ describe('CORS Origin Validation', () => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('uses HTTP in production')
       );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('HTTPS should be used')
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('HTTPS should be used'));
     });
 
     it('should warn about localhost in production', () => {
@@ -310,24 +305,24 @@ describe('CORS Origin Validation', () => {
       process.env.CORS_ORIGIN = 'https://example.com/path';
       const origins = getValidatedCorsOrigins();
 
-      // URL constructor includes path
-      expect(origins).toEqual(['https://example.com/path']);
+      // url.origin strips path (only returns scheme://host[:port])
+      expect(origins).toEqual(['https://example.com']);
     });
 
     it('should handle origin with query parameters', () => {
       process.env.CORS_ORIGIN = 'https://example.com?query=param';
       const origins = getValidatedCorsOrigins();
 
-      // URL constructor adds / before query params
-      expect(origins).toEqual(['https://example.com/?query=param']);
+      // url.origin strips query params (only returns scheme://host[:port])
+      expect(origins).toEqual(['https://example.com']);
     });
 
     it('should handle origin with hash', () => {
       process.env.CORS_ORIGIN = 'https://example.com#section';
       const origins = getValidatedCorsOrigins();
 
-      // URL constructor adds / before hash
-      expect(origins).toEqual(['https://example.com/#section']);
+      // url.origin strips hash fragment (only returns scheme://host[:port])
+      expect(origins).toEqual(['https://example.com']);
     });
 
     it('should handle international domain names', () => {
@@ -360,9 +355,7 @@ describe('CORS Origin Validation', () => {
       const origins = getValidatedCorsOrigins();
 
       expect(origins).toEqual(['http://localhost:5174']);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('CORS origins:')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('CORS origins:'));
     });
 
     it('should return default origin when CORS_ORIGIN is empty string', () => {
@@ -386,9 +379,7 @@ describe('CORS Origin Validation', () => {
     it('should provide clear error message for malformed URL', () => {
       process.env.CORS_ORIGIN = 'not-a-url';
 
-      expect(() => getValidatedCorsOrigins()).toThrow(
-        'Invalid CORS origin "not-a-url"'
-      );
+      expect(() => getValidatedCorsOrigins()).toThrow('Invalid CORS origin "not-a-url"');
     });
 
     it('should include the problematic origin in error message', () => {
@@ -419,10 +410,7 @@ describe('CORS Origin Validation', () => {
       process.env.CORS_ORIGIN = 'https://app.example.com,https://api.example.com';
       const origins = getValidatedCorsOrigins();
 
-      expect(origins).toEqual([
-        'https://app.example.com',
-        'https://api.example.com'
-      ]);
+      expect(origins).toEqual(['https://app.example.com', 'https://api.example.com']);
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 

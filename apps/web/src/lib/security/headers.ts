@@ -56,12 +56,19 @@ export function getCSPHeader(config: CSPConfig = { reportOnly: false }): string 
     console.log(`[CSP] Mode: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'} (NODE_ENV=${nodeEnv})`);
   }
 
-  // Get PUBLIC_API_URL from server environment
+  // Get PUBLIC_API_URL from server environment, with defensive error handling
   // In SvelteKit hooks.server.ts, PUBLIC_ vars are available via process.env
-  const publicApiUrl =
-    typeof process !== 'undefined'
-      ? process.env.PUBLIC_API_URL || 'http://localhost:3000'
-      : 'http://localhost:3000';
+  let publicApiUrl = 'http://localhost:3000'; // Default fallback
+  const publicApiUrlEnv = typeof process !== 'undefined' ? process.env.PUBLIC_API_URL : undefined;
+  if (publicApiUrlEnv) {
+    try {
+      publicApiUrl = new URL(publicApiUrlEnv).origin;
+    } catch {
+      // If PUBLIC_API_URL is malformed, fall back to default
+      console.warn('[SECURITY] Invalid PUBLIC_API_URL, using default: http://localhost:3000');
+      publicApiUrl = 'http://localhost:3000';
+    }
+  }
 
   // Get Keycloak URL from server environment, with defensive error handling
   let keycloakUrl = '';
@@ -71,6 +78,7 @@ export function getCSPHeader(config: CSPConfig = { reportOnly: false }): string 
       keycloakUrl = new URL(keycloakUrlEnv).origin;
     } catch {
       // If KEYCLOAK_URL is malformed, fall back to empty string
+      console.warn('[SECURITY] Invalid KEYCLOAK_URL, ignoring');
       keycloakUrl = '';
     }
   }

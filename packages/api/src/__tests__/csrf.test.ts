@@ -214,7 +214,7 @@ describe('CSRF Protection Integration', () => {
       expect(isValid).toBe(true);
     });
 
-    it('should fail validation for token from different secret', () => {
+    it('should fail validation for token from different secret', async () => {
       // Generate token with one secret
       const originalSecret = process.env.BETTER_AUTH_SECRET;
       const token1 = generateCsrfToken();
@@ -222,12 +222,21 @@ describe('CSRF Protection Integration', () => {
       // Change secret (simulating different session/environment)
       process.env.BETTER_AUTH_SECRET = 'different-secret-key-for-testing-min-32-chars';
 
-      const isValid = validateCsrfToken(token1);
+      // Clear module cache to pick up new environment variable
+      vi.resetModules();
+
+      // Re-import CSRF functions to get new env value
+      const { validateCsrfToken: validateCsrfTokenNew } = await import('../utils/csrf');
+
+      const isValid = validateCsrfTokenNew(token1);
 
       expect(isValid).toBe(false); // Should NOT validate - different secret produces different signature
 
       // Restore original secret
       process.env.BETTER_AUTH_SECRET = originalSecret;
+
+      // Reset modules again to restore original state
+      vi.resetModules();
     });
 
     it('should handle rapid token generation requests', () => {
