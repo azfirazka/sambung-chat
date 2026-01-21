@@ -25,6 +25,35 @@ bun run build            # Build entire monorepo
 
 ---
 
+## 📊 Project Status
+
+**ALWAYS check current progress before starting any task:**
+
+**Read**: `docs/status/current.md` - Real-time development status
+
+This file contains:
+
+- Current version and overall progress percentage
+- Completed features and recent achievements
+- Active development focus
+- Blockers and next steps
+- Database tables and API endpoints overview
+
+**Why this matters:**
+
+- Avoid duplicating work that's already done
+- Understand what's implemented before suggesting changes
+- Know the current priorities and blockers
+- See what APIs and components are available
+
+**Quick check command:**
+
+```bash
+cat docs/status/current.md | grep -A 5 "Overall Progress"
+```
+
+---
+
 ## 📝 Changelog Guidelines
 
 ### MANDATORY: Update CHANGELOG.md After Every Task
@@ -137,6 +166,139 @@ export const myTable = pgTable('my_table', {
 - Secondary Sidebar (280px): Context-aware content
 - Config: `apps/web/src/lib/navigation/nav-rail-menu.config.json`
 - See: `docs/sidebar-journey.md`
+
+---
+
+## API & RPC Endpoints Reference
+
+**CRITICAL:** Understanding endpoint routing is essential for avoiding 404 errors and CSP violations.
+
+### Connection Architecture
+
+**Development Mode (Direct Connection):**
+
+- Frontend connects directly to backend: `http://localhost:3000`
+- ORPC client: `apps/web/src/lib/orpc.ts` uses `http://localhost:SERVER_PORT`
+- Chat AI endpoint: Uses `BACKEND_API_URL` = `http://localhost:3000`
+- No proxy needed - eliminates restart issues
+
+**Production Mode (Proxy/Reverse Proxy):**
+
+- Frontend uses same-origin via `PUBLIC_API_URL`
+- Backend behind reverse proxy (nginx/Docker)
+- All requests go through proxy for security
+
+### Server Endpoints Overview
+
+**Backend Server:** `apps/server/src/index.ts` (Port 3000)
+
+#### 1. REST API Endpoints
+
+| Path               | Method | Auth        | Description                                           |
+| ------------------ | ------ | ----------- | ----------------------------------------------------- |
+| `/api/auth/*`      | ALL    | Cookie      | Better Auth OAuth flow (sign-in, sign-out, callbacks) |
+| `/api/ai`          | POST   | Cookie      | AI streaming endpoint for chat completions            |
+| `/rpc/*`           | POST   | CSRF+Cookie | ORPC procedures (see below)                           |
+| `/api-reference/*` | GET    | None        | OpenAPI/Swagger documentation                         |
+| `/`                | GET    | None        | Health check (returns "OK")                           |
+| `/debug/*`         | GET    | None        | Debug endpoints (dev only, returns 404 in prod)       |
+
+#### 2. ORPC Procedures (`/rpc/*`)
+
+**Root Procedures:**
+
+- `POST /rpc/healthCheck` - Public health check
+- `POST /rpc/getCsrfToken` - Get CSRF token (rate-limited: 10 req/min)
+- `POST /rpc/privateData` - Protected test endpoint
+
+**Chat Procedures:**
+
+- `POST /rpc/chat/getAll` - Get all user's chats
+- `POST /rpc/chat/getAllChatsWithMessages` - Export all chats with messages
+- `POST /rpc/chat/getChatsByFolder` - Get chats grouped by folder
+- `POST /rpc/chat/getById` - Get single chat by ID
+- `POST /rpc/chat/create` - Create new chat
+- `POST /rpc/chat/update` - Update chat title/model
+- `POST /rpc/chat/delete` - Delete chat (CSRF protected)
+- `POST /rpc/chat/togglePin` - Toggle chat pin status (CSRF protected)
+- `POST /rpc/chat/updateFolder` - Move chat to folder (CSRF protected)
+- `POST /rpc/chat/search` - Search chats with filters (providers, models, dates, messages)
+
+**Message Procedures:**
+
+- `POST /rpc/message/getByChatId` - Get all messages for a chat
+- `POST /rpc/message/create` - Create new message (CSRF protected)
+- `POST /rpc/message/delete` - Delete message (CSRF protected)
+
+**Folder Procedures:**
+
+- `POST /rpc/folder/getAll` - Get all user's folders
+- `POST /rpc/folder/getById` - Get folder with chat count
+- `POST /rpc/folder/create` - Create new folder (CSRF protected)
+- `POST /rpc/folder/update` - Update folder name (CSRF protected)
+- `POST /rpc/folder/delete` - Delete folder (CSRF protected)
+
+**Model Procedures:**
+
+- `POST /rpc/model/getAll` - Get all user's models
+- `POST /rpc/model/getById` - Get model by ID
+- `POST /rpc/model/getActive` - Get user's active model
+- `POST /rpc/model/create` - Create new model
+- `POST /rpc/model/update` - Update model configuration
+- `POST /rpc/model/setActive` - Set model as active
+- `POST /rpc/model/delete` - Delete model
+
+**API Key Procedures:**
+
+- `POST /rpc/apiKey/getAll` - Get all user's API keys
+- `POST /rpc/apiKey/getById` - Get API key by ID
+- `POST /rpc/apiKey/create` - Create new API key (encrypted)
+- `POST /rpc/apiKey/update` - Update API key
+- `POST /rpc/apiKey/delete` - Delete API key
+
+### Endpoint Routing Flow
+
+```
+Frontend (http://localhost:5174)
+    ↓
+ORPC Client (apps/web/src/lib/orpc.ts)
+    ↓
+Direct to http://localhost:3000/rpc/*  [DEV]
+    ↓
+Backend Server (apps/server/src/index.ts)
+    ↓
+RPC Middleware (line 124-141)
+    ↓
+ORPC Router (packages/api/src/routers/index.ts)
+    ↓
+Procedure Handlers (chat, model, folder, message, apiKey)
+```
+
+### Common Issues & Solutions
+
+**404 on `/rpc/*` endpoints:**
+
+- ✅ Ensure backend server is running: `curl http://localhost:3000/rpc/healthCheck`
+- ✅ Check ORPC client uses correct URL (dev: `localhost:3000`, prod: `PUBLIC_API_URL`)
+- ❌ Don't rely on Vite proxy for RPC in development (use direct connection)
+
+**CSP violations:**
+
+- ✅ CSP `connect-src` must include `http://localhost:3000` in development
+- ✅ Check `apps/web/src/lib/security/headers.ts` for backend URL configuration
+- ❌ Don't use `PUBLIC_API_URL` (frontend URL) for CSP backend source
+
+**CSRF token errors:**
+
+- ✅ All mutations (create, update, delete) require CSRF token
+- ✅ Token automatically added by ORPC client link interceptor
+- ✅ Token fetched on page load from `/rpc/getCsrfToken`
+
+**AI endpoint errors:**
+
+- ✅ `/api/ai` requires authentication cookie
+- ✅ Must have active model configured in database
+- ✅ Backend fetches API key from database (not from env vars)
 
 ---
 

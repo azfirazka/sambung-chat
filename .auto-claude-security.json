@@ -130,6 +130,7 @@
   "stack_commands": [
     "bun",
     "bunx",
+    "composer",
     "createdb",
     "createuser",
     "dive",
@@ -141,18 +142,29 @@
     "dropuser",
     "eslint",
     "initdb",
+    "ipython",
+    "jupyter",
     "node",
+    "notebook",
     "npm",
     "npx",
+    "pdb",
     "pg_ctl",
     "pg_dump",
     "pg_dumpall",
     "pg_isready",
     "pg_restore",
+    "php",
+    "pip",
+    "pip3",
+    "pipx",
     "playwright",
     "postgres",
     "prettier",
     "psql",
+    "pudb",
+    "python",
+    "python3",
     "ts-node",
     "tsc",
     "tsx",
@@ -160,6 +172,8 @@
     "vitest"
   ],
   "script_commands": [
+    "./test-error-handling.sh",
+    "./test-streaming-openai.sh",
     "./validate-guide.sh",
     "bun",
     "npm",
@@ -169,8 +183,10 @@
   "custom_commands": [],
   "detected_stack": {
     "languages": [
+      "python",
       "javascript",
-      "typescript"
+      "typescript",
+      "php"
     ],
     "package_managers": [
       "bun"
@@ -236,10 +252,12 @@
     "poetry_scripts": [],
     "cargo_aliases": [],
     "shell_scripts": [
-      "validate-guide.sh"
+      "validate-guide.sh",
+      "test-streaming-openai.sh",
+      "test-error-handling.sh"
     ]
   },
-  "project_dir": "/Users/mis-puragroup/development/riset-ai/sambung-chat/.auto-claude/worktrees/tasks/015-implement-csrf-protection-and-samesite-cookie-hard",
-  "created_at": "2026-01-20T12:56:58.461722",
-  "project_hash": "2463093a7c3c11c800121bba480dd7b2"
+  "project_dir": "/Users/ajianaz/Ngoding/project-latest/sambunghub/sambung-chat",
+  "created_at": "2026-01-21T23:55:15.156094",
+  "project_hash": "47e7aee6ea60ced6312e5dd489b20a75"
 }

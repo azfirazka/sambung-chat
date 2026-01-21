@@ -19,7 +19,18 @@ docs/
 ├── INDEX.md (this file)                    # Documentation navigation & index
 ├── README.md                               # Main documentation hub
 │
-├── Team & Organization (NEW)
+├── Planning & Roadmap (NEW)
+│   ├── roadmap/
+│   │   ├── overview.md                     # High-level roadmap overview
+│   │   ├── mvp-phase-1.md                  # Detailed Phase 1 (MVP) breakdown
+│   │   ├── phase-2-ecosystem.md            # Phase 2: Ecosystem expansion
+│   │   └── full-roadmap.md                 # Complete Phase 1-5 roadmap
+│   ├── status/
+│   │   └── current.md                      # Current development status
+│   └── plans/
+│       └── archive/                        # Archived planning documents
+│
+├── Team & Organization
 │   ├── teams-concept.md                    # Team model, access control, workspaces
 │   ├── routes.md                           # Complete URL structure and routing
 │   └── database.md                         # Database tables and relationships
@@ -45,6 +56,18 @@ docs/
 ---
 
 ## Documents by Category
+
+### 🗺️ Planning & Roadmap
+
+**NEW:** Roadmap, status tracking, and planning documentation for project development.
+
+| Document                                       | Description                                                                       | Target Audience                |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------ |
+| [Roadmap Overview](./roadmap/overview.md)      | High-level roadmap with Phase 1-5 overview, success metrics, and technology stack | All stakeholders, Contributors |
+| [MVP Phase 1 Detail](./roadmap/mvp-phase-1.md) | Detailed breakdown of Phase 1 (MVP Foundation) with weekly tasks and progress     | Developers, Project managers   |
+| [Current Status](./status/current.md)          | Real-time development status with active work, blockers, and next steps           | All stakeholders, Contributors |
+
+---
 
 ### 🏢 Team & Organization
 
