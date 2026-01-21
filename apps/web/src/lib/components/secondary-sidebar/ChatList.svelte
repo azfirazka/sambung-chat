@@ -9,6 +9,7 @@
   import { Input } from '$lib/components/ui/input/index.js';
   import { autofocus } from '$lib/actions/autofocus.js';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+  import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { exportAllChats, type ChatsByFolder } from '$lib/utils/chat-export';
   import DownloadIcon from '@lucide/svelte/icons/download';
   import FileJsonIcon from '@lucide/svelte/icons/file-json';
@@ -23,6 +24,7 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import FilterIcon from '@lucide/svelte/icons/filter';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
 
   // Types
   interface MatchingMessage {
@@ -105,6 +107,9 @@
   // Export state
   let exporting = $state(false);
   let exportFormat = $state<'json' | 'md' | 'zip' | null>(null);
+
+  // Filter dialog state
+  let showFilterDialog = $state(false);
 
   // Computed - filtered chats (API handles filtering, just return chats)
   let filteredChats = $derived(() => chats);
@@ -595,6 +600,15 @@
             </DropdownMenu.DropdownMenuItem>
           </DropdownMenu.DropdownMenuContent>
         </DropdownMenu.DropdownMenu>
+        <Button
+          size="sm"
+          onclick={() => (showFilterDialog = true)}
+          variant="ghost"
+          title="Filter chats"
+          class="h-8 w-8 p-0"
+        >
+          <SlidersHorizontalIcon class="size-4" />
+        </Button>
         <Button size="sm" onclick={createNewChat} variant="default">
           <PlusIcon class="mr-1 size-4" />
           New Chat
@@ -603,213 +617,33 @@
     </div>
 
     <!-- Search Input (press Enter to search) -->
-    <div class="mb-3">
+    <div class="flex items-center gap-2">
       <Input
         type="text"
         placeholder="Search chats... (press Enter)"
         bind:value={searchQuery}
         onkeydown={handleSearchKeydown}
-        class="h-8"
+        class="h-8 flex-1"
       />
-    </div>
-
-    <!-- Filter Controls -->
-    <div class="flex items-center justify-between gap-2">
-      <select
-        value={selectedFolderId}
-        onchange={(e) => {
-          selectedFolderId = e.currentTarget.value;
-          handleFolderChange();
-        }}
-        class="border-input bg-background focus:ring-ring flex-1 rounded-md border px-2 py-1 text-sm focus:ring-1 focus:outline-none"
-      >
-        <option value="">All Folders</option>
-        {#each folders as folder}
-          <option value={folder.id}>{folder.name}</option>
-        {/each}
-      </select>
-      <label class="text-muted-foreground flex items-center gap-1.5 text-xs">
-        <input
-          type="checkbox"
-          checked={showPinnedOnly}
-          onchange={(e) => {
-            showPinnedOnly = e.currentTarget.checked;
-            handlePinnedChange();
+      {#if hasActiveFilters}
+        <div
+          class="bg-primary/10 text-primary flex h-8 items-center rounded-md px-2 text-xs font-medium"
+          title="Filters active - click to view"
+          onclick={() => (showFilterDialog = true)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              showFilterDialog = true;
+            }
           }}
-          class="border-input bg-background focus:ring-ring rounded border px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
-        />
-        Pinned only
-      </label>
-    </div>
-
-    <!-- Provider Filter -->
-    {#if availableProviders().length > 0}
-      <div class="mt-2">
-        <DropdownMenu.DropdownMenu>
-          <DropdownMenu.Trigger
-            class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-sm focus:ring-1 focus:outline-none"
-            type="button"
-          >
-            <div class="flex items-center gap-2">
-              <FilterIcon class="size-3.5" />
-              <span class="text-muted-foreground text-xs">
-                {selectedProviders.length === 0
-                  ? 'All Providers'
-                  : `${selectedProviders.length} provider${selectedProviders.length > 1 ? 's' : ''} selected`}
-              </span>
-            </div>
-            <ChevronDownIcon class="size-3.5" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content class="w-56">
-            {#each availableProviders() as provider (provider)}
-              {@const isSelected = selectedProviders.includes(provider)}
-              <DropdownMenu.CheckboxItem
-                checked={isSelected}
-                onselect={() => {
-                  if (isSelected) {
-                    selectedProviders = selectedProviders.filter((p) => p !== provider);
-                  } else {
-                    selectedProviders = [...selectedProviders, provider];
-                  }
-                  handleProvidersChange();
-                }}
-              >
-                <span class="flex-1">{providerLabels[provider] || provider}</span>
-              </DropdownMenu.CheckboxItem>
-            {/each}
-            {#if selectedProviders.length > 0}
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                onclick={() => {
-                  selectedProviders = [];
-                  handleProvidersChange();
-                }}
-              >
-                Clear providers
-              </DropdownMenu.Item>
-            {/if}
-          </DropdownMenu.Content>
-        </DropdownMenu.DropdownMenu>
-      </div>
-    {/if}
-
-    <!-- Model Filter -->
-    {#if availableModels().length > 0}
-      <div class="mt-2">
-        <DropdownMenu.DropdownMenu>
-          <DropdownMenu.Trigger
-            class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-sm focus:ring-1 focus:outline-none"
-            type="button"
-          >
-            <div class="flex items-center gap-2">
-              <FilterIcon class="size-3.5" />
-              <span class="text-muted-foreground text-xs">
-                {selectedModelIds.length === 0
-                  ? 'All Models'
-                  : `${selectedModelIds.length} model${selectedModelIds.length > 1 ? 's' : ''} selected`}
-              </span>
-            </div>
-            <ChevronDownIcon class="size-3.5" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content class="max-h-80 w-56 overflow-y-auto">
-            {#each availableModels() as model (model.id)}
-              {@const isSelected = selectedModelIds.includes(model.id)}
-              <DropdownMenu.CheckboxItem
-                checked={isSelected}
-                onselect={() => {
-                  if (isSelected) {
-                    selectedModelIds = selectedModelIds.filter((id) => id !== model.id);
-                  } else {
-                    selectedModelIds = [...selectedModelIds, model.id];
-                  }
-                  handleModelsChange();
-                }}
-              >
-                <span class="flex-1 truncate" title={model.name}>{model.name}</span>
-              </DropdownMenu.CheckboxItem>
-            {/each}
-            {#if selectedModelIds.length > 0}
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                onclick={() => {
-                  selectedModelIds = [];
-                  handleModelsChange();
-                }}
-              >
-                Clear models
-              </DropdownMenu.Item>
-            {/if}
-          </DropdownMenu.Content>
-        </DropdownMenu.DropdownMenu>
-      </div>
-    {/if}
-
-    <!-- Date Range Filter -->
-    <div class="mt-2 flex items-center gap-2">
-      <div class="flex-1">
-        <Input
-          type="date"
-          value={dateFrom}
-          onchange={(e) => {
-            dateFrom = e.currentTarget.value;
-            handleDateChange();
-          }}
-          class="h-8 text-xs"
-          placeholder="From date"
-        />
-      </div>
-      <span class="text-muted-foreground text-xs">to</span>
-      <div class="flex-1">
-        <Input
-          type="date"
-          value={dateTo}
-          onchange={(e) => {
-            dateTo = e.currentTarget.value;
-            handleDateChange();
-          }}
-          class="h-8 text-xs"
-          placeholder="To date"
-        />
-      </div>
-      {#if dateFrom || dateTo}
-        <Button
-          size="sm"
-          variant="ghost"
-          onclick={() => {
-            dateFrom = '';
-            dateTo = '';
-            handleDateChange();
-          }}
-          class="h-8 px-2"
-          title="Clear date range"
+          role="button"
+          tabindex="0"
         >
-          <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </Button>
+          <FilterIcon class="mr-1 size-3" />
+          Active
+        </div>
       {/if}
     </div>
-
-    <!-- Clear All Filters Button -->
-    {#if hasActiveFilters}
-      <div class="mt-3">
-        <Button
-          size="sm"
-          variant="outline"
-          onclick={handleClearAllFilters}
-          class="w-full justify-start text-xs"
-          title="Clear all filters and reset to default view"
-        >
-          <RotateCcwIcon class="mr-2 size-3.5" />
-          Clear All Filters
-        </Button>
-      </div>
-    {/if}
   </Sidebar.Header>
 
   <!-- Content -->
@@ -1024,3 +858,204 @@
     {/if}
   </Sidebar.Content>
 </div>
+
+<!-- Filter Dialog -->
+<Dialog.Root bind:open={showFilterDialog}>
+  <Dialog.Content class="max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>Filter Chats</Dialog.Title>
+      <Dialog.Description>Apply filters to narrow down your chat search</Dialog.Description>
+    </Dialog.Header>
+
+    <div class="space-y-4 py-4">
+      <!-- Folder Filter -->
+      <div class="space-y-2">
+        <label class="text-sm font-medium">Folder</label>
+        <select
+          value={selectedFolderId}
+          onchange={(e) => {
+            selectedFolderId = e.currentTarget.value;
+            handleFolderChange();
+          }}
+          class="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none"
+        >
+          <option value="">All Folders</option>
+          {#each folders as folder}
+            <option value={folder.id}>{folder.name}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Pinned Filter -->
+      <div class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="pinned-only"
+          checked={showPinnedOnly}
+          onchange={(e) => {
+            showPinnedOnly = e.currentTarget.checked;
+            handlePinnedChange();
+          }}
+          class="border-input bg-background focus:ring-ring rounded border px-2 py-1 text-sm focus:ring-1 focus:outline-none"
+        />
+        <label for="pinned-only" class="cursor-pointer text-sm">Show pinned only</label>
+      </div>
+
+      <!-- Provider Filter -->
+      {#if availableProviders().length > 0}
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Providers</label>
+          <DropdownMenu.DropdownMenu>
+            <DropdownMenu.Trigger
+              class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm focus:ring-1 focus:outline-none"
+              type="button"
+            >
+              <div class="flex items-center gap-2">
+                <FilterIcon class="size-4" />
+                <span class="text-muted-foreground">
+                  {selectedProviders.length === 0
+                    ? 'All Providers'
+                    : `${selectedProviders.length} provider${selectedProviders.length > 1 ? 's' : ''} selected`}
+                </span>
+              </div>
+              <ChevronDownIcon class="size-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content class="w-56">
+              {#each availableProviders() as provider (provider)}
+                {@const isSelected = selectedProviders.includes(provider)}
+                <DropdownMenu.CheckboxItem
+                  checked={isSelected}
+                  onselect={() => {
+                    if (isSelected) {
+                      selectedProviders = selectedProviders.filter((p) => p !== provider);
+                    } else {
+                      selectedProviders = [...selectedProviders, provider];
+                    }
+                    handleProvidersChange();
+                  }}
+                >
+                  <span class="flex-1">{providerLabels[provider] || provider}</span>
+                </DropdownMenu.CheckboxItem>
+              {/each}
+              {#if selectedProviders.length > 0}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  onclick={() => {
+                    selectedProviders = [];
+                    handleProvidersChange();
+                  }}
+                >
+                  Clear providers
+                </DropdownMenu.Item>
+              {/if}
+            </DropdownMenu.Content>
+          </DropdownMenu.DropdownMenu>
+        </div>
+      {/if}
+
+      <!-- Model Filter -->
+      {#if availableModels().length > 0}
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Models</label>
+          <DropdownMenu.DropdownMenu>
+            <DropdownMenu.Trigger
+              class="border-input bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm focus:ring-1 focus:outline-none"
+              type="button"
+            >
+              <div class="flex items-center gap-2">
+                <FilterIcon class="size-4" />
+                <span class="text-muted-foreground">
+                  {selectedModelIds.length === 0
+                    ? 'All Models'
+                    : `${selectedModelIds.length} model${selectedModelIds.length > 1 ? 's' : ''} selected`}
+                </span>
+              </div>
+              <ChevronDownIcon class="size-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content class="max-h-80 w-56 overflow-y-auto">
+              {#each availableModels() as model (model.id)}
+                {@const isSelected = selectedModelIds.includes(model.id)}
+                <DropdownMenu.CheckboxItem
+                  checked={isSelected}
+                  onselect={() => {
+                    if (isSelected) {
+                      selectedModelIds = selectedModelIds.filter((id) => id !== model.id);
+                    } else {
+                      selectedModelIds = [...selectedModelIds, model.id];
+                    }
+                    handleModelsChange();
+                  }}
+                >
+                  <span class="flex-1 truncate" title={model.name}>{model.name}</span>
+                </DropdownMenu.CheckboxItem>
+              {/each}
+              {#if selectedModelIds.length > 0}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  onclick={() => {
+                    selectedModelIds = [];
+                    handleModelsChange();
+                  }}
+                >
+                  Clear models
+                </DropdownMenu.Item>
+              {/if}
+            </DropdownMenu.Content>
+          </DropdownMenu.DropdownMenu>
+        </div>
+      {/if}
+
+      <!-- Date Range Filter -->
+      <div class="space-y-2">
+        <label class="text-sm font-medium">Date Range</label>
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <Input
+              type="date"
+              value={dateFrom}
+              onchange={(e) => {
+                dateFrom = e.currentTarget.value;
+                handleDateChange();
+              }}
+              class="h-9 text-sm"
+              placeholder="From date"
+            />
+          </div>
+          <span class="text-muted-foreground text-sm">to</span>
+          <div class="flex-1">
+            <Input
+              type="date"
+              value={dateTo}
+              onchange={(e) => {
+                dateTo = e.currentTarget.value;
+                handleDateChange();
+              }}
+              class="h-9 text-sm"
+              placeholder="To date"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <Dialog.Footer>
+      <div class="flex w-full items-center justify-between">
+        <Button
+          variant="ghost"
+          onclick={handleClearAllFilters}
+          disabled={!hasActiveFilters}
+          class="text-muted-foreground"
+        >
+          <RotateCcwIcon class="mr-2 size-4" />
+          Clear All
+        </Button>
+        <div class="flex gap-2">
+          <Dialog.Close>
+            <Button variant="outline">Cancel</Button>
+          </Dialog.Close>
+          <Button onclick={() => (showFilterDialog = false)}>Apply Filters</Button>
+        </div>
+      </div>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
