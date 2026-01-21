@@ -138,6 +138,11 @@ jobs:
             sleep 1
           done
 
+      - name: Setup database
+        run: bun run db:push
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+
       - name: Run unit tests
         run: bun run test:unit
         env:
