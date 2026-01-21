@@ -3,7 +3,7 @@
   "spec": "004-lazy-load-katex-and-mermaid-to-reduce-initial-bund",
   "state": "building",
   "subtasks": {
-    "completed": 9,
+    "completed": 11,
     "total": 12,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-01-22T02:10:38.829685"
   },
-  "last_update": "2026-01-22T02:12:22.025385"
+  "last_update": "2026-01-22T02:23:22.812762"
 }
