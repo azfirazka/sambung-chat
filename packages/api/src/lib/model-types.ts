@@ -94,3 +94,41 @@ export interface BaseProviderModel {
  * ```
  */
 export type AvailableModel = BaseProviderModel;
+
+/**
+ * Transform a provider-specific model to the common AvailableModel format
+ *
+ * This utility function extracts the common fields from any provider model
+ * (OpenAI, Anthropic, Google, Groq, Ollama) and returns a standardized
+ * AvailableModel object. This eliminates code duplication in the
+ * getAvailableModels procedure.
+ *
+ * @template T - Type extending BaseProviderModel (e.g., OpenAIModel, AnthropicModel)
+ * @param model - Provider-specific model object
+ * @returns Standardized AvailableModel object
+ *
+ * @example
+ * ```ts
+ * import { openaiModels } from './openai-models';
+ * import { anthropicModels } from './anthropic-models';
+ * import { transformToAvailableModel } from './model-types';
+ *
+ * // Works with any provider model
+ * const openaiAvailable = openaiModels.map(transformToAvailableModel);
+ * const anthropicAvailable = anthropicModels.map(transformToAvailableModel);
+ *
+ * // Returns: AvailableModel[] for each provider
+ * ```
+ */
+export function transformToAvailableModel<T extends BaseProviderModel>(
+  model: T
+): AvailableModel {
+  return {
+    id: model.id,
+    name: model.name,
+    maxTokens: model.maxTokens,
+    contextWindow: model.contextWindow,
+    bestFor: model.bestFor,
+    cost: model.cost,
+  };
+}
