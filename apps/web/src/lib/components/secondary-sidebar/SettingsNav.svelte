@@ -24,14 +24,14 @@
     },
     {
       label: 'Models',
-      href: '/app/settings',
+      href: '/app/settings/models',
       icon: CpuIcon,
     },
   ];
 
   function isActive(href: string) {
-    if (href === '/app/settings') {
-      return $page.url.pathname === '/app/settings';
+    if (href === '/app/settings/models') {
+      return $page.url.pathname === '/app/settings/models';
     }
     return $page.url.pathname.startsWith(href);
   }

@@ -16,6 +16,17 @@
 
   const sidebar = useSidebar();
 
+  // Get initials from user name
+  function getInitials(name: string): string {
+    return name
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase())
+      .join('')
+      .slice(0, 2);
+  }
+
+  const userInitials = $derived(getInitials(user.name));
+
   // SSR-safe: default to desktop during SSR
   let isMobile = $state(false);
 
@@ -41,7 +52,7 @@
               {#if user.avatar}
                 <Avatar.Image src={user.avatar} alt={user.name} />
               {/if}
-              <Avatar.Fallback class="rounded-lg">CN</Avatar.Fallback>
+              <Avatar.Fallback class="rounded-lg">{userInitials}</Avatar.Fallback>
             </Avatar.Root>
             <div class="grid flex-1 text-start text-sm leading-tight">
               <span class="truncate font-medium">{user.name}</span>
@@ -63,7 +74,7 @@
               {#if user.avatar}
                 <Avatar.Image src={user.avatar} alt={user.name} />
               {/if}
-              <Avatar.Fallback class="rounded-lg">CN</Avatar.Fallback>
+              <Avatar.Fallback class="rounded-lg">{userInitials}</Avatar.Fallback>
             </Avatar.Root>
             <div class="grid flex-1 text-start text-sm leading-tight">
               <span class="truncate font-medium">{user.name}</span>
@@ -81,7 +92,7 @@
             <KeyIcon />
             API Keys
           </DropdownMenu.Item>
-          <DropdownMenu.Item onclick={() => goto('/app/settings')} class="cursor-pointer">
+          <DropdownMenu.Item onclick={() => goto('/app/settings/models')} class="cursor-pointer">
             <CpuIcon />
             Models
           </DropdownMenu.Item>
