@@ -1,7 +1,6 @@
 import { auth } from '@sambung-chat/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
-import { redirect, type Redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSecurityHeaders } from '$lib/security/headers';
 
@@ -40,25 +39,37 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // Protected routes (/app/*) - redirect to login if not logged in
   if (!isLoggedIn && path.startsWith('/app/')) {
-    const response = redirect(302, '/login');
-    return applySecurityHeaders(response as unknown as Response);
+    const response = new Response(null, {
+      status: 302,
+      headers: { Location: '/login' },
+    });
+    return applySecurityHeaders(response);
   }
 
   // Auth routes (login, register) - redirect to app if already logged in
   // Note: /logout is excluded - should always be accessible
   if (isLoggedIn && (path === '/login' || path === '/register')) {
-    const response = redirect(302, '/app/chat');
-    return applySecurityHeaders(response as unknown as Response);
+    const response = new Response(null, {
+      status: 302,
+      headers: { Location: '/app/chat' },
+    });
+    return applySecurityHeaders(response);
   }
 
   // Root route - redirect based on auth state
   if (path === '/') {
     if (isLoggedIn) {
-      const response = redirect(302, '/app/chat');
-      return applySecurityHeaders(response as unknown as Response);
+      const response = new Response(null, {
+        status: 302,
+        headers: { Location: '/app/chat' },
+      });
+      return applySecurityHeaders(response);
     } else {
-      const response = redirect(302, '/login');
-      return applySecurityHeaders(response as unknown as Response);
+      const response = new Response(null, {
+        status: 302,
+        headers: { Location: '/login' },
+      });
+      return applySecurityHeaders(response);
     }
   }
 

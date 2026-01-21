@@ -23,7 +23,7 @@ export const protectedProcedure = publicProcedure.use(requireAuth);
 /**
  * CSRF protection middleware for state-changing operations.
  *
- * Validates CSRF tokens from the X-CSRF-Token header on mutation requests.
+ * Validates CSRF tokens extracted from the X-CSRF-Token header.
  * Uses constant-time comparison to prevent timing attacks.
  *
  * @example
@@ -34,12 +34,8 @@ export const protectedProcedure = publicProcedure.use(requireAuth);
  * @throws {ORPCError} FORBIDDEN if CSRF token is missing or invalid
  */
 const withCsrfProtection = o.middleware(async ({ context, next }) => {
-  // Extract CSRF token from X-CSRF-Token header (case-insensitive)
-  // Headers.get() is case-sensitive, so try common variations
-  const csrfToken =
-    context.headers.get('x-csrf-token') ||
-    context.headers.get('X-CSRF-Token') ||
-    context.headers.get('X-CSRF-token');
+  // CSRF token is already extracted in createContext (case-insensitive)
+  const csrfToken = context.csrfToken;
 
   // Check if token is present
   if (!csrfToken) {

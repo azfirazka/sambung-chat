@@ -63,11 +63,17 @@ export function getCSPHeader(config: CSPConfig = { reportOnly: false }): string 
       ? process.env.PUBLIC_API_URL || 'http://localhost:3000'
       : 'http://localhost:3000';
 
-  // Get Keycloak URL if configured
-  const keycloakUrl =
-    typeof process !== 'undefined' && process.env.KEYCLOAK_URL
-      ? new URL(process.env.KEYCLOAK_URL).origin
-      : '';
+  // Get Keycloak URL from server environment, with defensive error handling
+  let keycloakUrl = '';
+  const keycloakUrlEnv = typeof process !== 'undefined' ? process.env.KEYCLOAK_URL : undefined;
+  if (keycloakUrlEnv) {
+    try {
+      keycloakUrl = new URL(keycloakUrlEnv).origin;
+    } catch {
+      // If KEYCLOAK_URL is malformed, fall back to empty string
+      keycloakUrl = '';
+    }
+  }
 
   // Build connect-src with API endpoints and Keycloak
   const connectSources = [

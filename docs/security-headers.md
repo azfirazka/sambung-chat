@@ -360,7 +360,7 @@ Cross-Origin-Resource-Policy: same-site
 **Check Frontend Headers:**
 
 ```bash
-curl -I http://localhost:5173
+curl -I http://localhost:5174
 ```
 
 **Check Backend Headers:**

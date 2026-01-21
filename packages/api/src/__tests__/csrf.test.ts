@@ -4,8 +4,13 @@
  * Tests for CSRF token generation, validation, and comprehensive security scenarios
  */
 
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { generateCsrfToken, validateCsrfToken, getCsrfTokenTimestamp, isCsrfTokenExpired } from '../utils/csrf';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import {
+  generateCsrfToken,
+  validateCsrfToken,
+  getCsrfTokenTimestamp,
+  isCsrfTokenExpired,
+} from '../utils/csrf';
 import { RateLimiter } from '../utils/rate-limiter';
 
 describe('CSRF Protection Integration', () => {
@@ -95,14 +100,7 @@ describe('CSRF Protection Integration', () => {
     });
 
     it('should fail validation with malformed token', () => {
-      const malformedTokens = [
-        'invalid',
-        'only|two',
-        'too|many|parts|here',
-        '',
-        '||',
-        'a|b|c',
-      ];
+      const malformedTokens = ['invalid', 'only|two', 'too|many|parts|here', '', '||', 'a|b|c'];
 
       malformedTokens.forEach((token) => {
         expect(validateCsrfToken(token)).toBe(false);
@@ -135,7 +133,7 @@ describe('CSRF Protection Integration', () => {
     it('should fail validation with expired token', () => {
       const token = generateCsrfToken();
       const parts = token.split('|');
-      const oldTimestamp = Date.now() - (2 * 60 * 60 * 1000); // 2 hours ago
+      const oldTimestamp = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
       parts[1] = oldTimestamp.toString();
       const expiredToken = parts.join('|');
 
@@ -148,7 +146,7 @@ describe('CSRF Protection Integration', () => {
 
       const expiredToken = generateCsrfToken();
       const parts = expiredToken.split('|');
-      const oldTimestamp = Date.now() - (2 * 60 * 60 * 1000);
+      const oldTimestamp = Date.now() - 2 * 60 * 60 * 1000;
       parts[1] = oldTimestamp.toString();
       const expired = parts.join('|');
 
@@ -185,12 +183,7 @@ describe('CSRF Protection Integration', () => {
     });
 
     it('should return null for invalid token timestamp extraction', () => {
-      const invalidTokens = [
-        'invalid',
-        'only|two',
-        'token|not-a-number|sig',
-        '',
-      ];
+      const invalidTokens = ['invalid', 'only|two', 'token|not-a-number|sig', ''];
 
       invalidTokens.forEach((token) => {
         expect(getCsrfTokenTimestamp(token)).toBeNull();
@@ -223,15 +216,15 @@ describe('CSRF Protection Integration', () => {
 
     it('should fail validation for token from different secret', () => {
       // Generate token with one secret
+      const originalSecret = process.env.BETTER_AUTH_SECRET;
       const token1 = generateCsrfToken();
 
       // Change secret (simulating different session/environment)
-      const originalSecret = process.env.BETTER_AUTH_SECRET;
       process.env.BETTER_AUTH_SECRET = 'different-secret-key-for-testing-min-32-chars';
 
       const isValid = validateCsrfToken(token1);
 
-      expect(isValid).toBe(true); // Still validates because we regenerate signature
+      expect(isValid).toBe(false); // Should NOT validate - different secret produces different signature
 
       // Restore original secret
       process.env.BETTER_AUTH_SECRET = originalSecret;
@@ -352,7 +345,10 @@ describe('CSRF Protection Integration', () => {
     it('should not reveal token validity through timing', () => {
       // Generate various tokens with different validity states
       const validToken = generateCsrfToken();
-      const expiredToken = generateCsrfToken().split('|').map((part, i) => i === 1 ? (Date.now() - 7200000).toString() : part).join('|');
+      const expiredToken = generateCsrfToken()
+        .split('|')
+        .map((part, i) => (i === 1 ? (Date.now() - 7200000).toString() : part))
+        .join('|');
       const invalidToken = 'invalid-token-format';
 
       // Measure validation times
@@ -409,4 +405,3 @@ describe('CSRF Protection Integration', () => {
     });
   });
 });
-

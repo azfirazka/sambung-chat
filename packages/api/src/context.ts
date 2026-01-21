@@ -7,39 +7,25 @@ export type CreateContextOptions = {
 };
 
 /**
- * Extract client IP address from request headers
+ * Extract client IP address from request
  *
- * Checks multiple headers in order of reliability:
- * 1. X-Forwarded-For (proxy)
- * 2. X-Real-IP (nginx)
- * 3. CF-Connecting-IP (Cloudflare)
- * 4. Fallback to remote address
+ * SECURITY NOTE: This function does NOT trust client-controlled headers
+ * (X-Forwarded-For, X-Real-IP, CF-Connecting-IP) as they can be spoofed.
+ * In production with a trusted reverse proxy, configure the proxy to set
+ * the actual remote address and use that instead.
+ *
+ * @returns Client IP address from socket.remoteAddress or 'unknown'
  */
 function getClientIp(context: HonoContext): string {
-  // Check X-Forwarded-For header (may contain multiple IPs)
-  const forwardedFor = context.req.raw.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // Take the first IP (original client)
-    const firstIp = forwardedFor.split(',')[0]?.trim();
-    if (firstIp) {
-      return firstIp;
-    }
+  // Try to get the actual remote address from the socket
+  // Note: In Node.js environments, raw requests have a socket property
+  const remoteAddress = (context.req.raw as unknown as { socket?: { remoteAddress?: string } })
+    .socket?.remoteAddress;
+  if (remoteAddress) {
+    return remoteAddress;
   }
 
-  // Check X-Real-IP header
-  const realIp = context.req.raw.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
-
-  // Check Cloudflare header
-  const cfConnectingIp = context.req.raw.headers.get('cf-connecting-ip');
-  if (cfConnectingIp) {
-    return cfConnectingIp;
-  }
-
-  // Fallback: In production, this should be set by the server
-  // For now, return a placeholder
+  // Fallback: In production this should be set by the server/reverse proxy
   return 'unknown';
 }
 
@@ -52,10 +38,20 @@ export async function createContext({ context }: CreateContextOptions) {
 
   const clientIp = getClientIp(context);
 
+  // Extract CSRF token from headers (case-insensitive)
+  // Do not return the full headers object to avoid exposing sensitive headers
+  let csrfToken: string | undefined;
+  for (const [key, value] of headers.entries()) {
+    if (key.toLowerCase() === 'x-csrf-token' && value) {
+      csrfToken = value;
+      break;
+    }
+  }
+
   return {
     session,
     clientIp,
-    headers,
+    csrfToken,
   };
 }
 

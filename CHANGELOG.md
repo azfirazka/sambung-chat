@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.14] - 2026-01-21
+
+### Security
+
+- **AI Provider Validation**: Add Zod schema validation for AI provider values from database ([apps/server/src/index.ts](apps/server/src/index.ts:26))
+  - Replaces unsafe `as any` cast with proper Zod enum validation
+  - Returns 400 error with clear message for invalid provider values
+
+- **Security Headers on Redirects**: Apply security headers to redirect responses by using Response-based redirects ([apps/web/src/hooks.server.ts](apps/web/src/hooks.server.ts:42))
+  - Replaces SvelteKit `redirect()` with Response(302) + Location header
+  - Ensures security headers are applied to all redirect responses
+
+- **Validated Environment Variables**: Use validated env exports in security headers instead of process.env ([apps/web/src/lib/security/headers.ts](apps/web/src/lib/security/headers.ts:12))
+  - Import `env` from `@sambung-chat/env/server` for PUBLIC_API_URL and KEYCLOAK_URL
+  - Add try/catch for malformed KEYCLOAK_URL with fallback to empty string
+
+- **Context Security Hardening**: Remove sensitive headers from context type and harden IP extraction ([packages/api/src/context.ts](packages/api/src/context.ts))
+  - getClientIp no longer trusts spoofable X-Forwarded-For/X-Real-IP headers
+  - Context now returns only `csrfToken` instead of full headers object
+  - CSRF middleware updated to use pre-extracted csrfToken
+
+- **Type Safety Improvements**: Add type guard for SameSite values ([packages/env/src/server.ts](packages/env/src/server.ts:251))
+  - Removes unsafe `as any` cast with `isSameSite()` type guard function
+  - CORS origins now use `url.origin` instead of `url.href` to discard path/query/hash
+
+### Fixed
+
+- **CSRF Test Assertion**: Fix test that incorrectly expected token validation to pass with different secret ([packages/api/src/**tests**/csrf.test.ts](packages/api/src/__tests__/csrf.test.ts:234))
+- **Auth Test Module Loading**: Add `vi.resetModules()` before dynamic imports and fix spy types ([packages/auth/**tests**/cookies.test.ts](packages/auth/__tests__/cookies.test.ts:231))
+- **Reencrypt Script Enhancements**: Add `--key-id` argument support and use package alias ([scripts/reencrypt-api-keys.ts](scripts/reencrypt-api-keys.ts))
+  - Import encryption functions from `@sambung-chat/api/lib/encryption` instead of relative path
+  - Support targeting specific API key by ID with `--key-id` argument
+
+### Documentation
+
+- **Standardized Port**: Update documentation to reflect standardized web port 5174 ([docs/security-headers.md](docs/security-headers.md:363))
+- **Markdown Formatting**: Fix markdownlint issues in security.md ([docs/security.md](docs/security.md))
+  - Hyphenate compound modifiers (CSRF-validation, rate-limiting, CORS-origin)
+  - Wrap bare localhost URLs in angle brackets for MD034 compliance
+  - Convert bold DO/DON'T labels to proper markdown headings (#### Do/#### Don't)
+
+---
+
 ## [0.0.13] - 2026-01-21
 
 ### Fixed

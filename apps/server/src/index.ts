@@ -14,8 +14,24 @@ import { streamText, convertToModelMessages, wrapLanguageModel } from 'ai';
 import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { z } from 'zod';
 
 const app = new Hono();
+
+// ============================================================================
+// AI Provider Schema
+// ============================================================================
+
+// Zod schema for validating AI provider values from database
+const aiProviderSchema = z.enum([
+  'openai',
+  'anthropic',
+  'google',
+  'groq',
+  'ollama',
+  'openrouter',
+  'custom',
+]);
 
 // ============================================================================
 // CORS - Must be registered before auth handler
@@ -240,9 +256,21 @@ app.post('/api/ai', async (c) => {
       apiKey = 'ollama'; // Placeholder for Ollama
     }
 
+    // Validate provider value from database
+    const validatedProvider = aiProviderSchema.safeParse(model.provider);
+    if (!validatedProvider.success) {
+      return c.json(
+        {
+          error: 'Invalid provider',
+          message: `Model "${model.name}" has an invalid provider: ${model.provider}`,
+        },
+        400
+      );
+    }
+
     // Build provider configuration
     const config: ProviderConfig = {
-      provider: model.provider as any,
+      provider: validatedProvider.data,
       modelId: model.modelId,
       apiKey,
     };

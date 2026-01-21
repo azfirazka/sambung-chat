@@ -6,7 +6,7 @@ describe('SameSite Cookie Configuration', () => {
   const originalEnv = process.env;
   const consoleWarnSpy = {
     calls: [] as string[],
-    spy: null as any,
+    spy: null as ReturnType<typeof vi.spyOn> | null,
     restore() {
       if (this.spy) {
         this.spy.mockRestore();
@@ -23,7 +23,7 @@ describe('SameSite Cookie Configuration', () => {
 
   const consoleLogSpy = {
     calls: [] as string[],
-    spy: null as any,
+    spy: null as ReturnType<typeof vi.spyOn> | null,
     restore() {
       if (this.spy) {
         this.spy.mockRestore();
@@ -227,7 +227,8 @@ describe('SameSite Cookie Configuration', () => {
       process.env.NODE_ENV = 'production';
       process.env.SAME_SITE_COOKIE = 'strict';
 
-      // Re-initialize to pick up new env
+      // Clear module cache and re-initialize to pick up new env
+      vi.resetModules();
       const { auth: authProd } = await import('../src/index');
       expect(authProd).toBeDefined();
     });
@@ -236,7 +237,8 @@ describe('SameSite Cookie Configuration', () => {
       process.env.NODE_ENV = 'development';
       process.env.SAME_SITE_COOKIE = 'lax';
 
-      // Re-initialize to pick up new env
+      // Clear module cache and re-initialize to pick up new env
+      vi.resetModules();
       const { auth: authDev } = await import('../src/index');
       expect(authDev).toBeDefined();
     });

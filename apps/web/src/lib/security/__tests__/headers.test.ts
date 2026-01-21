@@ -584,6 +584,17 @@ describe('Edge Cases', () => {
     expect(cspHeader).toBeDefined();
   });
 
+  it('should handle invalid KEYCLOAK_URL gracefully', () => {
+    process.env.KEYCLOAK_URL = 'not-a-valid-url';
+
+    const headers = getSecurityHeaders();
+
+    const cspHeader = headers['Content-Security-Policy'];
+    expect(cspHeader).toBeDefined();
+    // Should not include the invalid URL in connect-src
+    expect(cspHeader).not.toContain('not-a-valid-url');
+  });
+
   it('should handle empty config object', () => {
     const headers = getSecurityHeaders({});
 

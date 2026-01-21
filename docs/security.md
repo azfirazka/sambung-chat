@@ -101,6 +101,7 @@ export function generateCsrfToken(userId: string): string {
 ```
 
 **Security Properties**:
+
 - ✅ 256 bits of entropy (32 random bytes)
 - ✅ HMAC-SHA256 signature prevents tampering
 - ✅ Timestamp for expiration (1 hour default)
@@ -128,10 +129,7 @@ export function validateCsrfToken(token: string, userId: string): boolean {
       .update(data)
       .digest('hex');
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   } catch {
     return false;
   }
@@ -139,6 +137,7 @@ export function validateCsrfToken(token: string, userId: string): boolean {
 ```
 
 **Security Properties**:
+
 - ✅ Constant-time comparison prevents timing attacks
 - ✅ Expiration limits attack window
 - ✅ Signature verification prevents tampering
@@ -153,6 +152,7 @@ GET /rpc/app.getCsrfToken
 ```
 
 **Response** (authenticated):
+
 ```json
 {
   "token": "64-hex-chars:timestamp:userId:64-hex-signature",
@@ -162,6 +162,7 @@ GET /rpc/app.getCsrfToken
 ```
 
 **Response** (unauthenticated):
+
 ```json
 {
   "token": null,
@@ -197,6 +198,7 @@ const csrfManager = new CsrfTokenManager();
 ```
 
 **Features**:
+
 - ✅ In-memory token storage (never localStorage)
 - ✅ Automatic token fetching on app load
 - ✅ Automatic token refresh on 403 errors
@@ -207,6 +209,7 @@ const csrfManager = new CsrfTokenManager();
 All mutation operations require valid CSRF tokens:
 
 **Chat Router** (5 mutations):
+
 - `POST /rpc/app.chat.create`
 - `PUT /rpc/app.chat.update`
 - `DELETE /rpc/app.chat.delete`
@@ -214,15 +217,18 @@ All mutation operations require valid CSRF tokens:
 - `POST /rpc/app.chat.updateFolder`
 
 **Message Router** (2 mutations):
+
 - `POST /rpc/app.message.create`
 - `DELETE /rpc/app.message.delete`
 
 **Folder Router** (3 mutations):
+
 - `POST /rpc/app.folder.create`
 - `PUT /rpc/app.folder.update`
 - `DELETE /rpc/app.folder.delete`
 
 **Query operations** (read-only) do NOT require CSRF tokens:
+
 - `GET /rpc/app.chat.getAll`
 - `GET /rpc/app.chat.getById`
 - `GET /rpc/app.message.getByChatId`
@@ -231,6 +237,7 @@ All mutation operations require valid CSRF tokens:
 ### Testing CSRF Protection
 
 **Test without token** (should fail):
+
 ```bash
 curl -X POST http://localhost:3000/rpc/app.chat.create \
   -H "Content-Type: application/json" \
@@ -239,6 +246,7 @@ curl -X POST http://localhost:3000/rpc/app.chat.create \
 ```
 
 **Test with valid token** (should succeed):
+
 ```bash
 TOKEN=$(curl -s http://localhost:3000/rpc/app.getCsrfToken | jq -r '.token')
 
@@ -266,11 +274,13 @@ Maximum CSRF protection. Cookies are sent only for first-party requests.
 **Best for**: Production environments with high security requirements
 
 **Behavior**:
+
 - ✅ Cookies sent on same-site requests
 - ❌ Cookies NOT sent on cross-site requests (even from links)
 - ⚠️ May break OAuth flows from external providers
 
 **Example**:
+
 ```bash
 # .env.production
 NODE_ENV=production
@@ -284,11 +294,13 @@ Balanced security. Cookies are sent on same-site requests and safe cross-site re
 **Best for**: Development environments and OAuth flows
 
 **Behavior**:
+
 - ✅ Cookies sent on same-site requests
 - ✅ Cookies sent on cross-site top-level navigations (GET requests)
 - ❌ Cookies NOT sent on cross-site sub-resource requests (images, frames, etc.)
 
 **Example**:
+
 ```bash
 # .env.development
 NODE_ENV=development
@@ -300,12 +312,14 @@ SAME_SITE_COOKIE=lax
 No SameSite protection. Cookies sent on all requests.
 
 **Requirements**:
+
 - ✅ MUST be used with `Secure` attribute (HTTPS only)
 - ⚠️ Not recommended unless absolutely necessary
 
 **Best for**: Cross-site SSO scenarios (rare)
 
 **Example**:
+
 ```bash
 # .env (special cases only)
 SAME_SITE_COOKIE=none
@@ -388,8 +402,8 @@ export const auth = betterAuth({
     },
   },
   // Cookie configuration
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-  baseURLOAuth: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  baseURL: process.env.BETTER_AUTH_URL || '<http://localhost:3000>',
+  baseURLOAuth: process.env.BETTER_AUTH_URL || '<http://localhost:3000>',
 
   // Secure cookie settings
   secureCookie: nodeEnv === 'production' ? true : false, // HTTPS in production
@@ -431,7 +445,7 @@ export function getValidatedCorsOrigins(): string[] {
   }
 
   const isProduction = process.env.NODE_ENV === 'production';
-  const origins = corsOrigin.split(',').map(o => o.trim());
+  const origins = corsOrigin.split(',').map((o) => o.trim());
   const validatedOrigins: string[] = [];
 
   for (const origin of origins) {
@@ -506,11 +520,7 @@ app.use(
     origin: allowedOrigins,
     credentials: true,
     allowMethods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'],
-    allowHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-CSRF-Token',
-    ],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     maxAge: 86400,
   })
 );
@@ -551,21 +561,27 @@ CORS_ORIGIN=https://staging-chat.example.com,https://staging-app.example.com
 The system will log warnings for insecure configurations:
 
 ⚠️ **Wildcard Origin**:
+
 ```
 [CORS] ⚠️  WARNING: Wildcard origin (*) allows requests from ANY domain!
 ```
+
 **Risk**: Any website can make requests to your API and potentially steal user data.
 
 ⚠️ **HTTP in Production**:
+
 ```
 [CORS] ⚠️  WARNING: HTTP origin in production: http://example.com
 ```
+
 **Risk**: Cookies can be intercepted over the network.
 
 ⚠️ **Localhost in Production**:
+
 ```
 [CORS] ⚠️  WARNING: localhost in production: http://localhost:3000
 ```
+
 **Risk**: Indicates misconfiguration; localhost should not be in production CORS list.
 
 ---
@@ -578,7 +594,7 @@ The system will log warnings for insecure configurations:
   - [ ] Set `NODE_ENV=production`
   - [ ] Set `SAME_SITE_COOKIE=strict`
   - [ ] Set `CORS_ORIGIN` to exact production domain(s) (HTTPS only)
-  - [ ] Avoid wildcard (*) origins
+  - [ ] Avoid wildcard (\*) origins
   - [ ] Ensure `BETTER_AUTH_SECRET` is set and strong (32+ characters)
   - [ ] Ensure `DATABASE_URL` uses SSL (`?sslmode=require`)
 
@@ -606,9 +622,9 @@ The system will log warnings for insecure configurations:
 
 - [ ] **Monitoring**
   - [ ] Monitor server logs for security warnings
-  - [ ] Track CSRF validation failures
-  - [ ] Track rate limiting violations
-  - [ ] Audit CORS origin configurations
+  - [ ] Track CSRF-validation failures
+  - [ ] Track rate-limiting violations
+  - [ ] Audit CORS-origin configurations
   - [ ] Set up alerts for suspicious activity
 
 - [ ] **Testing**
@@ -624,14 +640,16 @@ The system will log warnings for insecure configurations:
 
 ### Token Management
 
-✅ **DO**:
+#### Do
+
 - Use in-memory token storage (not localStorage)
 - Implement automatic token refresh
 - Use short expiration times (1 hour recommended)
 - Use cryptographically secure random values
 - Sign tokens with HMAC
 
-❌ **DON'T**:
+#### Don't
+
 - Store tokens in localStorage
 - Reuse tokens across sessions
 - Use predictable token values
@@ -640,14 +658,16 @@ The system will log warnings for insecure configurations:
 
 ### Cookie Configuration
 
-✅ **DO**:
+#### Do
+
 - Use `SameSite=strict` in production
 - Enable `Secure` flag (HTTPS only)
 - Enable `HttpOnly` flag (prevent XSS access)
 - Set appropriate `maxAge` (7 days recommended)
 - Use cookie prefixes (`__Host-`, `__Secure-`)
 
-❌ **DON'T**:
+#### Don't
+
 - Use `SameSite=none` unless absolutely necessary
 - Allow cookies over HTTP in production
 - Expose session data in cookies
@@ -656,14 +676,16 @@ The system will log warnings for insecure configurations:
 
 ### CORS Configuration
 
-✅ **DO**:
+#### Do
+
 - Specify exact origins (not wildcards)
 - Use HTTPS only in production
 - Validate origin format on startup
 - Sanitize origins (trim, remove trailing slashes)
 - Log allowed origins for auditing
 
-❌ **DON'T**:
+#### Don't
+
 - Use `*` as origin
 - Allow HTTP in production
 - Forget to validate origin format
@@ -672,14 +694,16 @@ The system will log warnings for insecure configurations:
 
 ### API Security
 
-✅ **DO**:
+#### Do
+
 - Validate all input data
 - Use parameterized queries
 - Implement rate limiting
 - Log security events
 - Use constant-time comparisons for secrets
 
-❌ **DON'T**:
+#### Don't
+
 - Trust client-side input
 - Concatenate SQL queries
 - Expose sensitive data in errors
@@ -697,12 +721,14 @@ The system will log warnings for insecure configurations:
 **Cause**: Request doesn't include `X-CSRF-Token` header
 
 **Solution**:
+
 1. Ensure frontend is using latest orpc client
 2. Check browser console for token fetch errors
 3. Verify user is authenticated
 4. Check network tab for `/rpc/app.getCsrfToken` request
 
 **Debug**:
+
 ```javascript
 // In browser console
 localStorage.clear(); // Clear any stored data
@@ -714,12 +740,14 @@ localStorage.clear(); // Clear any stored data
 **Cause**: Token is malformed, expired, or tampered with
 
 **Solution**:
+
 1. Check token expiration (1 hour default)
 2. Verify token format (4 parts separated by colons)
 3. Check server logs for validation errors
 4. Ensure `BETTER_AUTH_SECRET` is consistent
 
 **Debug**:
+
 ```bash
 # Check token endpoint directly
 curl http://localhost:3000/rpc/app.getCsrfToken \
@@ -731,6 +759,7 @@ curl http://localhost:3000/rpc/app.getCsrfToken \
 **Cause**: Too many token fetch requests (>10/min)
 
 **Solution**:
+
 1. Wait for rate limit to reset (1 minute)
 2. Check for token fetch loops
 3. Implement exponential backoff
@@ -743,11 +772,13 @@ curl http://localhost:3000/rpc/app.getCsrfToken \
 **Cause**: SameSite=strict blocks OAuth redirects
 
 **Solution**:
+
 1. Use `SAME_SITE_COOKIE=lax` for OAuth environments
 2. Ensure OAuth callback URL is same-site
 3. Consider using `none` with Secure for cross-site OAuth (not recommended)
 
 **Debug**:
+
 ```javascript
 // Check cookie in browser
 document.cookie; // Should show session cookie
@@ -759,6 +790,7 @@ document.cookie; // Should show session cookie
 **Cause**: Cookie not being sent with requests
 
 **Solution**:
+
 1. Verify SameSite setting allows navigation
 2. Check cookie domain/path settings
 3. Ensure HTTPS is used in production
@@ -771,12 +803,14 @@ document.cookie; // Should show session cookie
 **Cause**: Request origin not in `CORS_ORIGIN` list
 
 **Solution**:
+
 1. Check `CORS_ORIGIN` environment variable
 2. Verify origin format (protocol + domain + port)
 3. Check for typos in origin URL
 4. Restart server after changing `CORS_ORIGIN`
 
 **Debug**:
+
 ```bash
 # Check server startup logs
 # Should show: [CORS] Allowed origins: https://example.com
@@ -793,12 +827,14 @@ curl -H "Origin: https://example.com" \
 **Cause**: CORS `credentials` not enabled
 
 **Solution**:
+
 1. Ensure `credentials: true` in CORS config
 2. Frontend must use `credentials: 'include'` in fetch
 3. Check browser console for credential errors
 4. Verify cookies are being set
 
 **Debug**:
+
 ```javascript
 // Frontend should use:
 fetch('/api/endpoint', {
@@ -816,12 +852,14 @@ fetch('/api/endpoint', {
 **Cause**: Malformed URL in `CORS_ORIGIN`
 
 **Solution**:
+
 1. Check origin format: `protocol://domain:port`
 2. Remove trailing slashes
 3. Don't include paths or query params
 4. Don't use embedded credentials (username:password@)
 
 **Debug**:
+
 ```bash
 # Test origin format
 node -e "console.log(new URL('https://example.com'))"
@@ -833,6 +871,7 @@ node -e "console.log(new URL('https://example.com'))"
 **Cause**: Invalid enum value
 
 **Solution**:
+
 1. Use only: `strict`, `lax`, or `none`
 2. Check for typos
 3. Don't use quotes around value

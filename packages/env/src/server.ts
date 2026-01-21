@@ -246,6 +246,13 @@ const envSchema = createEnv({
 });
 
 /**
+ * Type guard for SameSite cookie attribute values
+ */
+function isSameSite(value: string): value is 'lax' | 'strict' | 'none' {
+  return ['lax', 'strict', 'none'].includes(value);
+}
+
+/**
  * Validates and returns the SameSite cookie setting.
  *
  * Rules:
@@ -269,13 +276,10 @@ export function getValidatedSameSiteSetting(): 'lax' | 'strict' | 'none' {
     sameSiteCookie && sameSiteCookie.trim() !== '' ? sameSiteCookie : undefined;
   const defaultValue: 'lax' | 'strict' | 'none' = isProduction ? 'strict' : 'lax';
 
-  // Validate that configured value is one of the allowed values
-  const validValues = ['lax', 'strict', 'none'] as const;
-  const isValidConfig = configuredValue && validValues.includes(configuredValue as any);
+  // Validate that configured value is one of the allowed values using type guard
+  const isValidConfig = configuredValue && isSameSite(configuredValue);
 
-  const sameSiteValue: 'lax' | 'strict' | 'none' = isValidConfig
-    ? (configuredValue as 'lax' | 'strict' | 'none')
-    : defaultValue;
+  const sameSiteValue: 'lax' | 'strict' | 'none' = isValidConfig ? configuredValue : defaultValue;
 
   // Validate that 'none' is only used with secure cookies
   if (sameSiteValue === 'none' && !isSecure) {
@@ -378,18 +382,21 @@ export function getValidatedCorsOrigins(): string[] {
         throw new Error(`Only http:// and https:// protocols are allowed.`);
       }
 
-      // Sanitize: remove trailing slash
-      let sanitizedOrigin = url.href;
-      if (sanitizedOrigin.endsWith('/')) {
-        sanitizedOrigin = sanitizedOrigin.slice(0, -1);
+      // Warn if URL has pathname, search, or hash (these will be discarded)
+      if (url.pathname !== '/' || url.search || url.hash) {
+        console.warn(
+          `[SECURITY] WARNING: CORS origin "${origin}" contains path, query, or fragment. ` +
+            `Only the origin (scheme://host[:port]) will be used.`
+        );
       }
 
-      validatedOrigins.push(sanitizedOrigin);
+      // Use url.origin to get only scheme://host[:port]
+      validatedOrigins.push(url.origin);
 
       // Warn about HTTP in production
       if (nodeEnv === 'production' && url.protocol === 'http:') {
         warnings.push(
-          `[SECURITY] WARNING: CORS origin "${sanitizedOrigin}" uses HTTP in production. ` +
+          `[SECURITY] WARNING: CORS origin "${url.origin}" uses HTTP in production. ` +
             `HTTPS should be used for security.`
         );
       }
@@ -397,7 +404,7 @@ export function getValidatedCorsOrigins(): string[] {
       // Warn about localhost in production
       if (nodeEnv === 'production' && url.hostname === 'localhost') {
         warnings.push(
-          `[SECURITY] WARNING: CORS origin "${sanitizedOrigin}" points to localhost in production. ` +
+          `[SECURITY] WARNING: CORS origin "${url.origin}" points to localhost in production. ` +
             `This is likely a misconfiguration.`
         );
       }
