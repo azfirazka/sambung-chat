@@ -1,6 +1,6 @@
 import { db } from '@sambung-chat/db';
 import { prompts } from '@sambung-chat/db/schema/prompt';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, desc, ilike, gte, lte, sql } from 'drizzle-orm';
 import z from 'zod';
 import { ORPCError } from '@orpc/server';
 import { protectedProcedure, withCsrfProtection } from '../index';
@@ -114,5 +114,59 @@ export const promptRouter = {
       await db.delete(prompts).where(eq(prompts.id, input.id));
 
       return { success: true };
+    }),
+
+  // Search prompts with category and keyword filtering
+  search: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().optional(),
+        category: z.string().optional(),
+        isPublic: z.boolean().optional(),
+        dateFrom: z.coerce.date().optional(),
+        dateTo: z.coerce.date().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+
+      // Normalize query: trim whitespace to prevent searching for empty/whitespace-only strings
+      const normalizedQuery = input.query?.trim();
+
+      const conditions = [eq(prompts.userId, userId)];
+
+      // Build search conditions for name and content
+      if (normalizedQuery) {
+        conditions.push(
+          sql`(${prompts.name} ILIKE ${`%${normalizedQuery}%`} OR ${prompts.content} ILIKE ${`%${normalizedQuery}%`})`
+        );
+      }
+
+      // Filter by category
+      if (input.category !== undefined) {
+        conditions.push(eq(prompts.category, input.category));
+      }
+
+      // Filter by public status
+      if (input.isPublic !== undefined) {
+        conditions.push(eq(prompts.isPublic, input.isPublic));
+      }
+
+      // Add date range filter
+      if (input.dateFrom) {
+        conditions.push(gte(prompts.createdAt, input.dateFrom));
+      }
+
+      if (input.dateTo) {
+        conditions.push(lte(prompts.createdAt, input.dateTo));
+      }
+
+      const results = await db
+        .select()
+        .from(prompts)
+        .where(and(...conditions))
+        .orderBy(desc(prompts.updatedAt));
+
+      return results;
     }),
 };
