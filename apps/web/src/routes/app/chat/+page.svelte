@@ -10,8 +10,14 @@
   import { goto } from '$app/navigation';
   import ModelSelector from '$lib/components/model-selector.svelte';
 
-  // Use PUBLIC_URL for AI endpoint (backend)
-  const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+  // Get backend API URL for AI endpoint
+  // In development: Connect directly to backend server (port 3000)
+  // In production: Use PUBLIC_API_URL (backend is behind proxy)
+  const isDev = import.meta.env.DEV;
+  const serverPort = import.meta.env.SERVER_PORT || '3000';
+  const BACKEND_API_URL = isDev
+    ? `http://localhost:${serverPort}`
+    : import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
 
   // Custom fetch wrapper to include credentials (cookies) and modelId
   const authenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -62,7 +68,7 @@
 
   const chat = new Chat({
     transport: new DefaultChatTransport({
-      api: `${PUBLIC_API_URL}/api/ai`,
+      api: `${BACKEND_API_URL}/api/ai`,
       fetch: authenticatedFetch,
     }),
   });

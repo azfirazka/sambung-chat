@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.16] - 2026-01-21
+
+### Fixed
+
+- **Missing API Key Router Export**: Add apiKeyRouter to main ORPC appRouter export ([packages/api/src/routers/index.ts](packages/api/src/routers/index.ts:9,63))
+  - apiKeyRouter was not imported or exported, causing 404 errors on `/rpc/apiKey/*` endpoints
+  - All other RPC routes (chat, model, folder, message) were working correctly
+  - Added import: `import { apiKeyRouter } from './api-keys'`
+  - Added export: `apiKey: apiKeyRouter` to appRouter object
+  - Fixes `/rpc/apiKey/getAll`, `/rpc/apiKey/create`, `/rpc/apiKey/update`, `/rpc/apiKey/delete`
+
+- **Direct Backend Connection**: Frontend now connects directly to backend server in development ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:6-25), [apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte:13-20), [apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:24-31))
+  - Eliminates need for Vite proxy configuration restarts
+  - ORPC client uses `http://localhost:SERVER_PORT` in development (default: 3000)
+  - Chat AI endpoint uses direct backend connection in development
+  - Production still uses same-origin via PUBLIC_API_URL (behind proxy)
+  - Fixes 404 errors on `/rpc/*` routes caused by proxy issues
+  - Resolves "violates CSP directive" errors by allowing backend URL in CSP
+
+- **CSP Backend Server URL**: Fix CSP violation by adding backend server URL to connect-src directive ([apps/web/src/lib/security/headers.ts](apps/web/src/lib/security/headers.ts:59-111))
+  - CSP now correctly includes backend server URL (from SERVER_PORT env var) in development
+  - Previously used PUBLIC_API_URL (frontend URL) which caused CSP to block connections to backend
+  - In development: uses `http://localhost:SERVER_PORT` (default: 3000)
+  - In production: uses PUBLIC_API_URL (backend is behind proxy)
+  - Fixes error: "Connecting to 'http://localhost:3000/api/ai' violates CSP directive"
+
+- **Vite Proxy Configuration**: Add `/api` route to Vite proxy to forward API requests to backend server ([apps/web/vite.config.ts](apps/web/vite.config.ts:55-74))
+  - Previously only proxied `/rpc` and `/ai`, but AI endpoint moved to `/api/ai` in v0.0.12
+  - Now all `/api/*` requests are properly proxied to backend server
+  - Removed obsolete `/ai` proxy route (replaced by `/api`)
+
+- **Worker CSP Directive**: Add worker-src CSP directive to allow blob: URLs for Vite HMR ([apps/web/src/lib/security/headers.ts](apps/web/src/lib/security/headers.ts:122-123))
+  - Fixes error: "Creating a worker from 'blob:' violates CSP directive"
+  - Allows blob: URLs for workers in development for Vite's module workers
+  - Uses 'self' only in production for stricter security
+
+### Documentation
+
+- **API & RPC Endpoint Reference**: Add comprehensive endpoint documentation to CLAUDE.md ([CLAUDE.md](CLAUDE.md:143-261))
+  - Complete list of all REST API endpoints (`/api/auth/*`, `/api/ai`, `/rpc/*`, etc.)
+  - Complete list of all ORPC procedures (chat, message, folder, model, apiKey)
+  - Connection architecture explanation (dev direct connection vs production proxy)
+  - Endpoint routing flow diagram
+  - Common issues & solutions (404, CSP violations, CSRF errors, AI endpoint errors)
+  - Critical for understanding endpoint routing and avoiding similar issues
+
+---
+
 ## [0.0.15] - 2026-01-21
 
 ### Added
