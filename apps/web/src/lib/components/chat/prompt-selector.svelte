@@ -3,8 +3,6 @@
   import { orpc } from '$lib/orpc';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import CheckIcon from '@lucide/svelte/icons/check';
-  import Badge from '$lib/components/ui/badge/badge.svelte';
-  import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
   type Prompt = {
     id: string;
@@ -35,7 +33,8 @@
     loading = true;
     errorMessage = '';
     try {
-      const result = await orpc.prompt.getAll();
+      // Type assertion needed until ORPC types are regenerated
+      const result = await (orpc as any).prompt.getAll();
       prompts = result as Prompt[];
     } catch (error) {
       console.error('Failed to load prompts:', error);
@@ -103,37 +102,30 @@
 </script>
 
 {#if errorMessage}
-  <Tooltip.Root let:child>
-    {@render child({
-      class: 'inline-flex',
-      'aria-label': errorMessage,
-    })}
-    <Tooltip.Content>
-      <p>{errorMessage}</p>
-    </Tooltip.Content>
-  </Tooltip.Root>
-  <button
-    class="bg-destructive/10 border-destructive text-destructive inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
-    type="button"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="size-4"
+  <div class="inline-flex" title={errorMessage}>
+    <button
+      class="bg-destructive/10 border-destructive text-destructive inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+      type="button"
     >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" x2="12" y1="8" y2="12" />
-      <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-    <span>Error</span>
-  </button>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="size-4"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" x2="12" y1="8" y2="12" />
+        <line x1="12" x2="12.01" y1="16" y2="16" />
+      </svg>
+      <span>Error</span>
+    </button>
+  </div>
 {:else if loading}
   <div
     class="border-border bg-muted text-muted-foreground inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap"
@@ -177,13 +169,17 @@
   </div>
 {:else}
   <DropdownMenu.Root bind:open={isOpen}>
-    <DropdownMenu.Trigger let:child>
-      {@render child({
-        class: 'bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none',
-        type: 'button',
-      })}
-      <span class="mr-2 text-lg">📓</span>
-      <span class="font-medium">Insert Prompt</span>
+    <DropdownMenu.Trigger>
+      {#snippet child({ props })}
+        <button
+          class="bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+          type="button"
+          {...props}
+        >
+          <span class="mr-2 text-lg">📓</span>
+          <span class="font-medium">Insert Prompt</span>
+        </button>
+      {/snippet}
     </DropdownMenu.Trigger>
     <DropdownMenu.Content class="w-80" align="start">
       <DropdownMenu.Label class="px-2 py-1.5 text-sm font-semibold">
@@ -204,16 +200,14 @@
               <span class="font-medium">{prompt.name}</span>
             </div>
             {#if prompt.isPublic}
-              <Badge class="bg-primary/10 text-primary text-xs">Public</Badge>
+              <span class="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs">Public</span>
             {/if}
           </div>
           <div class="ml-7">
-            <Badge
-              class={[getCategoryColor(prompt.category), 'text-xs', 'font-normal']}
-              size="sm"
+            <span class={[getCategoryColor(prompt.category), 'rounded', 'px-2', 'py-0.5', 'text-xs', 'font-normal']}
             >
               {prompt.category}
-            </Badge>
+            </span>
           </div>
           <p class="text-muted-foreground ml-7 line-clamp-2 text-xs">
             {truncateContent(prompt.content, 80)}

@@ -13,7 +13,6 @@
   import CopyIcon from '@lucide/svelte/icons/copy';
   import TagIcon from '@lucide/svelte/icons/tag';
   import EyeIcon from '@lucide/svelte/icons/eye';
-  import Badge from '$lib/components/ui/badge/badge.svelte';
 
   /**
    * Prompt data structure
@@ -149,13 +148,13 @@
       {/if}
     </div>
     <CardDescription class="text-xs flex items-center gap-2">
-      <Badge variant="outline" class="text-xs">
+      <span class="border rounded px-2 py-0.5 text-xs">
         {prompt.category}
-      </Badge>
+      </span>
       {#if prompt.isPublic}
-        <Badge variant="secondary" class="text-xs">
+        <span class="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
           Public
-        </Badge>
+        </span>
       {/if}
     </CardDescription>
   </CardHeader>
@@ -169,9 +168,9 @@
         <div class="flex items-center gap-1 flex-wrap">
           <TagIcon class="size-3 text-muted-foreground shrink-0" />
           {#each prompt.variables as variable}
-            <Badge variant="outline" class="text-xs font-mono">
+            <span class="border rounded px-2 py-0.5 text-xs font-mono">
               {`{${variable}}`}
-            </Badge>
+            </span>
           {/each}
         </div>
       {/if}
