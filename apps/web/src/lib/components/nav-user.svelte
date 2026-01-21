@@ -3,9 +3,9 @@
   import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
   import BellIcon from '@lucide/svelte/icons/bell';
   import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
-  import CreditCardIcon from '@lucide/svelte/icons/credit-card';
+  import KeyIcon from '@lucide/svelte/icons/key';
   import LogOutIcon from '@lucide/svelte/icons/log-out';
-  import SparklesIcon from '@lucide/svelte/icons/sparkles';
+  import CpuIcon from '@lucide/svelte/icons/cpu';
 
   import * as Avatar from '$lib/components/ui/avatar/index.js';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -73,28 +73,21 @@
         </DropdownMenu.Label>
         <DropdownMenu.Separator />
         <DropdownMenu.Group>
-          <DropdownMenu.Item>
-            <SparklesIcon />
-            Upgrade to Pro
-          </DropdownMenu.Item>
-        </DropdownMenu.Group>
-        <DropdownMenu.Separator />
-        <DropdownMenu.Group>
-          <DropdownMenu.Item>
+          <DropdownMenu.Item onclick={() => goto('/app/settings/account')} class="cursor-pointer">
             <BadgeCheckIcon />
             Account
           </DropdownMenu.Item>
-          <DropdownMenu.Item>
-            <CreditCardIcon />
-            Billing
+          <DropdownMenu.Item onclick={() => goto('/app/settings/api-keys')} class="cursor-pointer">
+            <KeyIcon />
+            API Keys
           </DropdownMenu.Item>
-          <DropdownMenu.Item>
-            <BellIcon />
-            Notifications
+          <DropdownMenu.Item onclick={() => goto('/app/settings')} class="cursor-pointer">
+            <CpuIcon />
+            Models
           </DropdownMenu.Item>
         </DropdownMenu.Group>
         <DropdownMenu.Separator />
-        <DropdownMenu.Item onclick={() => goto('/logout')}>
+        <DropdownMenu.Item onclick={() => goto('/logout')} class="cursor-pointer">
           <LogOutIcon />
           Log out
         </DropdownMenu.Item>

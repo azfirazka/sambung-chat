@@ -7,6 +7,7 @@
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import CommandIcon from '@lucide/svelte/icons/command';
   import ChatList from './secondary-sidebar/ChatList.svelte';
+  import SettingsNav from './secondary-sidebar/SettingsNav.svelte';
   import { secondarySidebarStore } from '$lib/stores/secondary-sidebar.js';
 
   // Load nav config from JSON
@@ -81,7 +82,8 @@
 
   // Check if secondary sidebar should be visible
   const showSecondarySidebar = $derived(
-    !isSettingsContext(sidebarConfig) && activeNavId() !== 'settings'
+    (!isSettingsContext(sidebarConfig) && activeNavId() !== 'settings') ||
+      activeNavId() === 'settings'
   );
 
   const sidebar = useSidebar();
@@ -174,6 +176,9 @@
       {#if activeNavId() === 'chat'}
         <!-- Render ChatList component for chat context -->
         <ChatList currentChatId={extractChatIdFromPath($page.url.pathname)} />
+      {:else if activeNavId() === 'settings'}
+        <!-- Render SettingsNav component for settings context -->
+        <SettingsNav />
       {:else}
         <!-- Render config-based sidebar for other contexts -->
         <Sidebar.Header class="gap-3.5 border-b p-4">
