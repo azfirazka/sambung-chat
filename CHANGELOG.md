@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.15] - 2026-01-21
+
+### Changed
+
+- **Active Model for All Chats**: Backend now always uses the active model instead of requested modelId from chat ([apps/server/src/index.ts](apps/server/src/index.ts:210-220))
+  - Removes modelId logic from `/api/ai` endpoint
+  - Always queries active model from database for authenticated user
+  - Ignores modelId from request body to prevent using outdated models
+  - Fixes issue where old chats with deleted modelIds would fail with "Model not found" error
+
+- **Model Display in Chat Header**: Show active model name in chat interface header ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:681-686))
+  - Fetches active model in parallel with chat data using Promise.all
+  - Displays model name with code icon next to chat statistics (messages, words, last activity)
+  - Removed modelId from authenticatedFetch to let backend use active model
+
+---
+
 ## [0.0.14] - 2026-01-21
 
 ### Security
