@@ -24,13 +24,8 @@
   import SecondarySidebarTrigger from '$lib/components/secondary-sidebar-trigger.svelte';
 
   // Get backend API URL for AI endpoint
-  // In development: Connect directly to backend server (port 3000)
-  // In production: Use PUBLIC_API_URL (backend is behind proxy)
-  const isDev = import.meta.env.DEV;
-  const serverPort = import.meta.env.SERVER_PORT || '3000';
-  const BACKEND_API_URL = isDev
-    ? `http://localhost:${serverPort}`
-    : import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
+  // Use PUBLIC_API_URL (client-side environment variable)
+  const BACKEND_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
 
   let input = $state('');
   let errorMessage = $state('');
@@ -796,7 +791,7 @@
                 >
                   {#if isThisStoppedMessage && stoppedMessageContent}
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
-                    {@html stoppedMessageContent}
+                    {@html renderMarkdownSync(stoppedMessageContent)}
                   {:else}
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
                     {@html renderMarkdownSync(messageText)}

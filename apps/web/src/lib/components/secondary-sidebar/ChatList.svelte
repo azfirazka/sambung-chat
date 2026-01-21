@@ -104,7 +104,7 @@
 
   // Export state
   let exporting = $state(false);
-  let exportFormat = $state<'json' | 'md' | 'zip' | null>(null);
+  let exportFormat = $state<'json' | 'md' | 'zip' | 'zip-optimized' | null>(null);
 
   // Filter dialog state
   let showFilterDialog = $state(false);
@@ -271,8 +271,8 @@
         modelIds: selectedModelIds.length > 0 ? selectedModelIds : undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
-      } as any);
-      chats = result as Chat[];
+      });
+      chats = result;
     } catch (err) {
       console.error('Failed to load chats:', err);
       // Only set error if it's a network/fetch error (not cancellation)
@@ -515,7 +515,6 @@
       const chatsByFolder = await orpc.chat.getChatsByFolder();
 
       // Map format from UI to export utility format
-      let exportFormat: 'json' | 'md' | 'zip' | 'zip-optimized';
       if (format === 'zip') {
         exportFormat = 'zip-optimized'; // Use optimized ZIP with both formats
       } else {

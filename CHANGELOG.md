@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.18] - 2026-01-21
+
+### Fixed
+
+- **CSS Import Order**: Move KaTeX import to top of app.css for proper cascade priority ([apps/web/src/app.css](apps/web/src/app.css:5))
+- **Variable Shadowing**: Fix shadowed exportFormat variable in ChatList.svelte ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte:107))
+- **Type Safety**: Remove unnecessary type assertions in ChatList ORPC calls ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte:265))
+- **XSS Prevention**: Fix XSS vulnerability in ChatListItem highlightText function ([apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte](apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte:106))
+  - Add HTML escaping before applying search highlight markup
+  - Prevent malicious script injection through search queries
+- **Dialog Components**: Fix dialog and dialog-trigger to properly render children ([apps/web/src/lib/components/ui/dialog/dialog.svelte](apps/web/src/lib/components/ui/dialog/dialog.svelte:8), [apps/web/src/lib/components/ui/dialog/dialog-trigger.svelte](apps/web/src/lib/components/ui/dialog/dialog-trigger.svelte:8))
+  - Add snippet children pattern for Svelte 5 compatibility
+- **Client-Side API URL**: Fix getApiUrl logic in orpc.ts to preserve development backend path ([apps/web/src/lib/orpc.ts](apps/web/src/lib/orpc.ts:27))
+- **HTML Sanitization**: Sanitize stoppedMessageContent before rendering with {@html} ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:799))
+  - Pass content through renderMarkdownSync which includes DOMPurify sanitization
+- **Environment Variables**: Replace server-only SERVER_PORT with PUBLIC_API_URL in chat pages ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:28), [apps/web/src/routes/app/chat/+page.svelte](apps/web/src/routes/app/chat/+page.svelte:17))
+- **Test Cleanup**: Improve test cleanup with batch operations and env var fallbacks ([packages/api/src/routers/chat.test.ts](packages/api/src/routers/chat.test.ts:65))
+  - Use inArray for batch deletes instead of one-by-one operations
+  - Add error handling for cleanup failures
+- **N+1 Query Performance**: Fix N+1 query problem in chat.ts with batch-fetching ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts:32))
+  - Batch-fetch all messages for all chats in single query
+  - Batch-fetch all folders for all chats in single query
+  - Reduces database queries from O(2N) to O(1) for N chats
+
 ## [0.0.17] - 2026-01-21
 
 ### Added

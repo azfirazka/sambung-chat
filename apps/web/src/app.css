@@ -2,6 +2,8 @@
 
 @import 'tw-animate-css';
 
+@import 'katex/dist/katex.min.css';
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -119,6 +121,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-/* KaTeX styles for LaTeX math rendering */
-@import 'katex/dist/katex.min.css';

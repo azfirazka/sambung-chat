@@ -103,12 +103,22 @@
     return new Date(date).toLocaleDateString();
   }
 
+  // HTML escape utility
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   // Highlight search query in text
   function highlightText(text: string, query: string): string {
     if (!query || !query.trim()) return text;
 
+    // First HTML-escape the text to prevent XSS
+    const escapedText = escapeHtml(text);
+
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(
+    return escapedText.replace(
       regex,
       '<mark class="bg-primary/30 text-foreground rounded px-0.5">$1</mark>'
     );

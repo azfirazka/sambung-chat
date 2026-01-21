@@ -29,39 +29,46 @@ export const chatRouter = {
       .where(eq(chats.userId, userId))
       .orderBy(desc(chats.updatedAt));
 
-    // Fetch messages and folder info for each chat
-    const chatsWithDetails = await Promise.all(
-      userChats.map(async (chat) => {
-        // Get messages for this chat
-        const chatMessages = await db
-          .select()
-          .from(messages)
-          .where(eq(messages.chatId, chat.id))
-          .orderBy(asc(messages.createdAt));
+    // Batch-fetch all messages for all chats (avoid N+1)
+    const chatIds = userChats.map((chat) => chat.id);
+    const allMessages = await db
+      .select()
+      .from(messages)
+      .where(inArray(messages.chatId, chatIds))
+      .orderBy(asc(messages.createdAt));
 
-        // Get folder information if folderId exists
-        let folder = null;
-        if (chat.folderId) {
-          const folderResults = await db
-            .select()
-            .from(folders)
-            .where(and(eq(folders.id, chat.folderId), eq(folders.userId, userId)));
+    // Group messages by chatId for efficient lookup
+    const messagesByChatId = new Map<string, typeof allMessages>();
+    for (const message of allMessages) {
+      if (!messagesByChatId.has(message.chatId)) {
+        messagesByChatId.set(message.chatId, []);
+      }
+      messagesByChatId.get(message.chatId)!.push(message);
+    }
 
-          if (folderResults.length > 0) {
-            folder = {
-              id: folderResults[0]!.id,
-              name: folderResults[0]!.name,
-            };
-          }
-        }
+    // Batch-fetch all folders for chats that have folderId (avoid N+1)
+    const folderIds = userChats
+      .map((chat) => chat.folderId)
+      .filter((id): id is string => id !== null);
+    const foldersMap = new Map<string, { id: string; name: string }>();
+    if (folderIds.length > 0) {
+      const uniqueFolderIds = [...new Set(folderIds)];
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, userId)));
 
-        return {
-          ...chat,
-          messages: chatMessages,
-          folder,
-        };
-      })
-    );
+      for (const folder of folderResults) {
+        foldersMap.set(folder.id, { id: folder.id, name: folder.name });
+      }
+    }
+
+    // Combine data
+    const chatsWithDetails = userChats.map((chat) => ({
+      ...chat,
+      messages: messagesByChatId.get(chat.id) || [],
+      folder: chat.folderId ? foldersMap.get(chat.folderId) || null : null,
+    }));
 
     return chatsWithDetails;
   }),
@@ -77,39 +84,46 @@ export const chatRouter = {
       .where(eq(chats.userId, userId))
       .orderBy(desc(chats.updatedAt));
 
-    // Fetch messages and folder info for each chat
-    const chatsWithDetails = await Promise.all(
-      userChats.map(async (chat) => {
-        // Get messages for this chat
-        const chatMessages = await db
-          .select()
-          .from(messages)
-          .where(eq(messages.chatId, chat.id))
-          .orderBy(asc(messages.createdAt));
+    // Batch-fetch all messages for all chats (avoid N+1)
+    const chatIds = userChats.map((chat) => chat.id);
+    const allMessages = await db
+      .select()
+      .from(messages)
+      .where(inArray(messages.chatId, chatIds))
+      .orderBy(asc(messages.createdAt));
 
-        // Get folder information if folderId exists
-        let folder = null;
-        if (chat.folderId) {
-          const folderResults = await db
-            .select()
-            .from(folders)
-            .where(and(eq(folders.id, chat.folderId), eq(folders.userId, userId)));
+    // Group messages by chatId for efficient lookup
+    const messagesByChatId = new Map<string, typeof allMessages>();
+    for (const message of allMessages) {
+      if (!messagesByChatId.has(message.chatId)) {
+        messagesByChatId.set(message.chatId, []);
+      }
+      messagesByChatId.get(message.chatId)!.push(message);
+    }
 
-          if (folderResults.length > 0) {
-            folder = {
-              id: folderResults[0]!.id,
-              name: folderResults[0]!.name,
-            };
-          }
-        }
+    // Batch-fetch all folders for chats that have folderId (avoid N+1)
+    const folderIds = userChats
+      .map((chat) => chat.folderId)
+      .filter((id): id is string => id !== null);
+    const foldersMap = new Map<string, { id: string; name: string }>();
+    if (folderIds.length > 0) {
+      const uniqueFolderIds = [...new Set(folderIds)];
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, userId)));
 
-        return {
-          ...chat,
-          messages: chatMessages,
-          folder,
-        };
-      })
-    );
+      for (const folder of folderResults) {
+        foldersMap.set(folder.id, { id: folder.id, name: folder.name });
+      }
+    }
+
+    // Combine data
+    const chatsWithDetails = userChats.map((chat) => ({
+      ...chat,
+      messages: messagesByChatId.get(chat.id) || [],
+      folder: chat.folderId ? foldersMap.get(chat.folderId) || null : null,
+    }));
 
     // Group chats by folder
     const folderMap = new Map<

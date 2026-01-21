@@ -6,13 +6,6 @@
  * Run with: bun test packages/api/src/routers/chat.test.ts
  */
 
-// Set up minimal environment variables for testing
-process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5432/sambungchat_dev';
-process.env.BETTER_AUTH_SECRET = 'sambungchat-dev-secret-key-at-least-32-chars-long';
-process.env.BETTER_AUTH_URL = 'http://localhost:3000';
-process.env.ENCRYPTION_KEY = '1234567890abcdef1234567890abcdef';
-process.env.NODE_ENV = 'test';
-
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { db } from '@sambung-chat/db';
 import { chats, messages } from '@sambung-chat/db/schema/chat';
@@ -20,6 +13,15 @@ import { models } from '@sambung-chat/db/schema/model';
 import { user } from '@sambung-chat/db/schema/auth';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { generateULID } from '@sambung-chat/db/utils/ulid';
+
+// Set up minimal environment variables for testing (use process.env with fallbacks)
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/sambungchat_dev';
+process.env.BETTER_AUTH_SECRET =
+  process.env.BETTER_AUTH_SECRET || 'sambungchat-dev-secret-key-at-least-32-chars-long';
+process.env.BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'http://localhost:3000';
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '1234567890abcdef1234567890abcdef';
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 
 // Performance thresholds (in milliseconds)
 const PERFORMANCE_THRESHOLDS = {
@@ -63,24 +65,30 @@ describe('Chat Search Performance Tests', () => {
   });
 
   afterAll(async () => {
-    // Clean up test data
-    // Delete messages first (due to foreign key)
-    if (createdChatIds.length > 0) {
-      await db.delete(messages).where(inArray(messages.chatId, createdChatIds));
-    }
+    // Clean up test data using batch operations
+    try {
+      // Delete messages first (due to foreign key)
+      if (createdChatIds.length > 0) {
+        await db.delete(messages).where(inArray(messages.chatId, createdChatIds));
+      }
 
-    // Delete chats
-    for (const chatId of createdChatIds) {
-      await db.delete(chats).where(eq(chats.id, chatId));
-    }
+      // Delete chats in batch
+      if (createdChatIds.length > 0) {
+        await db.delete(chats).where(inArray(chats.id, createdChatIds));
+      }
 
-    // Delete test models
-    for (const modelId of testModelIds) {
-      await db.delete(models).where(eq(models.id, modelId));
-    }
+      // Delete test models in batch
+      if (testModelIds.length > 0) {
+        await db.delete(models).where(inArray(models.id, testModelIds));
+      }
 
-    // Delete test user
-    await db.delete(user).where(eq(user.id, testUserId));
+      // Delete test user
+      if (testUserId) {
+        await db.delete(user).where(eq(user.id, testUserId));
+      }
+    } catch (error) {
+      console.error('Error during test cleanup:', error);
+    }
   });
 
   beforeEach(async () => {

@@ -24,14 +24,8 @@ const getApiUrl = (): string => {
   return import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
 };
 
-// Initial API URL (will be updated in browser if needed)
-let API_URL = getApiUrl();
-
-// Update API URL when DOM is ready
-if (typeof window !== 'undefined') {
-  // Ensure we have the correct origin after page load
-  API_URL = window.location.origin;
-}
+// API URL is determined dynamically by getApiUrl()
+const API_URL = getApiUrl();
 
 /**
  * CSRF Token Manager
