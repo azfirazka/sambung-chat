@@ -98,9 +98,10 @@ describe('Content-Security-Policy', () => {
       expect(csp).toContain('block-all-mixed-content');
     });
 
-    it('should include PUBLIC_API_URL in connect-src', () => {
+    it('should include PUBLIC_API_URL in connect-src (production mode)', () => {
       const testUrl = 'https://api.example.com';
       process.env.PUBLIC_API_URL = testUrl;
+      process.env.NODE_ENV = 'production';
 
       const csp = getCSPHeader();
 
