@@ -1,40 +1,60 @@
+## Base Branch
+
+- [ ] This PR targets the `develop` branch (required for all feature/fix PRs)
+- [ ] This PR targets `main` (hotfix only - maintainers)
+
 ## Description
 
-<!-- Describe your changes in detail. -->
-
-## Type of Change
-
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
+<!-- Describe your changes in detail -->
 
 ## Related Issue
 
-<!-- Closes #issue_number -->
-<!-- Fixes #issue_number -->
-<!-- Relates to #issue_number -->
+Closes #
 
-## How Has This Been Tested?
+## Type of Change
 
-<!-- Please describe in detail how you tested your changes. -->
+- [ ] 🐛 Bug fix
+- [ ] ✨ New feature
+- [ ] 📚 Documentation
+- [ ] ♻️ Refactor
+- [ ] 🧪 Test
+- [ ] 🚀 CI/CD
 
-- [ ] Unit tests
-- [ ] Integration tests
-- [ ] Manual testing
+## Area
 
-## Screenshots (if applicable)
+- [ ] Frontend
+- [ ] Backend
+- [ ] Fullstack
 
-<!-- Add screenshots to help explain your changes. -->
+## Commit Message Format
+
+Follow conventional commits:
+
+```
+<type>: <subject>
+```
+
+**Types:** feat, fix, docs, refactor, test, chore
+
+**Example:** `feat: add user authentication system`
 
 ## Checklist
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing tests pass locally with my changes
-- [ ] Any dependent changes have been merged and published in downstream modules
+- [ ] I've synced with `develop` branch
+- [ ] I've tested my changes locally
+- [ ] My PR is small and focused (< 400 lines ideally)
+- [ ] `bun run check:types` passes
+- [ ] `bun run check:hydration` passes
+- [ ] All existing tests pass
+
+## Breaking Changes
+
+**Breaking:** Yes / No
+
+**Details:** <!-- Describe any breaking changes -->
+
+## Screenshots (if applicable)
+
+| Before | After |
+| ------ | ----- |
+|        |       |

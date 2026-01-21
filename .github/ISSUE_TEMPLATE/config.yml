@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💡 Feature Request
+    url: https://github.com/sambunghub/sambung-chat/discussions
+    about: Suggest new features in GitHub Discussions
+  - name: 💬 Community
+    url: https://discord.gg/your-server
+    about: Questions and discussions
