@@ -223,23 +223,21 @@ describe('SameSite Cookie Configuration', () => {
       expect(typeof auth).toBe('object');
     });
 
-    it('should use secure cookies in production', () => {
+    it('should use secure cookies in production', async () => {
       process.env.NODE_ENV = 'production';
       process.env.SAME_SITE_COOKIE = 'strict';
 
       // Re-initialize to pick up new env
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { auth: authProd } = require('../src/index');
+      const { auth: authProd } = await import('../src/index');
       expect(authProd).toBeDefined();
     });
 
-    it('should use non-secure cookies in development', () => {
+    it('should use non-secure cookies in development', async () => {
       process.env.NODE_ENV = 'development';
       process.env.SAME_SITE_COOKIE = 'lax';
 
       // Re-initialize to pick up new env
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { auth: authDev } = require('../src/index');
+      const { auth: authDev } = await import('../src/index');
       expect(authDev).toBeDefined();
     });
   });
