@@ -25,6 +25,35 @@ bun run build            # Build entire monorepo
 
 ---
 
+## 📊 Project Status
+
+**ALWAYS check current progress before starting any task:**
+
+**Read**: `docs/status/current.md` - Real-time development status
+
+This file contains:
+
+- Current version and overall progress percentage
+- Completed features and recent achievements
+- Active development focus
+- Blockers and next steps
+- Database tables and API endpoints overview
+
+**Why this matters:**
+
+- Avoid duplicating work that's already done
+- Understand what's implemented before suggesting changes
+- Know the current priorities and blockers
+- See what APIs and components are available
+
+**Quick check command:**
+
+```bash
+cat docs/status/current.md | grep -A 5 "Overall Progress"
+```
+
+---
+
 ## 📝 Changelog Guidelines
 
 ### MANDATORY: Update CHANGELOG.md After Every Task
