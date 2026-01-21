@@ -207,18 +207,41 @@ app.post('/api/ai', async (c) => {
       }
     }
 
-    // Get active model from database
+    // Get modelId from request body (for existing chats) or use active model
+    const requestedModelId = body.modelId;
+
     const { db } = await import('@sambung-chat/db');
     const { models } = await import('@sambung-chat/db/schema/model');
     const { apiKeys } = await import('@sambung-chat/db/schema/api-key');
 
-    const modelResults = await db
-      .select()
-      .from(models)
-      .where(and(eq(models.userId, userId), eq(models.isActive, true)))
-      .limit(1);
+    let modelResults;
+
+    if (requestedModelId) {
+      // Use the requested modelId (from existing chat)
+      modelResults = await db
+        .select()
+        .from(models)
+        .where(and(eq(models.id, requestedModelId), eq(models.userId, userId)))
+        .limit(1);
+    } else {
+      // Fall back to active model (for new chats)
+      modelResults = await db
+        .select()
+        .from(models)
+        .where(and(eq(models.userId, userId), eq(models.isActive, true)))
+        .limit(1);
+    }
 
     if (modelResults.length === 0) {
+      if (requestedModelId) {
+        return c.json(
+          {
+            error: 'Model not found',
+            message: `The requested model is no longer available. Please select a different model.`,
+          },
+          404
+        );
+      }
       return c.json(
         {
           error: 'No active model found',

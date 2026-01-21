@@ -13,8 +13,28 @@
   // Use PUBLIC_URL for AI endpoint (backend)
   const PUBLIC_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
-  // Custom fetch wrapper to include credentials (cookies)
+  // Custom fetch wrapper to include credentials (cookies) and modelId
   const authenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    // For AI API requests, include selected modelId
+    if (typeof input === 'string' && input.includes('/api/ai')) {
+      const body = init?.body ? JSON.parse(init.body as string) : {};
+
+      // Add modelId from selectedModel if available
+      if (selectedModel?.id) {
+        body.modelId = selectedModel.id;
+      }
+
+      return fetch(input, {
+        ...init,
+        credentials: 'include',
+        headers: {
+          ...init?.headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+    }
+
     return fetch(input, {
       ...init,
       credentials: 'include',

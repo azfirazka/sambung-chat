@@ -600,15 +600,6 @@
             </DropdownMenu.DropdownMenuItem>
           </DropdownMenu.DropdownMenuContent>
         </DropdownMenu.DropdownMenu>
-        <Button
-          size="sm"
-          onclick={() => (showFilterDialog = true)}
-          variant="ghost"
-          title="Filter chats"
-          class="h-8 w-8 p-0"
-        >
-          <SlidersHorizontalIcon class="size-4" />
-        </Button>
         <Button size="sm" onclick={createNewChat} variant="default">
           <PlusIcon class="mr-1 size-4" />
           New Chat
@@ -617,32 +608,57 @@
     </div>
 
     <!-- Search Input (press Enter to search) -->
-    <div class="flex items-center gap-2">
-      <Input
-        type="text"
-        placeholder="Search chats... (press Enter)"
-        bind:value={searchQuery}
-        onkeydown={handleSearchKeydown}
-        class="h-8 flex-1"
-      />
-      {#if hasActiveFilters}
-        <div
-          class="bg-primary/10 text-primary flex h-8 items-center rounded-md px-2 text-xs font-medium"
-          title="Filters active - click to view"
+    <div class="mb-2">
+      <div class="flex items-center gap-2">
+        <Input
+          type="text"
+          placeholder="Search chats... (press Enter)"
+          bind:value={searchQuery}
+          onkeydown={handleSearchKeydown}
+          class="h-8 flex-1"
+        />
+        <Button
+          size="sm"
           onclick={() => (showFilterDialog = true)}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              showFilterDialog = true;
-            }
-          }}
-          role="button"
-          tabindex="0"
+          variant={hasActiveFilters ? 'default' : 'outline'}
+          class="h-8 px-3"
+          title={hasActiveFilters ? 'Filters active - click to view' : 'Filter chats'}
         >
-          <FilterIcon class="mr-1 size-3" />
-          Active
-        </div>
-      {/if}
+          <SlidersHorizontalIcon class="size-4" />
+          {#if hasActiveFilters}
+            <span class="ml-1.5 text-xs">Active</span>
+          {/if}
+        </Button>
+      </div>
+    </div>
+
+    <!-- Inline Filters: Folder and Pinned -->
+    <div class="flex items-center gap-2">
+      <select
+        value={selectedFolderId}
+        onchange={(e) => {
+          selectedFolderId = e.currentTarget.value;
+          handleFolderChange();
+        }}
+        class="border-input bg-background focus:ring-ring flex-1 rounded-md border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
+      >
+        <option value="">All Folders</option>
+        {#each folders as folder}
+          <option value={folder.id}>{folder.name}</option>
+        {/each}
+      </select>
+      <label class="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <input
+          type="checkbox"
+          checked={showPinnedOnly}
+          onchange={(e) => {
+            showPinnedOnly = e.currentTarget.checked;
+            handlePinnedChange();
+          }}
+          class="border-input bg-background focus:ring-ring rounded border px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
+        />
+        Pinned only
+      </label>
     </div>
   </Sidebar.Header>
 
@@ -863,44 +879,11 @@
 <Dialog.Root bind:open={showFilterDialog}>
   <Dialog.Content class="max-w-md">
     <Dialog.Header>
-      <Dialog.Title>Filter Chats</Dialog.Title>
-      <Dialog.Description>Apply filters to narrow down your chat search</Dialog.Description>
+      <Dialog.Title>Advanced Filters</Dialog.Title>
+      <Dialog.Description>Filter by AI provider, model, and date range</Dialog.Description>
     </Dialog.Header>
 
     <div class="space-y-4 py-4">
-      <!-- Folder Filter -->
-      <div class="space-y-2">
-        <label class="text-sm font-medium">Folder</label>
-        <select
-          value={selectedFolderId}
-          onchange={(e) => {
-            selectedFolderId = e.currentTarget.value;
-            handleFolderChange();
-          }}
-          class="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none"
-        >
-          <option value="">All Folders</option>
-          {#each folders as folder}
-            <option value={folder.id}>{folder.name}</option>
-          {/each}
-        </select>
-      </div>
-
-      <!-- Pinned Filter -->
-      <div class="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="pinned-only"
-          checked={showPinnedOnly}
-          onchange={(e) => {
-            showPinnedOnly = e.currentTarget.checked;
-            handlePinnedChange();
-          }}
-          class="border-input bg-background focus:ring-ring rounded border px-2 py-1 text-sm focus:ring-1 focus:outline-none"
-        />
-        <label for="pinned-only" class="cursor-pointer text-sm">Show pinned only</label>
-      </div>
-
       <!-- Provider Filter -->
       {#if availableProviders().length > 0}
         <div class="space-y-2">
@@ -1051,9 +1034,8 @@
         </Button>
         <div class="flex gap-2">
           <Dialog.Close>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">Close</Button>
           </Dialog.Close>
-          <Button onclick={() => (showFilterDialog = false)}>Apply Filters</Button>
         </div>
       </div>
     </Dialog.Footer>
