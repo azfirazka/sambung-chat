@@ -276,10 +276,18 @@
     loading = true;
     try {
       // Fetch chat data and active model in parallel
-      const [data, model] = await Promise.all([
+      const results = await Promise.allSettled([
         orpc.chat.getById({ id: chatId()! }),
         orpc.model.getActive(),
       ]);
+
+      // Extract chat result (fulfilled or rejected)
+      const chatResult = results[0];
+      const data = chatResult.status === 'fulfilled' ? chatResult.value : null;
+
+      // Extract model result (fulfilled or rejected, set to null on rejection)
+      const modelResult = results[1];
+      const model = modelResult.status === 'fulfilled' ? modelResult.value : null;
 
       if (data) {
         chatData = data;

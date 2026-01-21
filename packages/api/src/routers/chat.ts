@@ -362,12 +362,12 @@ export const chatRouter = {
       let query;
       if (needsModelJoin && needsMessagesJoin) {
         // Add providers filter (multi-select)
-        if (input.providers !== undefined && input.providers.length > 0) {
+        if (Array.isArray(input.providers) && input.providers.length > 0) {
           conditions.push(inArray(models.provider, input.providers));
         }
 
         // Add modelIds filter (multi-select)
-        if (input.modelIds !== undefined && input.modelIds.length > 0) {
+        if (Array.isArray(input.modelIds) && input.modelIds.length > 0) {
           conditions.push(inArray(models.id, input.modelIds));
         }
 
@@ -391,12 +391,12 @@ export const chatRouter = {
           .orderBy(desc(chats.pinned), desc(chats.updatedAt));
       } else if (needsModelJoin) {
         // Add providers filter (multi-select)
-        if (input.providers !== undefined && input.providers.length > 0) {
+        if (Array.isArray(input.providers) && input.providers.length > 0) {
           conditions.push(inArray(models.provider, input.providers));
         }
 
         // Add modelIds filter (multi-select)
-        if (input.modelIds !== undefined && input.modelIds.length > 0) {
+        if (Array.isArray(input.modelIds) && input.modelIds.length > 0) {
           conditions.push(inArray(models.id, input.modelIds));
         }
 

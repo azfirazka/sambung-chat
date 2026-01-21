@@ -47,14 +47,14 @@ describe('Chat Search Performance Tests', () => {
     });
 
     // Create test models for different providers
-    const providers = ['openai', 'anthropic', 'google', 'groq'];
+    const providers = ['openai', 'anthropic', 'google', 'groq'] as const;
 
     for (const provider of providers) {
       const [newModel] = await db
         .insert(models)
         .values({
           userId: testUserId,
-          provider: provider as any,
+          provider,
           modelId: `${provider}-model-1`,
           name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Model`,
         })
@@ -133,8 +133,8 @@ describe('Chat Search Performance Tests', () => {
           messagePromises.push(
             db.insert(messages).values({
               chatId: chat.id,
-              role: role as any,
-              content: content,
+              role,
+              content,
             })
           );
         }

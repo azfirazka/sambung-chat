@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Batch-fetch all messages for all chats in single query
   - Batch-fetch all folders for all chats in single query
   - Reduces database queries from O(2N) to O(1) for N chats
+- **Promise Error Handling**: Change Promise.all to Promise.allSettled in chat page ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:279))
+  - Keep chat display unaffected by model-fetch failures
+  - Set activeModel to null when model promise rejects
+- **Type Assertions**: Remove unsafe 'as any' casts in tests ([packages/api/src/routers/chat.test.ts](packages/api/src/routers/chat.test.ts:50))
+  - Remove 'role as any' cast when inserting messages
+  - Add const assertion to providers array for strong typing
+  - Remove 'provider as any' cast when inserting models
+- **SQL Builder Guards**: Add Array.isArray checks before inArray clauses ([packages/api/src/routers/chat.ts](packages/api/src/routers/chat.ts:365))
+  - Prevent empty IN () clauses when providers/modelIds are empty arrays
+  - Validate array type and length before adding conditions
 
 ## [0.0.17] - 2026-01-21
 
