@@ -1,11 +1,11 @@
 {
   "active": true,
   "spec": "005-implement-orpc-response-caching-with-cache-control",
-  "state": "building",
+  "state": "complete",
   "subtasks": {
-    "completed": 13,
+    "completed": 14,
     "total": 14,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -21,5 +21,5 @@
     "number": 6,
     "started_at": "2026-01-22T02:10:23.320309"
   },
-  "last_update": "2026-01-22T02:26:56.790480"
+  "last_update": "2026-01-22T02:32:20.561472"
 }
