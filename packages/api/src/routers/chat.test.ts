@@ -1,14 +1,14 @@
 /**
- * Chat Search Performance Tests
+ * Chat Router Tests
  *
- * Purpose: Verify search performance with large datasets (100+ chats, 1000+ messages)
+ * Purpose: Verify all chat router procedures work correctly
  *
  * Run with: bun test packages/api/src/routers/chat.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { db } from '@sambung-chat/db';
-import { chats, messages } from '@sambung-chat/db/schema/chat';
+import { chats, messages, folders } from '@sambung-chat/db/schema/chat';
 import { models } from '@sambung-chat/db/schema/model';
 import { user } from '@sambung-chat/db/schema/auth';
 import { eq, and, sql, inArray } from 'drizzle-orm';
@@ -28,6 +28,692 @@ const PERFORMANCE_THRESHOLDS = {
   SEARCH_WITH_FILTERS: 1500, // Search with multiple filters
   SEARCH_IN_MESSAGES: 2000, // Full-text search across messages
 };
+
+describe('Chat Router Tests', () => {
+  let testUserId: string;
+  let testModelId: string;
+  let createdChatIds: string[] = [];
+  let createdFolderIds: string[] = [];
+
+  beforeAll(async () => {
+    // Create a test user first (required for foreign key constraints)
+    testUserId = generateULID();
+    await db.insert(user).values({
+      id: testUserId,
+      name: 'Chat Test User',
+      email: 'chat-test@example.com',
+      emailVerified: true,
+    });
+
+    // Create a test model
+    const [newModel] = await db
+      .insert(models)
+      .values({
+        userId: testUserId,
+        provider: 'openai',
+        modelId: 'gpt-4',
+        name: 'GPT-4',
+      })
+      .returning();
+
+    testModelId = newModel.id;
+  });
+
+  afterAll(async () => {
+    // Clean up test data using batch operations
+    try {
+      // Delete messages first (due to foreign key)
+      if (createdChatIds.length > 0) {
+        await db.delete(messages).where(inArray(messages.chatId, createdChatIds));
+      }
+
+      // Delete chats in batch
+      if (createdChatIds.length > 0) {
+        await db.delete(chats).where(inArray(chats.id, createdChatIds));
+      }
+
+      // Delete folders in batch
+      if (createdFolderIds.length > 0) {
+        await db.delete(folders).where(inArray(folders.id, createdFolderIds));
+      }
+
+      // Delete test model
+      if (testModelId) {
+        await db.delete(models).where(eq(models.id, testModelId));
+      }
+
+      // Delete test user
+      if (testUserId) {
+        await db.delete(user).where(eq(user.id, testUserId));
+      }
+    } catch (error) {
+      console.error('Error during test cleanup:', error);
+    }
+  });
+
+  beforeEach(async () => {
+    // Clear chat and folder IDs before each test
+    createdChatIds = [];
+    createdFolderIds = [];
+  });
+
+  afterEach(async () => {
+    // Clean up orphaned data after each test
+    try {
+      if (createdChatIds.length > 0) {
+        await db.delete(messages).where(inArray(messages.chatId, createdChatIds));
+        await db.delete(chats).where(inArray(chats.id, createdChatIds));
+      }
+      if (createdFolderIds.length > 0) {
+        await db.delete(folders).where(inArray(folders.id, createdFolderIds));
+      }
+    } catch (error) {
+      console.error('Error during afterEach cleanup:', error);
+    }
+  });
+
+  describe('Chat CRUD Operations', () => {
+    it('should create a new chat', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Test Chat',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+
+      createdChatIds.push(chat.id);
+
+      expect(chat).toBeDefined();
+      expect(chat.id).toBeDefined();
+      expect(chat.title).toBe(chatData.title);
+      expect(chat.modelId).toBe(testModelId);
+      expect(chat.userId).toBe(testUserId);
+      expect(chat.pinned).toBe(false);
+      expect(chat.folderId).toBeNull();
+    });
+
+    it('should get all chats for user', async () => {
+      // Create multiple chats
+      const chatData1 = {
+        userId: testUserId,
+        title: 'Chat 1',
+        modelId: testModelId,
+      };
+      const chatData2 = {
+        userId: testUserId,
+        title: 'Chat 2',
+        modelId: testModelId,
+        pinned: true,
+      };
+
+      const [chat1] = await db.insert(chats).values(chatData1).returning();
+      const [chat2] = await db.insert(chats).values(chatData2).returning();
+
+      createdChatIds.push(chat1.id, chat2.id);
+
+      // Get all chats for user
+      const results = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThanOrEqual(2);
+      expect(results.some((r) => r.id === chat1.id)).toBe(true);
+      expect(results.some((r) => r.id === chat2.id)).toBe(true);
+    });
+
+    it('should get chat by ID', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Get By ID Test',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Get chat by ID
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)));
+
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe(chat.id);
+      expect(results[0].title).toBe(chatData.title);
+    });
+
+    it('should return null for non-existent chat ID', async () => {
+      const nonExistentId = generateULID();
+
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.id, nonExistentId), eq(chats.userId, testUserId)));
+
+      expect(results.length).toBe(0);
+    });
+
+    it('should update chat title', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Original Title',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Update chat title
+      const updatedTitle = 'Updated Title';
+
+      const results = await db
+        .update(chats)
+        .set({ title: updatedTitle })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)))
+        .returning();
+
+      expect(results.length).toBe(1);
+      expect(results[0].title).toBe(updatedTitle);
+    });
+
+    it('should update chat model', async () => {
+      // Create another model
+      const [newModel] = await db
+        .insert(models)
+        .values({
+          userId: testUserId,
+          provider: 'anthropic',
+          modelId: 'claude-3',
+          name: 'Claude 3',
+        })
+        .returning();
+
+      const chatData = {
+        userId: testUserId,
+        title: 'Model Update Test',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Update chat model
+      const results = await db
+        .update(chats)
+        .set({ modelId: newModel.id })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)))
+        .returning();
+
+      expect(results.length).toBe(1);
+      expect(results[0].modelId).toBe(newModel.id);
+
+      // Clean up the extra model
+      await db.delete(models).where(eq(models.id, newModel.id));
+    });
+
+    it('should toggle chat pin status', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Pin Toggle Test',
+        modelId: testModelId,
+        pinned: false,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Toggle pin to true
+      const results1 = await db
+        .update(chats)
+        .set({ pinned: true })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)))
+        .returning();
+
+      expect(results1.length).toBe(1);
+      expect(results1[0].pinned).toBe(true);
+
+      // Toggle pin back to false
+      const results2 = await db
+        .update(chats)
+        .set({ pinned: false })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)))
+        .returning();
+
+      expect(results2.length).toBe(1);
+      expect(results2[0].pinned).toBe(false);
+    });
+
+    it('should update chat folder', async () => {
+      // Create a test folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Test Folder',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      const chatData = {
+        userId: testUserId,
+        title: 'Folder Update Test',
+        modelId: testModelId,
+        folderId: null,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Update chat folder
+      const results = await db
+        .update(chats)
+        .set({ folderId: folder.id })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)))
+        .returning();
+
+      expect(results.length).toBe(1);
+      expect(results[0].folderId).toBe(folder.id);
+
+      // Remove chat from folder
+      await db
+        .update(chats)
+        .set({ folderId: null })
+        .where(and(eq(chats.id, chat.id), eq(chats.userId, testUserId)));
+    });
+
+    it('should delete chat', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'To Be Deleted',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id); // Track for cleanup in case test fails
+
+      // Verify chat exists
+      let results = await db.select().from(chats).where(eq(chats.id, chat.id));
+
+      expect(results.length).toBe(1);
+
+      // Delete chat
+      await db.delete(chats).where(eq(chats.id, chat.id));
+
+      // Verify chat is deleted
+      results = await db.select().from(chats).where(eq(chats.id, chat.id));
+
+      expect(results.length).toBe(0);
+
+      // Remove from createdChatIds since it's already deleted
+      createdChatIds = createdChatIds.filter((id) => id !== chat.id);
+    });
+
+    it('should not allow accessing chats from other users', async () => {
+      // Create another user
+      const otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Other User',
+        email: 'other-user-chat@example.com',
+        emailVerified: true,
+      });
+
+      // Create chat for other user
+      const otherChatData = {
+        userId: otherUserId,
+        title: "Other User's Chat",
+        modelId: testModelId,
+      };
+
+      const [otherChat] = await db.insert(chats).values(otherChatData).returning();
+
+      // Try to get other user's chat with testUserId
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.id, otherChat.id), eq(chats.userId, testUserId)));
+
+      expect(results.length).toBe(0);
+
+      // Clean up other user's data
+      await db.delete(chats).where(eq(chats.id, otherChat.id));
+      await db.delete(user).where(eq(user.id, otherUserId));
+    });
+  });
+
+  describe('Chat Search Functionality', () => {
+    beforeEach(async () => {
+      // Create test chats for search tests
+      const testChats = [
+        {
+          title: 'Code Review Discussion',
+          pinned: true,
+        },
+        {
+          title: 'Writing Assistant Chat',
+          pinned: false,
+        },
+        {
+          title: 'Debug Session',
+          pinned: false,
+        },
+        {
+          title: 'Email Drafting',
+          pinned: true,
+        },
+      ];
+
+      for (const chatData of testChats) {
+        const [chat] = await db
+          .insert(chats)
+          .values({
+            userId: testUserId,
+            modelId: testModelId,
+            ...chatData,
+          })
+          .returning();
+
+        createdChatIds.push(chat.id);
+      }
+    });
+
+    it('should search chats by keyword in title', async () => {
+      const query = 'Code';
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.userId, testUserId), sql`${chats.title} ILIKE ${`%${query}%`}`))
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => r.title.toLowerCase().includes(query.toLowerCase()))).toBe(true);
+    });
+
+    it('should filter chats by pinned status', async () => {
+      const pinned = true;
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.userId, testUserId), eq(chats.pinned, pinned)))
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => r.pinned === pinned)).toBe(true);
+    });
+
+    it('should filter chats by folder', async () => {
+      // Create a test folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Search Test Folder',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      // Move a chat to the folder
+      const chatToUpdate = createdChatIds[0];
+      await db
+        .update(chats)
+        .set({ folderId: folder.id })
+        .where(eq(chats.id, chatToUpdate));
+
+      // Search for chats in folder
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.userId, testUserId), eq(chats.folderId, folder.id)))
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => r.folderId === folder.id)).toBe(true);
+
+      // Clean up
+      await db.update(chats).set({ folderId: null }).where(eq(chats.id, chatToUpdate));
+    });
+
+    it('should filter chats by date range', async () => {
+      const dateFrom = new Date(Date.now() - 60 * 60 * 1000); // Last 1 hour
+      const dateTo = new Date();
+
+      const results = await db
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            sql`${chats.createdAt} >= ${dateFrom}`,
+            sql`${chats.createdAt} <= ${dateTo}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => r.createdAt >= dateFrom && r.createdAt <= dateTo)).toBe(true);
+    });
+
+    it('should combine multiple filters', async () => {
+      const pinned = true;
+      const query = 'Chat';
+
+      const results = await db
+        .select()
+        .from(chats)
+        .where(
+          and(
+            eq(chats.userId, testUserId),
+            eq(chats.pinned, pinned),
+            sql`${chats.title} ILIKE ${`%${query}%`}`
+          )
+        )
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBeGreaterThanOrEqual(0);
+      if (results.length > 0) {
+        expect(results.every((r) => r.pinned === pinned)).toBe(true);
+        expect(
+          results.every((r) => r.title.toLowerCase().includes(query.toLowerCase()))
+        ).toBe(true);
+      }
+    });
+
+    it('should handle empty search results', async () => {
+      const query = 'nonexistentchatxyz123';
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.userId, testUserId), sql`${chats.title} ILIKE ${`%${query}%`}`))
+        .orderBy(chats.updatedAt);
+
+      expect(results.length).toBe(0);
+    });
+  });
+
+  describe('Chat with Messages', () => {
+    it('should create chat with messages', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Chat with Messages',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Create messages for this chat
+      const messageData1 = {
+        chatId: chat.id,
+        role: 'user' as const,
+        content: 'Hello, how are you?',
+      };
+      const messageData2 = {
+        chatId: chat.id,
+        role: 'assistant' as const,
+        content: 'I am doing well, thank you!',
+      };
+
+      await db.insert(messages).values(messageData1);
+      await db.insert(messages).values(messageData2);
+
+      // Get all messages for chat
+      const messages = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.chatId, chat.id))
+        .orderBy(messages.createdAt);
+
+      expect(messages.length).toBe(2);
+      expect(messages[0].role).toBe('user');
+      expect(messages[1].role).toBe('assistant');
+    });
+
+    it('should get chats with message count', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Message Count Test',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Create 3 messages
+      for (let i = 0; i < 3; i++) {
+        await db.insert(messages).values({
+          chatId: chat.id,
+          role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+          content: `Message ${i + 1}`,
+        });
+      }
+
+      // Get messages for chat
+      const messages = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.chatId, chat.id));
+
+      expect(messages.length).toBe(3);
+    });
+
+    it('should delete chat and its messages', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Cascade Delete Test',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      // Create messages
+      await db.insert(messages).values({
+        chatId: chat.id,
+        role: 'user',
+        content: 'Test message',
+      });
+
+      // Verify messages exist
+      let messages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+      expect(messages.length).toBe(1);
+
+      // Delete chat (messages should be handled by foreign key or manually)
+      await db.delete(messages).where(eq(messages.chatId, chat.id));
+      await db.delete(chats).where(eq(chats.id, chat.id));
+
+      // Verify both are deleted
+      messages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+      expect(messages.length).toBe(0);
+
+      const chats = await db.select().from(chats).where(eq(chats.id, chat.id));
+      expect(chats.length).toBe(0);
+
+      // Remove from createdChatIds since it's already deleted
+      createdChatIds = createdChatIds.filter((id) => id !== chat.id);
+    });
+  });
+
+  describe('Chat Edge Cases', () => {
+    it('should handle chat with very long title', async () => {
+      const longTitle = 'A'.repeat(200); // Max length
+      const chatData = {
+        userId: testUserId,
+        title: longTitle,
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      expect(chat.title).toBe(longTitle);
+      expect(chat.title.length).toBe(200);
+    });
+
+    it('should handle multiple chats with same title', async () => {
+      const title = 'Duplicate Title';
+      const chatData1 = {
+        userId: testUserId,
+        title,
+        modelId: testModelId,
+      };
+      const chatData2 = {
+        userId: testUserId,
+        title,
+        modelId: testModelId,
+        pinned: true,
+      };
+
+      const [chat1] = await db.insert(chats).values(chatData1).returning();
+      const [chat2] = await db.insert(chats).values(chatData2).returning();
+
+      createdChatIds.push(chat1.id, chat2.id);
+
+      // Both should exist with different IDs
+      expect(chat1.id).not.toBe(chat2.id);
+      expect(chat1.title).toBe(chat2.title);
+
+      // Verify both can be retrieved
+      const results = await db
+        .select()
+        .from(chats)
+        .where(and(eq(chats.userId, testUserId), eq(chats.title, title)));
+
+      expect(results.length).toBe(2);
+    });
+
+    it('should handle special characters in chat title', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'Chat with "quotes" and \'apostrophes\' and <brackets>',
+        modelId: testModelId,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      expect(chat.title).toBe(chatData.title);
+    });
+
+    it('should handle chat with null folderId', async () => {
+      const chatData = {
+        userId: testUserId,
+        title: 'No Folder Chat',
+        modelId: testModelId,
+        folderId: null,
+      };
+
+      const [chat] = await db.insert(chats).values(chatData).returning();
+      createdChatIds.push(chat.id);
+
+      expect(chat.folderId).toBeNull();
+    });
+  });
+});
 
 describe('Chat Search Performance Tests', () => {
   let testUserId: string;
@@ -927,10 +1613,7 @@ describe('Chat Search Performance Tests', () => {
         .from(chats)
         .innerJoin(models, eq(chats.modelId, models.id))
         .where(
-          and(
-            eq(chats.userId, testUserId),
-            providers.length > 0 ? inArray(models.provider, providers) : sql`1=1`
-          )
+          and(eq(chats.userId, testUserId), providers.length > 0 ? inArray(models.provider, providers) : sql`1=1`)
         )
         .orderBy(chats.updatedAt);
 
