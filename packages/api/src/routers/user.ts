@@ -38,7 +38,9 @@ export const userRouter = {
       const userId = context.session.user.id;
       return await UserService.updateProfile({
         userId,
-        ...input,
+        name: input.name,
+        bio: input.bio === null ? undefined : input.bio,
+        image: input.image === null ? undefined : input.image,
       });
     }),
 
@@ -55,12 +57,8 @@ export const userRouter = {
         revokeOtherSessions: z.boolean().optional(),
       })
     )
-    .handler(async ({ input, context }) => {
-      const userId = context.session.user.id;
-      return await UserService.changePassword({
-        userId,
-        ...input,
-      });
+    .handler(async ({ input }) => {
+      return await UserService.changePassword(input);
     }),
 
   /**
@@ -113,6 +111,26 @@ export const userRouter = {
       return await UserService.revokeSession({
         userId,
         token: input.token,
+      });
+    }),
+
+  /**
+   * Upload avatar image
+   * Allows users to upload an avatar image
+   * Accepts base64 encoded image data (data URI format)
+   * Validates image type (JPEG, PNG, GIF, WebP) and size (max 5MB)
+   */
+  uploadAvatar: protectedProcedure
+    .input(
+      z.object({
+        file: z.string().min(1, 'File is required'),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      return await UserService.uploadAvatar({
+        userId,
+        file: input.file,
       });
     }),
 };
