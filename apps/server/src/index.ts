@@ -100,33 +100,6 @@ app.all('/api/auth/*', async (c) => {
 // AFTER the middleware chain completes.
 // ============================================================================
 
-/**
- * Extract cache metadata from ORPC response
- *
- * This function checks if the response contains cache metadata
- * added by the cache-headers middleware and extracts it.
- *
- * @param response - The response data from ORPC
- * @returns Cache metadata (cacheControl, etag, status)
- */
-function extractCacheMetadata(response: unknown): {
-  cacheControl?: string;
-  etag?: string;
-  status?: number;
-} {
-  if (typeof response !== 'object' || response === null) {
-    return {};
-  }
-
-  const resp = response as Record<string, unknown>;
-
-  return {
-    cacheControl: resp._orpcCacheControl as string | undefined,
-    etag: resp._orpcETag as string | undefined,
-    status: resp._orpcCacheStatus as number | undefined,
-  };
-}
-
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
