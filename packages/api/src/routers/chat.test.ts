@@ -11,7 +11,7 @@ import { db } from '@sambung-chat/db';
 import { chats, messages, folders } from '@sambung-chat/db/schema/chat';
 import { models } from '@sambung-chat/db/schema/model';
 import { user } from '@sambung-chat/db/schema/auth';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, desc, asc } from 'drizzle-orm';
 import { generateULID } from '@sambung-chat/db/utils/ulid';
 
 // Note: DATABASE_URL and other test environment variables are set by vitest.config.ts
