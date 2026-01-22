@@ -41,4 +41,25 @@ export const userRouter = {
         ...input,
       });
     }),
+
+  /**
+   * Change user password
+   * Allows users to change their password using Better Auth API
+   * Requires current password for verification
+   */
+  changePassword: protectedProcedure
+    .input(
+      z.object({
+        currentPassword: z.string().min(1, 'Current password is required'),
+        newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
+        revokeOtherSessions: z.boolean().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      return await UserService.changePassword({
+        userId,
+        ...input,
+      });
+    }),
 };

@@ -28,6 +28,16 @@ export interface UpdateProfileInput {
 }
 
 /**
+ * Change password input
+ */
+export interface ChangePasswordInput {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+  revokeOtherSessions?: boolean;
+}
+
+/**
  * User Service
  *
  * Business logic layer for user profile operations.
@@ -245,5 +255,89 @@ export class UserService {
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
     };
+  }
+
+  /**
+   * Validate password strength
+   *
+   * @param password - The password to validate
+   * @throws {ORPCError} If the password doesn't meet security requirements
+   */
+  static validatePasswordStrength(password: string): void {
+    if (!password || typeof password !== 'string') {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'Password must be a non-empty string',
+      });
+    }
+
+    if (password.length < 8) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'Password must be at least 8 characters long',
+      });
+    }
+
+    // Check for at least one letter and one number
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+
+    if (!hasLetter || !hasNumber) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'Password must contain at least one letter and one number',
+      });
+    }
+  }
+
+  /**
+   * Change user password
+   *
+   * Changes a user's password using Better Auth API.
+   * Validates password strength and current password before changing.
+   *
+   * @param input - Change password input
+   * @returns Success message
+   * @throws {ORPCError} If validation fails or password change fails
+   *
+   * @example
+   * ```ts
+   * await UserService.changePassword({
+   *   userId: 'user_123',
+   *   currentPassword: 'oldPassword123',
+   *   newPassword: 'newPassword456',
+   *   revokeOtherSessions: true
+   * });
+   * ```
+   */
+  static async changePassword(input: ChangePasswordInput): Promise<{ success: boolean }> {
+    const { userId, currentPassword, newPassword, revokeOtherSessions = true } = input;
+
+    // Validate new password strength
+    this.validatePasswordStrength(newPassword);
+
+    // Import auth here to avoid circular dependencies
+    const { auth } = await import('@sambung-chat/auth');
+
+    try {
+      // Use Better Auth's changePassword API
+      await auth.api.changePassword({
+        body: {
+          currentPassword,
+          newPassword,
+          revokeOtherSessions,
+        },
+      });
+
+      return { success: true };
+    } catch (error) {
+      // Better Auth throws an error if current password is wrong
+      if (error instanceof Error) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: error.message || 'Failed to change password',
+        });
+      }
+
+      throw new ORPCError('INTERNAL_ERROR', {
+        message: 'An unexpected error occurred while changing password',
+      });
+    }
   }
 }
