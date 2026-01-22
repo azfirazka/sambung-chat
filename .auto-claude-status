@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "015-implement-csrf-protection-and-samesite-cookie-hard",
+  "spec": "013-parallelize-folder-delete-operations-with-promise-",
   "state": "complete",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
-    "in_progress": 1,
+    "completed": 1,
+    "total": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Phase 4: Testing & Validation",
+    "current": "Frontend Optimization",
     "id": null,
-    "total": 5
+    "total": 1
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 17,
-    "started_at": "2026-01-20T12:54:01.105484"
+    "number": 2,
+    "started_at": "2026-01-22T02:17:59.431020"
   },
-  "last_update": "2026-01-20T14:25:50.489905"
+  "last_update": "2026-01-22T02:24:38.250737"
 }
