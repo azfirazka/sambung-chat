@@ -272,7 +272,7 @@
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       });
-      chats = result;
+      chats = result || [];
     } catch (err) {
       console.error('Failed to load chats:', err);
       // Only set error if it's a network/fetch error (not cancellation)
