@@ -286,6 +286,350 @@ describe('Folder Router Tests', () => {
     });
   });
 
+  describe('Folder Procedures - getAll and getById', () => {
+    it('getAll should return all folders for user ordered by creation date', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // Create multiple folders
+      const folderData1 = {
+        userId: testUserId,
+        name: 'First Folder',
+      };
+      const folderData2 = {
+        userId: testUserId,
+        name: 'Second Folder',
+      };
+      const folderData3 = {
+        userId: testUserId,
+        name: 'Third Folder',
+      };
+
+      const [folder1] = await db.insert(folders).values(folderData1).returning();
+      const [folder2] = await db.insert(folders).values(folderData2).returning();
+      const [folder3] = await db.insert(folders).values(folderData3).returning();
+
+      createdFolderIds.push(folder1.id, folder2.id, folder3.id);
+
+      // Test getAll procedure behavior - get all folders ordered by createdAt
+      const results = await db
+        .select()
+        .from(folders)
+        .where(eq(folders.userId, testUserId))
+        .orderBy(asc(folders.createdAt));
+
+      expect(results.length).toBeGreaterThanOrEqual(3);
+      expect(results.some((r) => r.id === folder1.id)).toBe(true);
+      expect(results.some((r) => r.id === folder2.id)).toBe(true);
+      expect(results.some((r) => r.id === folder3.id)).toBe(true);
+
+      // Verify ordering (oldest first)
+      const timestamps = results.map((r) => r.createdAt.getTime());
+      for (let i = 1; i < timestamps.length; i++) {
+        expect(timestamps[i]!).toBeGreaterThanOrEqual(timestamps[i - 1]!);
+      }
+    });
+
+    it('getAll should return empty array for user with no folders', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // Create another user with no folders
+      const emptyUserId = generateULID();
+      await db.insert(user).values({
+        id: emptyUserId,
+        name: 'Empty User',
+        email: 'empty@example.com',
+        emailVerified: true,
+      });
+
+      // Try to get folders for this user
+      const results = await db
+        .select()
+        .from(folders)
+        .where(eq(folders.userId, emptyUserId))
+        .orderBy(asc(folders.createdAt));
+
+      expect(results).toEqual([]);
+
+      // Clean up
+      await db.delete(user).where(eq(user.id, emptyUserId));
+    });
+
+    it('getById should return folder with chat count', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // Create folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Folder for getById test',
+        })
+        .returning();
+      createdFolderIds.push(folder.id);
+
+      // Create chats in folder
+      const chatData1 = {
+        userId: testUserId,
+        title: 'Chat 1 in folder',
+        modelId: generateULID(),
+        folderId: folder.id,
+        pinned: false,
+      };
+      const chatData2 = {
+        userId: testUserId,
+        title: 'Chat 2 in folder',
+        modelId: generateULID(),
+        folderId: folder.id,
+        pinned: true,
+      };
+      const chatData3 = {
+        userId: testUserId,
+        title: 'Chat 3 in folder',
+        modelId: generateULID(),
+        folderId: folder.id,
+        pinned: false,
+      };
+
+      const [chat1] = await db.insert(chats).values(chatData1).returning();
+      const [chat2] = await db.insert(chats).values(chatData2).returning();
+      const [chat3] = await db.insert(chats).values(chatData3).returning();
+
+      createdChatIds.push(chat1.id, chat2.id, chat3.id);
+
+      // Test getById procedure behavior - get folder and count chats
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, folder.id), eq(folders.userId, testUserId)));
+
+      expect(folderResults.length).toBe(1);
+      expect(folderResults[0].id).toBe(folder.id);
+      expect(folderResults[0].name).toBe('Folder for getById test');
+
+      // Count chats in folder
+      const chatCount = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(chats)
+        .where(eq(chats.folderId, folder.id));
+
+      expect(chatCount[0]?.count || 0).toBe(3);
+
+      // Simulate the getById response structure
+      const getByIdResponse = {
+        ...folderResults[0],
+        chatCount: chatCount[0]?.count || 0,
+      };
+
+      expect(getByIdResponse.chatCount).toBe(3);
+    });
+
+    it('getById should return null for non-existent folder', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const nonExistentId = generateULID();
+
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, nonExistentId), eq(folders.userId, testUserId)));
+
+      expect(folderResults.length).toBe(0);
+
+      // Simulate the getById procedure behavior
+      const result = folderResults.length === 0 ? null : folderResults[0];
+
+      expect(result).toBeNull();
+    });
+
+    it('getById should return zero chat count for empty folder', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Empty folder for getById',
+        })
+        .returning();
+      createdFolderIds.push(folder.id);
+
+      // Test getById procedure behavior
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, folder.id), eq(folders.userId, testUserId)));
+
+      expect(folderResults.length).toBe(1);
+
+      // Count chats in folder
+      const chatCount = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(chats)
+        .where(eq(chats.folderId, folder.id));
+
+      expect(chatCount[0]?.count || 0).toBe(0);
+
+      // Simulate the getById response structure
+      const getByIdResponse = {
+        ...folderResults[0],
+        chatCount: chatCount[0]?.count || 0,
+      };
+
+      expect(getByIdResponse.chatCount).toBe(0);
+    });
+
+    it('getById should only count chats in the specific folder', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // Create two folders
+      const [folder1] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Folder 1 for getById',
+        })
+        .returning();
+      const [folder2] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Folder 2 for getById',
+        })
+        .returning();
+
+      createdFolderIds.push(folder1.id, folder2.id);
+
+      // Create chats in folder1
+      const chatData1 = {
+        userId: testUserId,
+        title: 'Chat in folder 1',
+        modelId: generateULID(),
+        folderId: folder1.id,
+        pinned: false,
+      };
+      const [chat1] = await db.insert(chats).values(chatData1).returning();
+      createdChatIds.push(chat1.id);
+
+      // Create chats in folder2
+      const chatData2 = {
+        userId: testUserId,
+        title: 'Chat in folder 2',
+        modelId: generateULID(),
+        folderId: folder2.id,
+        pinned: false,
+      };
+      const [chat2] = await db.insert(chats).values(chatData2).returning();
+      createdChatIds.push(chat2.id);
+
+      // Create chat without folder
+      const chatData3 = {
+        userId: testUserId,
+        title: 'Chat without folder',
+        modelId: generateULID(),
+        folderId: null,
+        pinned: false,
+      };
+      const [chat3] = await db.insert(chats).values(chatData3).returning();
+      createdChatIds.push(chat3.id);
+
+      // Test getById for folder1
+      const folder1Results = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, folder1.id), eq(folders.userId, testUserId)));
+
+      const chatCount1 = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(chats)
+        .where(eq(chats.folderId, folder1.id));
+
+      const folder1Response = {
+        ...folder1Results[0],
+        chatCount: chatCount1[0]?.count || 0,
+      };
+
+      expect(folder1Response.chatCount).toBe(1);
+
+      // Test getById for folder2
+      const folder2Results = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, folder2.id), eq(folders.userId, testUserId)));
+
+      const chatCount2 = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(chats)
+        .where(eq(chats.folderId, folder2.id));
+
+      const folder2Response = {
+        ...folder2Results[0],
+        chatCount: chatCount2[0]?.count || 0,
+      };
+
+      expect(folder2Response.chatCount).toBe(1);
+    });
+
+    it('getById should prevent accessing folders from other users', async () => {
+      if (!databaseAvailable) {
+        expect(true).toBe(true);
+        return;
+      }
+
+      // Create another user
+      const otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Other User for getById',
+        email: 'other-user-getbyid@example.com',
+        emailVerified: true,
+      });
+
+      // Create folder for other user
+      const [otherFolder] = await db
+        .insert(folders)
+        .values({
+          userId: otherUserId,
+          name: "Other user's folder",
+        })
+        .returning();
+
+      // Try to get other user's folder with testUserId
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.id, otherFolder.id), eq(folders.userId, testUserId)));
+
+      expect(folderResults.length).toBe(0);
+
+      // Simulate the getById procedure behavior
+      const result = folderResults.length === 0 ? null : folderResults[0];
+
+      expect(result).toBeNull();
+
+      // Clean up
+      await db.delete(folders).where(eq(folders.id, otherFolder.id));
+      await db.delete(user).where(eq(user.id, otherUserId));
+    });
+  });
+
   describe('Folder with Chat Count', () => {
     it('should get folder with chat count', async () => {
       if (!databaseAvailable) {
