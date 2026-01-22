@@ -8,7 +8,7 @@
   import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
   import MailIcon from '@lucide/svelte/icons/mail';
   import { page } from '$app/stores';
-  import { ProfileForm, ChangePasswordForm, type ProfileFormData, type ChangePasswordFormData } from '$lib/components/settings/profile';
+  import { ProfileForm, ChangePasswordForm, SessionsList, type ProfileFormData, type ChangePasswordFormData, type SessionData } from '$lib/components/settings/profile';
   import { toast } from 'svelte-sonner';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 
@@ -18,6 +18,8 @@
       getProfile: () => Promise<any>;
       updateProfile: (input: any) => Promise<any>;
       changePassword: (input: any) => Promise<any>;
+      getSessions: () => Promise<any[]>;
+      revokeSession: (input: { token: string }) => Promise<void>;
     },
   };
 
@@ -38,6 +40,10 @@
   let showChangePasswordDialog = $state(false);
   let passwordError = $state('');
 
+  // Sessions state
+  let sessions = $state<SessionData[]>([]);
+  let sessionsLoading = $state(false);
+
   // Form data
   let formData = $state<ProfileFormData>({
     name: '',
@@ -46,6 +52,7 @@
 
   onMount(async () => {
     await loadProfile();
+    await loadSessions();
   });
 
   async function loadProfile() {
@@ -152,6 +159,55 @@
   function openChangePasswordDialog() {
     passwordError = '';
     showChangePasswordDialog = true;
+  }
+
+  async function loadSessions() {
+    sessionsLoading = true;
+    try {
+      const result = await userClient.user.getSessions();
+      sessions = (result as SessionData[]) || [];
+    } catch (error) {
+      toast.error('Failed to load sessions', {
+        description: error instanceof Error ? error.message : 'Please try again later',
+        action: {
+          label: 'Retry',
+          onClick: () => loadSessions(),
+        },
+      });
+    } finally {
+      sessionsLoading = false;
+    }
+  }
+
+  async function handleRevokeSession(token: string) {
+    const sessionToRevoke = sessions.find((s) => s.token === token);
+
+    if (!sessionToRevoke) {
+      return;
+    }
+
+    // Optimistic update: Remove session from list
+    const previousSessions = [...sessions];
+    sessions = sessions.filter((s) => s.token !== token);
+
+    try {
+      await userClient.user.revokeSession({ token });
+
+      toast.success('Session revoked successfully', {
+        description: 'The session has been terminated',
+      });
+    } catch (error) {
+      // Revert optimistic update on error
+      sessions = previousSessions;
+
+      toast.error('Failed to revoke session', {
+        description: error instanceof Error ? error.message : 'Please try again',
+        action: {
+          label: 'Retry',
+          onClick: () => handleRevokeSession(token),
+        },
+      });
+    }
   }
 </script>
 
@@ -269,6 +325,16 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Active Sessions Section -->
+      <section class="mb-8">
+        <SessionsList
+          {sessions}
+          loading={sessionsLoading}
+          onrevoke={handleRevokeSession}
+          onrefresh={loadSessions}
+        />
       </section>
 
       <!-- Danger Zone Section -->
