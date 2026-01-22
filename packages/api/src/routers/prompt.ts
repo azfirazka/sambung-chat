@@ -1,6 +1,6 @@
 import { db } from '@sambung-chat/db';
 import { prompts } from '@sambung-chat/db/schema/prompt';
-import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, ilike, gte, lte, sql } from 'drizzle-orm';
 import z from 'zod';
 import { ORPCError } from '@orpc/server';
 import { protectedProcedure, withCsrfProtection } from '../index';
@@ -42,9 +42,9 @@ export const promptRouter = {
       z.object({
         name: z.string().min(1).max(200),
         content: z.string().min(1),
-        variables: z.array(z.string()).default([]),
-        category: z.string().default('general'),
-        isPublic: z.boolean().default(false),
+        variables: z.array(z.string()).default([]).optional(),
+        category: z.string().default('general').optional(),
+        isPublic: z.boolean().default(false).optional(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -56,9 +56,9 @@ export const promptRouter = {
           userId,
           name: input.name,
           content: input.content,
-          variables: input.variables,
-          category: input.category,
-          isPublic: input.isPublic,
+          variables: input.variables ?? [],
+          category: input.category ?? 'general',
+          isPublic: input.isPublic ?? false,
         })
         .returning();
 
@@ -116,12 +116,13 @@ export const promptRouter = {
         });
       }
 
+      // Delete prompt
       await db.delete(prompts).where(eq(prompts.id, input.id));
 
       return { success: true };
     }),
 
-  // Search prompts with filters
+  // Search prompts with category and keyword filtering
   search: protectedProcedure
     .input(
       z.object({
@@ -140,21 +141,24 @@ export const promptRouter = {
 
       const conditions = [eq(prompts.userId, userId)];
 
-      // Build search conditions for name and/or content
+      // Build search conditions for name and content
       if (normalizedQuery) {
         conditions.push(
           sql`(${prompts.name} ILIKE ${`%${normalizedQuery}%`} OR ${prompts.content} ILIKE ${`%${normalizedQuery}%`})`
         );
       }
 
+      // Filter by category
       if (input.category !== undefined) {
         conditions.push(eq(prompts.category, input.category));
       }
 
+      // Filter by public status
       if (input.isPublic !== undefined) {
         conditions.push(eq(prompts.isPublic, input.isPublic));
       }
 
+      // Add date range filter
       if (input.dateFrom) {
         conditions.push(gte(prompts.createdAt, input.dateFrom));
       }
