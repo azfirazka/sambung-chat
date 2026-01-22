@@ -254,7 +254,7 @@ describe('Chat Router Tests', () => {
       await db.delete(models).where(eq(models.id, newModel.id));
     });
 
-    it('should toggle chat pin status', async () => {
+    it('should togglePin chat pin status', async () => {
       const chatData = {
         userId: testUserId,
         title: 'Pin Toggle Test',
@@ -286,7 +286,7 @@ describe('Chat Router Tests', () => {
       expect(results2[0].pinned).toBe(false);
     });
 
-    it('should update chat folder', async () => {
+    it('should updateFolder chat folder', async () => {
       // Create a test folder
       const [folder] = await db
         .insert(folders)
