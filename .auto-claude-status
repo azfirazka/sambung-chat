@@ -1,15 +1,15 @@
 {
   "active": true,
-  "spec": "004-lazy-load-katex-and-mermaid-to-reduce-initial-bund",
+  "spec": "005-implement-orpc-response-caching-with-cache-control",
   "state": "complete",
   "subtasks": {
-    "completed": 12,
-    "total": 12,
+    "completed": 14,
+    "total": 14,
     "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Integration - End-to-End Verification",
+    "current": "Validation and Optimization",
     "id": null,
     "total": 3
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 4,
-    "started_at": "2026-01-22T02:10:38.829685"
+    "number": 6,
+    "started_at": "2026-01-22T02:10:23.320309"
   },
-  "last_update": "2026-01-22T02:27:18.082126"
+  "last_update": "2026-01-22T02:32:20.561472"
 }
