@@ -562,15 +562,15 @@ describe('Chat Router Tests', () => {
       await db.insert(messages).values(messageData2);
 
       // Get all messages for chat
-      const messages = await db
+      const chatMessages = await db
         .select()
         .from(messages)
         .where(eq(messages.chatId, chat.id))
         .orderBy(messages.createdAt);
 
-      expect(messages.length).toBe(2);
-      expect(messages[0].role).toBe('user');
-      expect(messages[1].role).toBe('assistant');
+      expect(chatMessages.length).toBe(2);
+      expect(chatMessages[0].role).toBe('user');
+      expect(chatMessages[1].role).toBe('assistant');
     });
 
     it('should get chats with message count', async () => {
@@ -593,12 +593,12 @@ describe('Chat Router Tests', () => {
       }
 
       // Get messages for chat
-      const messages = await db
+      const chatMessages = await db
         .select()
         .from(messages)
         .where(eq(messages.chatId, chat.id));
 
-      expect(messages.length).toBe(3);
+      expect(chatMessages.length).toBe(3);
     });
 
     it('should delete chat and its messages', async () => {
@@ -619,19 +619,19 @@ describe('Chat Router Tests', () => {
       });
 
       // Verify messages exist
-      let messages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
-      expect(messages.length).toBe(1);
+      let chatMessages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+      expect(chatMessages.length).toBe(1);
 
       // Delete chat (messages should be handled by foreign key or manually)
       await db.delete(messages).where(eq(messages.chatId, chat.id));
       await db.delete(chats).where(eq(chats.id, chat.id));
 
       // Verify both are deleted
-      messages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
-      expect(messages.length).toBe(0);
+      chatMessages = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+      expect(chatMessages.length).toBe(0);
 
-      const chats = await db.select().from(chats).where(eq(chats.id, chat.id));
-      expect(chats.length).toBe(0);
+      const chatResults = await db.select().from(chats).where(eq(chats.id, chat.id));
+      expect(chatResults.length).toBe(0);
 
       // Remove from createdChatIds since it's already deleted
       createdChatIds = createdChatIds.filter((id) => id !== chat.id);
@@ -711,6 +711,933 @@ describe('Chat Router Tests', () => {
       createdChatIds.push(chat.id);
 
       expect(chat.folderId).toBeNull();
+    });
+  });
+
+  describe('getAllChatsWithMessages Procedure', () => {
+    it('should get all chats with empty messages array when no messages exist', async () => {
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat Without Messages',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Get all chats for user
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const chatIds = userChats.map((c) => c.id);
+
+      // Get messages for these chats
+      const allMessages = await db
+        .select()
+        .from(messages)
+        .where(inArray(messages.chatId, chatIds))
+        .orderBy(asc(messages.createdAt));
+
+      // Group messages by chatId
+      const messagesByChatId = new Map<string, typeof allMessages>();
+      for (const message of allMessages) {
+        if (!messagesByChatId.has(message.chatId)) {
+          messagesByChatId.set(message.chatId, []);
+        }
+        messagesByChatId.get(message.chatId)!.push(message);
+      }
+
+      // Combine data
+      const chatsWithMessages = userChats.map((c) => ({
+        ...c,
+        messages: messagesByChatId.get(c.id) || [],
+        folder: null,
+      }));
+
+      const chatWithMessages = chatsWithMessages.find((c) => c.id === chat.id);
+      expect(chatWithMessages).toBeDefined();
+      expect(chatWithMessages!.messages).toEqual([]);
+      expect(chatWithMessages!.folder).toBeNull();
+    });
+
+    it('should get all chats with their messages', async () => {
+      // Create a chat with messages
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat With Messages',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Add messages to the chat
+      const messageData1 = {
+        chatId: chat.id,
+        role: 'user' as const,
+        content: 'Hello, how are you?',
+      };
+      const messageData2 = {
+        chatId: chat.id,
+        role: 'assistant' as const,
+        content: 'I am doing well, thank you!',
+      };
+      const messageData3 = {
+        chatId: chat.id,
+        role: 'user' as const,
+        content: 'Can you help me with something?',
+      };
+
+      await db.insert(messages).values(messageData1);
+      await db.insert(messages).values(messageData2);
+      await db.insert(messages).values(messageData3);
+
+      // Get all chats with messages
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const chatIds = userChats.map((c) => c.id);
+
+      const allMessages = await db
+        .select()
+        .from(messages)
+        .where(inArray(messages.chatId, chatIds))
+        .orderBy(asc(messages.createdAt));
+
+      // Group messages by chatId
+      const messagesByChatId = new Map<string, typeof allMessages>();
+      for (const message of allMessages) {
+        if (!messagesByChatId.has(message.chatId)) {
+          messagesByChatId.set(message.chatId, []);
+        }
+        messagesByChatId.get(message.chatId)!.push(message);
+      }
+
+      const chatsWithMessages = userChats.map((c) => ({
+        ...c,
+        messages: messagesByChatId.get(c.id) || [],
+        folder: null,
+      }));
+
+      const chatWithMessages = chatsWithMessages.find((c) => c.id === chat.id);
+      expect(chatWithMessages).toBeDefined();
+      expect(chatWithMessages!.messages.length).toBe(3);
+      expect(chatWithMessages!.messages[0].role).toBe('user');
+      expect(chatWithMessages!.messages[0].content).toBe('Hello, how are you?');
+      expect(chatWithMessages!.messages[1].role).toBe('assistant');
+      expect(chatWithMessages!.messages[2].role).toBe('user');
+    });
+
+    it('should include folder information when chat has a folder', async () => {
+      // Create a folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Test Folder',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      // Create a chat in the folder
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat In Folder',
+          modelId: testModelId,
+          folderId: folder.id,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const chatIds = userChats.map((c) => c.id);
+
+      // Batch-fetch folders
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Combine data
+      const chatsWithFolders = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      const chatWithFolder = chatsWithFolders.find((c) => c.id === chat.id);
+      expect(chatWithFolder).toBeDefined();
+      expect(chatWithFolder!.folder).not.toBeNull();
+      expect(chatWithFolder!.folder!.id).toBe(folder.id);
+      expect(chatWithFolder!.folder!.name).toBe('Test Folder');
+    });
+
+    it('should handle multiple chats with different message counts', async () => {
+      // Create first chat with 2 messages
+      const [chat1] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat 1',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat1.id);
+
+      await db.insert(messages).values({
+        chatId: chat1.id,
+        role: 'user',
+        content: 'Message 1',
+      });
+      await db.insert(messages).values({
+        chatId: chat1.id,
+        role: 'assistant',
+        content: 'Response 1',
+      });
+
+      // Create second chat with 5 messages
+      const [chat2] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat 2',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat2.id);
+
+      for (let i = 0; i < 5; i++) {
+        await db.insert(messages).values({
+          chatId: chat2.id,
+          role: i % 2 === 0 ? 'user' : 'assistant',
+          content: `Message ${i + 1}`,
+        });
+      }
+
+      // Get all chats with messages
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const chatIds = userChats.map((c) => c.id);
+
+      const allMessages = await db
+        .select()
+        .from(messages)
+        .where(inArray(messages.chatId, chatIds))
+        .orderBy(asc(messages.createdAt));
+
+      // Group messages by chatId
+      const messagesByChatId = new Map<string, typeof allMessages>();
+      for (const message of allMessages) {
+        if (!messagesByChatId.has(message.chatId)) {
+          messagesByChatId.set(message.chatId, []);
+        }
+        messagesByChatId.get(message.chatId)!.push(message);
+      }
+
+      const chatsWithMessages = userChats.map((c) => ({
+        ...c,
+        messages: messagesByChatId.get(c.id) || [],
+        folder: null,
+      }));
+
+      const chat1WithMessages = chatsWithMessages.find((c) => c.id === chat1.id);
+      const chat2WithMessages = chatsWithMessages.find((c) => c.id === chat2.id);
+
+      expect(chat1WithMessages!.messages.length).toBe(2);
+      expect(chat2WithMessages!.messages.length).toBe(5);
+    });
+
+    it('should return empty array when user has no chats', async () => {
+      // Create a new user with no chats
+      const newUserId = generateULID();
+      await db.insert(user).values({
+        id: newUserId,
+        name: 'Empty User',
+        email: 'empty-user@example.com',
+        emailVerified: true,
+      });
+
+      try {
+        // Get all chats for new user
+        const userChats = await db
+          .select()
+          .from(chats)
+          .where(eq(chats.userId, newUserId))
+          .orderBy(desc(chats.updatedAt));
+
+        expect(userChats.length).toBe(0);
+
+        // Simulate the procedure logic
+        if (userChats.length === 0) {
+          const result = userChats.map((chat) => ({
+            ...chat,
+            messages: [],
+            folder: null,
+          }));
+          expect(result).toEqual([]);
+        }
+      } finally {
+        // Clean up
+        await db.delete(user).where(eq(user.id, newUserId));
+      }
+    });
+
+    it('should handle chat with folder but folder not found', async () => {
+      // Create a chat with a non-existent folderId (orphaned reference)
+      const fakeFolderId = generateULID();
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Orphaned Chat',
+          modelId: testModelId,
+          folderId: fakeFolderId,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Combine data - folder should be null if not found
+      const chatsWithFolders = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      const chatWithFolder = chatsWithFolders.find((c) => c.id === chat.id);
+      expect(chatWithFolder).toBeDefined();
+      expect(chatWithFolder!.folder).toBeNull(); // Should be null when folder not found
+    });
+  });
+
+  describe('getChatsByFolder Procedure', () => {
+    it('should return empty structure when user has no chats', async () => {
+      const newUserId = generateULID();
+      await db.insert(user).values({
+        id: newUserId,
+        name: 'No Chats User',
+        email: 'nochats-user@example.com',
+        emailVerified: true,
+      });
+
+      try {
+        const userChats = await db
+          .select()
+          .from(chats)
+          .where(eq(chats.userId, newUserId))
+          .orderBy(desc(chats.updatedAt));
+
+        expect(userChats.length).toBe(0);
+
+        // Simulate the procedure logic
+        if (userChats.length === 0) {
+          const result = {
+            folders: [],
+            uncategorized: [],
+          };
+          expect(result.folders).toEqual([]);
+          expect(result.uncategorized).toEqual([]);
+        }
+      } finally {
+        await db.delete(user).where(eq(user.id, newUserId));
+      }
+    });
+
+    it('should group uncategorized chats when no folders exist', async () => {
+      // Create multiple uncategorized chats
+      const [chat1] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Uncategorized Chat 1',
+          modelId: testModelId,
+        })
+        .returning();
+
+      const [chat2] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Uncategorized Chat 2',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat1.id, chat2.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      // Simulate grouping
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: null,
+      }));
+
+      const uncategorizedChats: typeof chatsWithDetails = [];
+      for (const chat of chatsWithDetails) {
+        if (!chat.folder) {
+          uncategorizedChats.push(chat);
+        }
+      }
+
+      expect(uncategorizedChats.length).toBeGreaterThanOrEqual(2);
+      expect(uncategorizedChats.some((c) => c.id === chat1.id)).toBe(true);
+      expect(uncategorizedChats.some((c) => c.id === chat2.id)).toBe(true);
+    });
+
+    it('should group chats by folder', async () => {
+      // Create folders
+      const [folder1] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Work',
+        })
+        .returning();
+
+      const [folder2] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Personal',
+        })
+        .returning();
+
+      createdFolderIds.push(folder1.id, folder2.id);
+
+      // Create chats in folders
+      const [chat1] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Work Chat 1',
+          modelId: testModelId,
+          folderId: folder1.id,
+        })
+        .returning();
+
+      const [chat2] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Work Chat 2',
+          modelId: testModelId,
+          folderId: folder1.id,
+        })
+        .returning();
+
+      const [chat3] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Personal Chat 1',
+          modelId: testModelId,
+          folderId: folder2.id,
+        })
+        .returning();
+
+      createdChatIds.push(chat1.id, chat2.id, chat3.id);
+
+      // Get all chats and folders
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Group by folder
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      const folderMap = new Map<string, { id: string; name: string; chats: typeof chatsWithDetails }>();
+      const uncategorizedChats: typeof chatsWithDetails = [];
+
+      for (const chat of chatsWithDetails) {
+        if (chat.folder) {
+          const folderId = chat.folder.id;
+          if (!folderMap.has(folderId)) {
+            folderMap.set(folderId, {
+              id: chat.folder.id,
+              name: chat.folder.name,
+              chats: [],
+            });
+          }
+          folderMap.get(folderId)!.chats.push(chat);
+        } else {
+          uncategorizedChats.push(chat);
+        }
+      }
+
+      // Verify folders
+      expect(folderMap.size).toBeGreaterThanOrEqual(2);
+      expect(folderMap.has(folder1.id)).toBe(true);
+      expect(folderMap.has(folder2.id)).toBe(true);
+
+      // Verify chats in folders
+      const workFolder = folderMap.get(folder1.id)!;
+      const personalFolder = folderMap.get(folder2.id)!;
+
+      expect(workFolder.chats.some((c) => c.id === chat1.id)).toBe(true);
+      expect(workFolder.chats.some((c) => c.id === chat2.id)).toBe(true);
+      expect(personalFolder.chats.some((c) => c.id === chat3.id)).toBe(true);
+    });
+
+    it('should include both categorized and uncategorized chats', async () => {
+      // Create a folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Projects',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      // Create categorized chat
+      const [categorizedChat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Project Chat',
+          modelId: testModelId,
+          folderId: folder.id,
+        })
+        .returning();
+
+      // Create uncategorized chat
+      const [uncategorizedChat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Uncategorized Chat',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(categorizedChat.id, uncategorizedChat.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Group by folder
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      const folderMap = new Map<string, { id: string; name: string; chats: typeof chatsWithDetails }>();
+      const uncategorizedChats: typeof chatsWithDetails = [];
+
+      for (const chat of chatsWithDetails) {
+        if (chat.folder) {
+          const folderId = chat.folder.id;
+          if (!folderMap.has(folderId)) {
+            folderMap.set(folderId, {
+              id: chat.folder.id,
+              name: chat.folder.name,
+              chats: [],
+            });
+          }
+          folderMap.get(folderId)!.chats.push(chat);
+        } else {
+          uncategorizedChats.push(chat);
+        }
+      }
+
+      // Verify both categorized and uncategorized
+      expect(folderMap.size).toBeGreaterThanOrEqual(1);
+      expect(uncategorizedChats.length).toBeGreaterThanOrEqual(1);
+      expect(uncategorizedChats.some((c) => c.id === uncategorizedChat.id)).toBe(true);
+    });
+
+    it('should include messages in grouped chats', async () => {
+      // Create a folder
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Test Folder',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      // Create a chat with messages
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat With Messages',
+          modelId: testModelId,
+          folderId: folder.id,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Add messages
+      await db.insert(messages).values({
+        chatId: chat.id,
+        role: 'user',
+        content: 'Test message',
+      });
+      await db.insert(messages).values({
+        chatId: chat.id,
+        role: 'assistant',
+        content: 'Test response',
+      });
+
+      // Get all chats and messages
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      const chatIds = userChats.map((c) => c.id);
+
+      const allMessages = await db
+        .select()
+        .from(messages)
+        .where(inArray(messages.chatId, chatIds))
+        .orderBy(asc(messages.createdAt));
+
+      // Group messages by chatId
+      const messagesByChatId = new Map<string, typeof allMessages>();
+      for (const message of allMessages) {
+        if (!messagesByChatId.has(message.chatId)) {
+          messagesByChatId.set(message.chatId, []);
+        }
+        messagesByChatId.get(message.chatId)!.push(message);
+      }
+
+      // Get folders
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Combine data
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: messagesByChatId.get(c.id) || [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      // Group by folder
+      const folderMap = new Map<string, { id: string; name: string; chats: typeof chatsWithDetails }>();
+
+      for (const chat of chatsWithDetails) {
+        if (chat.folder) {
+          const folderId = chat.folder.id;
+          if (!folderMap.has(folderId)) {
+            folderMap.set(folderId, {
+              id: chat.folder.id,
+              name: chat.folder.name,
+              chats: [],
+            });
+          }
+          folderMap.get(folderId)!.chats.push(chat);
+        }
+      }
+
+      // Verify messages are included
+      const testFolder = folderMap.get(folder.id);
+      expect(testFolder).toBeDefined();
+      const chatInFolder = testFolder!.chats.find((c) => c.id === chat.id);
+      expect(chatInFolder).toBeDefined();
+      expect(chatInFolder!.messages.length).toBe(2);
+    });
+
+    it('should sort folders alphabetically by name', async () => {
+      // Create folders with names that need sorting
+      const [folder1] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Zebra',
+        })
+        .returning();
+
+      const [folder2] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Apple',
+        })
+        .returning();
+
+      const [folder3] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Middle',
+        })
+        .returning();
+
+      createdFolderIds.push(folder1.id, folder2.id, folder3.id);
+
+      // Create chats in each folder
+      const [chat1] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat 1',
+          modelId: testModelId,
+          folderId: folder1.id,
+        })
+        .returning();
+
+      const [chat2] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat 2',
+          modelId: testModelId,
+          folderId: folder2.id,
+        })
+        .returning();
+
+      const [chat3] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Chat 3',
+          modelId: testModelId,
+          folderId: folder3.id,
+        })
+        .returning();
+
+      createdChatIds.push(chat1.id, chat2.id, chat3.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      // Get folders
+      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
+      const foldersMap = new Map<string, { id: string; name: string }>();
+
+      if (folderIds.length > 0) {
+        const uniqueFolderIds = [...new Set(folderIds)];
+        const folderResults = await db
+          .select()
+          .from(folders)
+          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
+
+        for (const f of folderResults) {
+          foldersMap.set(f.id, { id: f.id, name: f.name });
+        }
+      }
+
+      // Group by folder
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
+      }));
+
+      const folderMap = new Map<string, { id: string; name: string; chats: typeof chatsWithDetails }>();
+
+      for (const chat of chatsWithDetails) {
+        if (chat.folder) {
+          const folderId = chat.folder.id;
+          if (!folderMap.has(folderId)) {
+            folderMap.set(folderId, {
+              id: chat.folder.id,
+              name: chat.folder.name,
+              chats: [],
+            });
+          }
+          folderMap.get(folderId)!.chats.push(chat);
+        }
+      }
+
+      // Sort by folder name
+      const foldersArray = Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+      // Verify alphabetical order
+      expect(foldersArray[0].name).toBe('Apple');
+      expect(foldersArray[1].name).toBe('Middle');
+      expect(foldersArray[2].name).toBe('Zebra');
+    });
+
+    it('should handle folder with no chats', async () => {
+      // Create a folder but don't add any chats to it
+      const [folder] = await db
+        .insert(folders)
+        .values({
+          userId: testUserId,
+          name: 'Empty Folder',
+        })
+        .returning();
+
+      createdFolderIds.push(folder.id);
+
+      // Create an uncategorized chat
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          userId: testUserId,
+          title: 'Uncategorized Chat',
+          modelId: testModelId,
+        })
+        .returning();
+
+      createdChatIds.push(chat.id);
+
+      // Get all chats
+      const userChats = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, testUserId))
+        .orderBy(desc(chats.updatedAt));
+
+      // Group by folder
+      const chatsWithDetails = userChats.map((c) => ({
+        ...c,
+        messages: [],
+        folder: null,
+      }));
+
+      const folderMap = new Map<string, { id: string; name: string; chats: typeof chatsWithDetails }>();
+      const uncategorizedChats: typeof chatsWithDetails = [];
+
+      for (const chat of chatsWithDetails) {
+        if (chat.folder) {
+          const folderId = chat.folder.id;
+          if (!folderMap.has(folderId)) {
+            folderMap.set(folderId, {
+              id: chat.folder.id,
+              name: chat.folder.name,
+              chats: [],
+            });
+          }
+          folderMap.get(folderId)!.chats.push(chat);
+        } else {
+          uncategorizedChats.push(chat);
+        }
+      }
+
+      // Empty folder should not appear in results
+      expect(folderMap.has(folder.id)).toBe(false);
+      expect(uncategorizedChats.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

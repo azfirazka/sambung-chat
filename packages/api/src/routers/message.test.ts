@@ -26,7 +26,7 @@ describe('Message Router Tests', () => {
   let testModelId: string;
   let testChatId: string;
   let createdMessageIds: string[] = [];
-  let createdChatIds: string[] = [];
+  const createdChatIds: string[] = [];
 
   beforeAll(async () => {
     // Create a test user first (required for foreign key constraints)
