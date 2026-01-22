@@ -96,4 +96,23 @@ export const userRouter = {
     const currentToken = sessionData?.session?.token || sessionData?.token || '';
     return await UserService.getSessions(userId, currentToken);
   }),
+
+  /**
+   * Revoke a specific session
+   * Allows users to revoke (delete) a specific session to logout from a device
+   * Users can only revoke their own sessions
+   */
+  revokeSession: protectedProcedure
+    .input(
+      z.object({
+        token: z.string().min(1, 'Session token is required'),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      return await UserService.revokeSession({
+        userId,
+        token: input.token,
+      });
+    }),
 };

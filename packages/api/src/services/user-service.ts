@@ -23,8 +23,8 @@ export interface UserProfile {
 export interface UpdateProfileInput {
   userId: string;
   name?: string;
-  bio?: string;
-  image?: string;
+  bio?: string | null;
+  image?: string | null;
 }
 
 /**
@@ -49,6 +49,14 @@ export interface UserSession {
   ipAddress: string | null;
   userAgent: string | null;
   isCurrent: boolean;
+}
+
+/**
+ * Revoke session input
+ */
+export interface RevokeSessionInput {
+  userId: string;
+  token: string;
 }
 
 /**
@@ -183,7 +191,7 @@ export class UserService {
       name: userData.name,
       email: userData.email,
       image: userData.image,
-      bio: userData.bio,
+      bio: (userData as any).bio,
       emailVerified: userData.emailVerified,
       createdAt: userData.createdAt,
       updatedAt: userData.updatedAt,
@@ -264,7 +272,7 @@ export class UserService {
       name: updatedUser.name,
       email: updatedUser.email,
       image: updatedUser.image,
-      bio: updatedUser.bio,
+      bio: (updatedUser as any).bio,
       emailVerified: updatedUser.emailVerified,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
@@ -322,7 +330,7 @@ export class UserService {
    * ```
    */
   static async changePassword(input: ChangePasswordInput): Promise<{ success: boolean }> {
-    const { userId, currentPassword, newPassword, revokeOtherSessions = true } = input;
+    const { userId: _userId, currentPassword, newPassword, revokeOtherSessions = true } = input;
 
     // Validate new password strength
     this.validatePasswordStrength(newPassword);
@@ -454,5 +462,67 @@ export class UserService {
       userAgent: s.userAgent,
       isCurrent: s.token === currentToken, // Mark current session
     }));
+  }
+
+  /**
+   * Revoke a user session
+   *
+   * Revokes (deletes) a specific session for the authenticated user.
+   * This is useful for logging out from specific devices or locations.
+   *
+   * @param input - Revoke session input containing userId and token
+   * @returns Success message
+   * @throws {ORPCError} If session not found, no permission, or deletion fails
+   *
+   * @example
+   * ```ts
+   * await UserService.revokeSession({
+   *   userId: 'user_123',
+   *   token: 'session_token_xyz'
+   * });
+   * // Returns: { success: true }
+   * ```
+   */
+  static async revokeSession(input: RevokeSessionInput): Promise<{ success: boolean }> {
+    const { userId, token } = input;
+
+    // Find the session to verify ownership
+    const sessionResults = await db
+      .select()
+      .from(session)
+      .where(eq(session.token, token))
+      .limit(1);
+
+    if (sessionResults.length === 0) {
+      throw new ORPCError('NOT_FOUND', {
+        message: 'Session not found',
+      });
+    }
+
+    const sessionData = sessionResults[0]!; // Non-null assertion - we verified length > 0 above
+
+    // Verify the session belongs to the user
+    if (sessionData.userId !== userId) {
+      throw new ORPCError('FORBIDDEN', {
+        message: 'You can only revoke your own sessions',
+      });
+    }
+
+    try {
+      // Delete the session
+      await db.delete(session).where(eq(session.token, token));
+
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ORPCError('INTERNAL_ERROR', {
+          message: error.message || 'Failed to revoke session',
+        });
+      }
+
+      throw new ORPCError('INTERNAL_ERROR', {
+        message: 'An unexpected error occurred while revoking session',
+      });
+    }
   }
 }
