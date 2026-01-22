@@ -234,8 +234,9 @@ You can also verify caching in the browser:
 4. Look for requests to `/rpc/folder/getAll`, `/rpc/model/getAll`
 5. Check Response Headers:
    - `Cache-Control: private, max-age=...`
-   - `ETag: "..."`6. Reload the page
-6. Second request should show:
+   - `ETag: "..."`
+6. Reload the page
+7. Second request should show:
    - Status: `304 Not Modified`
    - Size: smaller than first request (from cache)
 

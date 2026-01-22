@@ -169,7 +169,7 @@
                   prompt.category
                 )} rounded px-1.5 py-0.5 text-xs font-medium capitalize"
               >
-                {prompt.category}
+                {getCanonicalCategory(prompt.category)}
               </span>
               <span class="text-muted-foreground truncate text-xs" title={prompt.content}>
                 {truncateContent(prompt.content)}

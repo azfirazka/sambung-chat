@@ -299,7 +299,10 @@ function getMermaidTheme() {
  */
 export async function initMermaidDiagrams() {
   // Load Mermaid if not already loaded
-  if (typeof window !== 'undefined' && !isMermaidLoaded()) {
+  // Check for window.mermaid directly instead of isMermaidLoaded()
+  // because isMermaidLoaded() returns true when load promise is created,
+  // not when mermaid is actually available
+  if (typeof window !== 'undefined' && !(window as any).mermaid) {
     try {
       await loadMermaid();
     } catch (error) {

@@ -85,10 +85,9 @@ describe('Cache Headers Middleware', () => {
     });
 
     it('should handle arrays with nested objects', () => {
-      // NOTE: Current implementation uses Object.keys() as replacer for stable object serialization.
-      // For arrays, this only includes array indices in the whitelist, which causes nested
-      // object properties to be excluded. Arrays with objects will have same ETag.
-      // This is acceptable for current use case where we cache top-level resources.
+      // NOTE: Current implementation uses stableStringify for deterministic serialization,
+      // which recursively sorts object keys to ensure consistent ETags regardless of
+      // property order. Arrays with nested objects will generate stable ETags.
       const data = [
         { id: 1, name: 'Item 1' },
         { id: 2, name: 'Item 2' },

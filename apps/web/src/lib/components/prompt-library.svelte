@@ -154,7 +154,8 @@
       name: prompt.name,
       content: prompt.content,
       variables: prompt.variables,
-      category: prompt.category as PromptFormData['category'],
+      // Guard against null category - default to 'general' if null
+      category: (prompt.category || 'general') as PromptFormData['category'],
       isPublic: prompt.isPublic,
     };
     showEditDialog = true;
