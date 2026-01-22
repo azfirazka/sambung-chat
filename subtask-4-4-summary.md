@@ -56,7 +56,7 @@
 
 ## Commit Information
 
-```
+```text
 feat: integrate PromptLibrary component into /app/prompts page
 
 - Replaced "Coming Soon" placeholder with full PromptLibrary integration
@@ -78,7 +78,7 @@ The prompt library UI is now **fully integrated and ready for testing**. However
    ```
 
 2. **Open the prompts library in your browser:**
-   - Navigate to: http://localhost:5174/app/prompts
+   - Navigate to: <http://localhost:5174/app/prompts>
    - Dev server should be running: `bun run dev`
 
 3. **Run through the verification checklist:**
@@ -87,7 +87,7 @@ The prompt library UI is now **fully integrated and ready for testing**. However
 
 ### What to Test:
 
-#### Part 1: Prompts Library Page (http://localhost:5174/app/prompts)
+#### Part 1: Prompts Library Page (<http://localhost:5174/app/prompts>)
 
 - ✅ Page loads without errors
 - ✅ Create a new prompt
@@ -95,7 +95,7 @@ The prompt library UI is now **fully integrated and ready for testing**. However
 - ✅ Edit, view, copy, delete prompts
 - ✅ Form validation works
 
-#### Part 2: Prompt Selector in Chat (http://localhost:5174)
+#### Part 2: Prompt Selector in Chat (<http://localhost:5174>)
 
 - ✅ "Insert Prompt" button visible in chat header
 - ✅ Dropdown shows available prompts
@@ -133,12 +133,12 @@ The prompt library UI is now **fully integrated and ready for testing**. However
 
 If you're short on time, run this quick test:
 
-1. Open http://localhost:5174/app/prompts
+1. Open <http://localhost:5174/app/prompts>
 2. Create a test prompt (name: "Test", content: "Hello {world}")
 3. Verify it appears in the list
 4. Edit the prompt
 5. Copy the prompt to clipboard
-6. Go to http://localhost:5174 (chat page)
+6. Go to <http://localhost:5174> (chat page)
 7. Click "Insert Prompt" button
 8. Insert your test prompt into chat
 9. Delete the test prompt

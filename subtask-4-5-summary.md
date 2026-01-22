@@ -15,7 +15,7 @@ cd ../001-add-skeleton-loading-states-for-chat-interface && bun run build
 
 ### Build Output
 
-```
+```text
 Tasks: 2 successful, 2 total
 Cached: 0 cached, 2 total
 Time: 20.981s

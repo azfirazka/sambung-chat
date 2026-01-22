@@ -123,7 +123,7 @@ All prompt CRUD operations have been successfully verified. The prompt router is
 ### Authorization & Ownership
 
 - Every operation validates userId matches session user
-- getUsersById/search/getAll automatically filter by userId
+- getById/search/getAll automatically filter by userId
 - Update/delete verify ownership before execution
 - Cannot access or modify other users' prompts
 
@@ -153,7 +153,7 @@ All prompt CRUD operations have been successfully verified. The prompt router is
 
 All endpoints are accessible via:
 
-```
+```text
 http://localhost:3000/rpc/prompt/*
 ```
 

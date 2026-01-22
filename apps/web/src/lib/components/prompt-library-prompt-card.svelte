@@ -100,7 +100,7 @@
           </CardTitle>
         </div>
       </div>
-      {#if onedit || ondelete || oncopy}
+      {#if onedit || ondelete || oncopy || onview}
         <DropdownMenu.DropdownMenu>
           <DropdownMenu.DropdownMenuTrigger
             class="hover:bg-accent shrink-0 rounded p-1"
@@ -168,7 +168,9 @@
 
       <div class="text-muted-foreground text-xs">
         Created {formatDate(prompt.createdAt)}
-        {prompt.updatedAt !== prompt.createdAt ? ` · Updated ${formatDate(prompt.updatedAt)}` : ''}
+        {+new Date(prompt.updatedAt) !== +new Date(prompt.createdAt)
+          ? ` · Updated ${formatDate(prompt.updatedAt)}`
+          : ''}
       </div>
     </div>
   </CardContent>

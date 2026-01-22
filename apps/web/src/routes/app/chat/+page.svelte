@@ -260,16 +260,22 @@
     return errorMessage.length > 0;
   }
 
+  // Helper function to escape regex special characters
+  function escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function handleInsertPrompt(prompt: { content: string; variables: Array<{ name: string }> }) {
     let promptContent = prompt.content;
 
     // If variables exist, replace them with placeholders
     if (prompt.variables.length > 0) {
       prompt.variables.forEach((variable) => {
+        const escapedName = escapeRegExp(variable.name);
         const placeholder = `[${variable.name}]`;
-        promptContent = promptContent.replace(new RegExp(`{{${variable.name}}}`, 'g'), placeholder);
+        promptContent = promptContent.replace(new RegExp(`{{${escapedName}}}`, 'g'), placeholder);
         promptContent = promptContent.replace(
-          new RegExp(`\\$\\{${variable.name}\\}`, 'g'),
+          new RegExp(`\\$\\{${escapedName}\\}`, 'g'),
           placeholder
         );
       });

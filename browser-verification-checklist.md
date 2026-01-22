@@ -10,13 +10,13 @@
    ```
 
 2. **Open Browser to:**
-   - Prompts Library: http://localhost:5174/app/prompts
-   - Chat Page: http://localhost:5174
-   - Settings: http://localhost:5174/app/settings
+   - Prompts Library: <http://localhost:5174/app/prompts>
+   - Chat Page: <http://localhost:5174>
+   - Settings: <http://localhost:5174/app/settings>
 
 ---
 
-## Part 1: Prompts Library Page (http://localhost:5174/app/prompts)
+## Part 1: Prompts Library Page (<http://localhost:5174/app/prompts>)
 
 ### 1.1 Page Rendering
 
@@ -135,13 +135,13 @@
 
 ---
 
-## Part 2: Prompt Selector in Chat (http://localhost:5174)
+## Part 2: Prompt Selector in Chat (<http://localhost:5174>)
 
 ### 2.1 Component Rendering
 
 - [ ] Chat page loads without errors
 - [ ] "Insert Prompt" button is visible in chat header (before Model Selector)
-- [ ] Button shows notebook emoji 📝
+- [ ] Button shows notebook emoji 📓
 - [ ] Button is styled consistently with other controls
 
 ### 2.2 Prompt Selection
@@ -182,7 +182,7 @@
 
 ---
 
-## Part 3: Settings Navigation (http://localhost:5174/app/settings)
+## Part 3: Settings Navigation (<http://localhost:5174/app/settings>)
 
 ### 3.1 Navigation Item
 
@@ -191,7 +191,7 @@
 - [ ] "Prompts Library" navigation item is visible
 - [ ] Sparkles icon (✨) is shown
 - [ ] Click "Prompts Library"
-- [ ] Navigates to http://localhost:5174/app/prompts
+- [ ] Navigates to <http://localhost:5174/app/prompts>
 
 ---
 
@@ -304,12 +304,12 @@
 
 If you're short on time, run this quick test:
 
-1. Open http://localhost:5174/app/prompts
+1. Open <http://localhost:5174/app/prompts>
 2. Create a test prompt
 3. Verify it appears in the list
 4. Edit the prompt
 5. Copy the prompt to clipboard
-6. Go to http://localhost:5174
+6. Go to <http://localhost:5174>
 7. Click "Insert Prompt" button
 8. Insert your test prompt into chat
 9. Delete the test prompt
