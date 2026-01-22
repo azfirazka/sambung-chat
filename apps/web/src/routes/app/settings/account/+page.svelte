@@ -4,10 +4,11 @@
   import SecondarySidebarTrigger from '$lib/components/secondary-sidebar-trigger.svelte';
   import { Separator } from '$lib/components/ui/separator/index.js';
   import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+  import * as Dialog from '$lib/components/ui/dialog/index.js';
   import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
   import MailIcon from '@lucide/svelte/icons/mail';
   import { page } from '$app/stores';
-  import { ProfileForm, type ProfileFormData } from '$lib/components/settings/profile';
+  import { ProfileForm, ChangePasswordForm, type ProfileFormData, type ChangePasswordFormData } from '$lib/components/settings/profile';
   import { toast } from 'svelte-sonner';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 
@@ -16,6 +17,7 @@
     user: {
       getProfile: () => Promise<any>;
       updateProfile: (input: any) => Promise<any>;
+      changePassword: (input: any) => Promise<any>;
     },
   };
 
@@ -32,6 +34,9 @@
   let userProfile = $state<UserProfile | null>(null);
   let loading = $state(false);
   let submitting = $state(false);
+  let changingPassword = $state(false);
+  let showChangePasswordDialog = $state(false);
+  let passwordError = $state('');
 
   // Form data
   let formData = $state<ProfileFormData>({
@@ -107,6 +112,46 @@
     } finally {
       submitting = false;
     }
+  }
+
+  async function handleChangePassword(data: ChangePasswordFormData) {
+    changingPassword = true;
+    passwordError = '';
+
+    try {
+      await userClient.user.changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+        revokeOtherSessions: true,
+      });
+
+      toast.success('Password changed successfully', {
+        description: 'Your password has been updated and you have been signed out from other devices',
+      });
+
+      // Close dialog on success
+      showChangePasswordDialog = false;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change password';
+
+      // Set error to display in form
+      passwordError = errorMessage;
+
+      toast.error('Failed to change password', {
+        description: errorMessage,
+        action: {
+          label: 'Retry',
+          onClick: () => handleChangePassword(data),
+        },
+      });
+    } finally {
+      changingPassword = false;
+    }
+  }
+
+  function openChangePasswordDialog() {
+    passwordError = '';
+    showChangePasswordDialog = true;
   }
 </script>
 
@@ -216,6 +261,7 @@
                 <p class="text-muted-foreground text-sm">Change your password</p>
               </div>
               <button
+                onclick={openChangePasswordDialog}
                 class="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
               >
                 Change Password
@@ -248,3 +294,22 @@
     </div>
   </main>
 </div>
+
+<!-- Change Password Dialog -->
+<Dialog.Root bind:open={showChangePasswordDialog} onOpenChange={(open) => showChangePasswordDialog = open}>
+  <Dialog.Content class="max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>Change Password</Dialog.Title>
+      <Dialog.Description>
+        Enter your current password and choose a new secure password
+      </Dialog.Description>
+    </Dialog.Header>
+
+    <ChangePasswordForm
+      submitting={changingPassword}
+      error={passwordError}
+      onsubmit={handleChangePassword}
+      oncancel={() => showChangePasswordDialog = false}
+    />
+  </Dialog.Content>
+</Dialog.Root>
