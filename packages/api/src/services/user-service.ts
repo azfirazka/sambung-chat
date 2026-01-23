@@ -23,15 +23,15 @@ export interface UserProfile {
 export interface UpdateProfileInput {
   userId: string;
   name?: string;
-  bio?: string;
-  image?: string;
+  bio?: string | null | undefined;
+  image?: string | null | undefined;
 }
 
 /**
  * Change password input
  */
 export interface ChangePasswordInput {
-  userId: string;
+  userId?: string;
   currentPassword: string;
   newPassword: string;
   revokeOtherSessions?: boolean;
@@ -57,6 +57,14 @@ export interface UserSession {
 export interface RevokeSessionInput {
   userId: string;
   token: string;
+}
+
+/**
+ * Upload avatar input
+ */
+export interface UploadAvatarInput {
+  userId: string;
+  file: string; // base64 encoded image
 }
 
 /**
@@ -103,7 +111,7 @@ export class UserService {
    * @param bio - The bio to validate
    * @throws {ORPCError} If the bio is invalid
    */
-  static validateBio(bio: string): void {
+  static validateBio(bio: string | null | undefined): void {
     if (bio !== null && bio !== undefined) {
       if (typeof bio !== 'string') {
         throw new ORPCError('BAD_REQUEST', {
@@ -125,7 +133,7 @@ export class UserService {
    * @param image - The image URL to validate
    * @throws {ORPCError} If the image URL is invalid
    */
-  static validateImage(image: string): void {
+  static validateImage(image: string | null): void {
     if (image !== null && image !== undefined) {
       if (typeof image !== 'string') {
         throw new ORPCError('BAD_REQUEST', {
@@ -166,11 +174,7 @@ export class UserService {
       });
     }
 
-    const results = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
+    const results = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
     if (results.length === 0) {
       throw new ORPCError('NOT_FOUND', {
@@ -191,7 +195,7 @@ export class UserService {
       name: userData.name,
       email: userData.email,
       image: userData.image,
-      bio: userData.bio,
+      bio: (userData as any).bio || null,
       emailVerified: userData.emailVerified,
       createdAt: userData.createdAt,
       updatedAt: userData.updatedAt,
@@ -221,11 +225,7 @@ export class UserService {
     const { userId, name, bio, image } = input;
 
     // Verify user exists
-    const existingUserResults = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
+    const existingUserResults = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
     if (existingUserResults.length === 0) {
       throw new ORPCError('NOT_FOUND', {
@@ -242,16 +242,27 @@ export class UserService {
       updateData.name = name;
     }
 
-    // Validate and add bio if provided
+    // Validate and add bio if provided (null means clear the field)
     if (bio !== undefined) {
-      this.validateBio(bio);
+      if (bio !== null) {
+        this.validateBio(bio);
+      }
       updateData.bio = bio;
     }
 
-    // Validate and add image if provided
+    // Validate and add image if provided (null means clear the field)
     if (image !== undefined) {
-      this.validateImage(image);
+      if (image !== null) {
+        this.validateImage(image);
+      }
       updateData.image = image;
+    }
+
+    // Guard against empty profile updates (no fields to update)
+    if (Object.keys(updateData).length === 0) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'At least one field (name, bio, or image) must be provided to update profile',
+      });
     }
 
     // Update the user
@@ -272,7 +283,7 @@ export class UserService {
       name: updatedUser.name,
       email: updatedUser.email,
       image: updatedUser.image,
-      bio: updatedUser.bio,
+      bio: (updatedUser as any).bio || null,
       emailVerified: updatedUser.emailVerified,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
@@ -329,8 +340,11 @@ export class UserService {
    * });
    * ```
    */
-  static async changePassword(input: ChangePasswordInput): Promise<{ success: boolean }> {
-    const { userId, currentPassword, newPassword, revokeOtherSessions = true } = input;
+  static async changePassword(
+    input: ChangePasswordInput,
+    headers: Record<string, string> | Headers
+  ): Promise<{ success: boolean }> {
+    const { currentPassword, newPassword, revokeOtherSessions = true } = input;
 
     // Validate new password strength
     this.validatePasswordStrength(newPassword);
@@ -339,8 +353,9 @@ export class UserService {
     const { auth } = await import('@sambung-chat/auth');
 
     try {
-      // Use Better Auth's changePassword API
+      // Use Better Auth's changePassword API with request context for session validation
       await auth.api.changePassword({
+        headers,
         body: {
           currentPassword,
           newPassword,
@@ -391,11 +406,7 @@ export class UserService {
    */
   static async deleteAccount(userId: string): Promise<{ success: boolean }> {
     // Verify user exists before attempting deletion
-    const existingUserResults = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
+    const existingUserResults = await db.select().from(user).where(eq(user.id, userId)).limit(1);
 
     if (existingUserResults.length === 0) {
       throw new ORPCError('NOT_FOUND', {
@@ -428,7 +439,7 @@ export class UserService {
    * Identifies the current session based on the provided session token.
    *
    * @param userId - The user ID to fetch sessions for
-   * @param currentToken - The token of the current session (to identify current session)
+   * @param currentToken - The token of the current session (to identify current session), or undefined if not available
    * @returns Array of user sessions
    * @throws {ORPCError} If user not found
    *
@@ -438,7 +449,7 @@ export class UserService {
    * // Returns: [{ id, token, expiresAt, ipAddress, userAgent, isCurrent, ... }]
    * ```
    */
-  static async getSessions(userId: string, currentToken: string): Promise<UserSession[]> {
+  static async getSessions(userId: string, currentToken?: string): Promise<UserSession[]> {
     // Fetch all active (non-expired) sessions for the user
     const sessions = await db
       .select()
@@ -487,11 +498,7 @@ export class UserService {
     const { userId, token } = input;
 
     // Find the session to verify ownership
-    const sessionResults = await db
-      .select()
-      .from(session)
-      .where(eq(session.token, token))
-      .limit(1);
+    const sessionResults = await db.select().from(session).where(eq(session.token, token)).limit(1);
 
     if (sessionResults.length === 0) {
       throw new ORPCError('NOT_FOUND', {
@@ -499,7 +506,7 @@ export class UserService {
       });
     }
 
-    const sessionData = sessionResults[0];
+    const sessionData = sessionResults[0]!; // Non-null assertion: we verified length > 0 above
 
     // Verify the session belongs to the user
     if (sessionData.userId !== userId) {
@@ -522,6 +529,136 @@ export class UserService {
 
       throw new ORPCError('INTERNAL_ERROR', {
         message: 'An unexpected error occurred while revoking session',
+      });
+    }
+  }
+
+  /**
+   * Upload avatar image
+   *
+   * Validates and uploads an avatar image for the user.
+   * Accepts base64 encoded image data.
+   * Validates image type, size, and format.
+   *
+   * Supported formats: JPEG, PNG, GIF, WebP
+   * Maximum size: 2MB
+   *
+   * @param input - Upload avatar input containing userId and base64 file
+   * @returns The updated user profile with new avatar URL
+   * @throws {ORPCError} If validation fails or upload fails
+   *
+   * @example
+   * ```ts
+   * const updated = await UserService.uploadAvatar({
+   *   userId: 'user_123',
+   *   file: 'data:image/png;base64,iVBORw0KGgoAAAANS...'
+   * });
+   * // Returns: { id, name, email, image: 'data:image/png;base64,...', ... }
+   * ```
+   */
+  static async uploadAvatar(input: UploadAvatarInput): Promise<UserProfile> {
+    const { userId, file } = input;
+
+    // Validate base64 string
+    if (!file || typeof file !== 'string') {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'File must be a valid base64 string',
+      });
+    }
+
+    // Check if it's a data URI
+    const dataUriMatch = file.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+    if (!dataUriMatch) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'File must be a valid base64 data URI (e.g., data:image/png;base64,...)',
+      });
+    }
+
+    const mimeType = dataUriMatch[1];
+    const base64Data = dataUriMatch[2];
+
+    // Validate image type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!mimeType || !allowedTypes.includes(mimeType)) {
+      throw new ORPCError('BAD_REQUEST', {
+        message: `Invalid image type. Allowed types: ${allowedTypes.join(', ')}`,
+      });
+    }
+
+    // Decode base64 to check file size
+    let decodedSize: number;
+    try {
+      const buffer = Buffer.from(base64Data || '', 'base64');
+      decodedSize = buffer.length;
+
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (decodedSize > maxSize) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Image size must be less than 2MB',
+        });
+      }
+
+      // Ensure image is not empty
+      if (decodedSize === 0) {
+        throw new ORPCError('BAD_REQUEST', {
+          message: 'Image cannot be empty',
+        });
+      }
+    } catch (error) {
+      if (error instanceof ORPCError) {
+        throw error;
+      }
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'Invalid base64 encoding',
+      });
+    }
+
+    // Verify user exists
+    const existingUserResults = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+
+    if (existingUserResults.length === 0) {
+      throw new ORPCError('NOT_FOUND', {
+        message: 'User not found',
+      });
+    }
+
+    // Update user's avatar with the data URI
+    // In production, you would upload to cloud storage (S3, Cloudinary, etc.)
+    // For now, we store the data URI directly
+    try {
+      const [updatedUser] = await db
+        .update(user)
+        .set({
+          image: file, // Store the data URI
+          updatedAt: new Date(),
+        })
+        .where(eq(user.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        throw new ORPCError('INTERNAL_ERROR', {
+          message: 'Failed to upload avatar',
+        });
+      }
+
+      return {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        image: updatedUser.image,
+        bio: (updatedUser as any).bio || null,
+        emailVerified: updatedUser.emailVerified,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt,
+      };
+    } catch (error) {
+      if (error instanceof ORPCError) {
+        throw error;
+      }
+
+      throw new ORPCError('INTERNAL_ERROR', {
+        message: error instanceof Error ? error.message : 'Failed to upload avatar',
       });
     }
   }

@@ -29,16 +29,27 @@ export const userRouter = {
   updateProfile: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or less').optional(),
+        name: z
+          .string()
+          .min(1, 'Name is required')
+          .max(100, 'Name must be 100 characters or less')
+          .optional(),
         bio: z.string().max(500, 'Bio must be 500 characters or less').nullable().optional(),
-        image: z.string().url('Invalid image URL').max(500, 'Image URL must be 500 characters or less').nullable().optional(),
+        image: z
+          .string()
+          .url('Invalid image URL')
+          .max(500, 'Image URL must be 500 characters or less')
+          .nullable()
+          .optional(),
       })
     )
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
       return await UserService.updateProfile({
         userId,
-        ...input,
+        name: input.name,
+        bio: input.bio,
+        image: input.image,
       });
     }),
 
@@ -57,10 +68,13 @@ export const userRouter = {
     )
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
-      return await UserService.changePassword({
-        userId,
-        ...input,
-      });
+      return await UserService.changePassword(
+        {
+          userId,
+          ...input,
+        },
+        context.headers
+      );
     }),
 
   /**
@@ -92,8 +106,10 @@ export const userRouter = {
     const userId = context.session.user.id;
     // Extract the session token from the Better Auth session object
     // The session object has structure: { user: {...}, session: {...} }
-    const sessionData = context.session as any;
-    const currentToken = sessionData?.session?.token || sessionData?.token || '';
+    const sessionData = context.session as
+      | { session?: { token?: string }; token?: string }
+      | undefined;
+    const currentToken = sessionData?.session?.token || sessionData?.token;
     return await UserService.getSessions(userId, currentToken);
   }),
 
@@ -113,6 +129,26 @@ export const userRouter = {
       return await UserService.revokeSession({
         userId,
         token: input.token,
+      });
+    }),
+
+  /**
+   * Upload avatar image
+   * Allows users to upload an avatar image
+   * Accepts base64 encoded image data (data URI format)
+   * Validates image type (JPEG, PNG, GIF, WebP) and size (max 2MB)
+   */
+  uploadAvatar: protectedProcedure
+    .input(
+      z.object({
+        file: z.string().min(1, 'File is required'),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      return await UserService.uploadAvatar({
+        userId,
+        file: input.file,
       });
     }),
 };
