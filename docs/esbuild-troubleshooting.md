@@ -4,7 +4,7 @@
 
 When running `bun run dev:web` or `bun run build`, you may encounter:
 
-```
+```text
 Error: The service was stopped: write EPIPE
     at /path/to/node_modules/vite/node_modules/esbuild/lib/main.js:949:34
 ```
@@ -92,9 +92,12 @@ esbuild uses a **long-running service process** for performance:
 ### Vite Config Changes
 
 ```ts
-// Disable service mode in favor of direct compilation
-esbuild: {
-  tsconfigRaw: {}, // Prevents config loading issues
+// Optimize dependency pre-bundling
+optimizeDeps: {
+  // Force optimization even when dependencies are linked
+  force: false,
+  // Include esbuild explicitly to prevent conflicts
+  include: ['esbuild'],
 },
 ```
 

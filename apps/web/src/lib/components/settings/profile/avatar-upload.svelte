@@ -56,10 +56,10 @@
       return;
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
     if (file.size > maxSize) {
-      alert('Image size must be less than 5MB');
+      alert('Image size must be less than 2MB');
       input.value = '';
       return;
     }
@@ -139,6 +139,6 @@
       {/if}
     </div>
 
-    <p class="text-muted-foreground text-xs">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
+    <p class="text-muted-foreground text-xs">JPEG, PNG, GIF, or WebP. Max 2MB.</p>
   </div>
 </div>

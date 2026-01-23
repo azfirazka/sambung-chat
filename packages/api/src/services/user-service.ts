@@ -333,7 +333,10 @@ export class UserService {
    * });
    * ```
    */
-  static async changePassword(input: ChangePasswordInput): Promise<{ success: boolean }> {
+  static async changePassword(
+    input: ChangePasswordInput,
+    headers: Record<string, string> | Headers
+  ): Promise<{ success: boolean }> {
     const { currentPassword, newPassword, revokeOtherSessions = true } = input;
 
     // Validate new password strength
@@ -345,6 +348,7 @@ export class UserService {
     try {
       // Use Better Auth's changePassword API with request context for session validation
       await auth.api.changePassword({
+        headers,
         body: {
           currentPassword,
           newPassword,
@@ -530,7 +534,7 @@ export class UserService {
    * Validates image type, size, and format.
    *
    * Supported formats: JPEG, PNG, GIF, WebP
-   * Maximum size: 5MB
+   * Maximum size: 2MB
    *
    * @param input - Upload avatar input containing userId and base64 file
    * @returns The updated user profile with new avatar URL
@@ -580,11 +584,11 @@ export class UserService {
       const buffer = Buffer.from(base64Data || '', 'base64');
       decodedSize = buffer.length;
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
       if (decodedSize > maxSize) {
         throw new ORPCError('BAD_REQUEST', {
-          message: 'Image size must be less than 5MB',
+          message: 'Image size must be less than 2MB',
         });
       }
 

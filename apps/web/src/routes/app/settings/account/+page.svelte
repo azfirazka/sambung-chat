@@ -20,18 +20,8 @@
   import { toast } from 'svelte-sonner';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 
-  // Type assertion for user router (temporary workaround until types are regenerated)
-  const userClient = orpc as any & {
-    user: {
-      getProfile: () => Promise<any>;
-      updateProfile: (input: any) => Promise<any>;
-      uploadAvatar: (input: { file: string }) => Promise<any>;
-      changePassword: (input: any) => Promise<any>;
-      getSessions: () => Promise<any[]>;
-      revokeSession: (input: { token: string }) => Promise<void>;
-      deleteAccount: () => Promise<void>;
-    };
-  };
+  // Use the already-typed orpc client
+  const userClient = orpc;
 
   type UserProfile = {
     id: string;

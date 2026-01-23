@@ -68,10 +68,13 @@ export const userRouter = {
     )
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
-      return await UserService.changePassword({
-        userId,
-        ...input,
-      });
+      return await UserService.changePassword(
+        {
+          userId,
+          ...input,
+        },
+        context.headers
+      );
     }),
 
   /**
