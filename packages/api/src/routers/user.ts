@@ -48,8 +48,8 @@ export const userRouter = {
       return await UserService.updateProfile({
         userId,
         name: input.name,
-        bio: input.bio === null ? undefined : input.bio,
-        image: input.image === null ? undefined : input.image,
+        bio: input.bio,
+        image: input.image,
       });
     }),
 
@@ -66,8 +66,12 @@ export const userRouter = {
         revokeOtherSessions: z.boolean().optional(),
       })
     )
-    .handler(async ({ input }) => {
-      return await UserService.changePassword(input);
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      return await UserService.changePassword({
+        userId,
+        ...input,
+      });
     }),
 
   /**
@@ -99,8 +103,10 @@ export const userRouter = {
     const userId = context.session.user.id;
     // Extract the session token from the Better Auth session object
     // The session object has structure: { user: {...}, session: {...} }
-    const sessionData = context.session as any;
-    const currentToken = sessionData?.session?.token || sessionData?.token || '';
+    const sessionData = context.session as
+      | { session?: { token?: string }; token?: string }
+      | undefined;
+    const currentToken = sessionData?.session?.token || sessionData?.token;
     return await UserService.getSessions(userId, currentToken);
   }),
 

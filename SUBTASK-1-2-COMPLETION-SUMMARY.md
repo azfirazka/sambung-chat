@@ -110,8 +110,8 @@ open -a OrbStack
 ### Option A: Automated Script (Recommended)
 
 ```bash
-cd /Users/ajianaz/Ngoding/project-latest/sambunghub/sambung-chat/.auto-claude/worktrees/tasks/015-complete-profile-page-ui
-./.auto-claude/specs/015-complete-profile-page-ui/apply-bio-migration.sh
+# From repository root
+.auto-claude/specs/015-complete-profile-page-ui/apply-bio-migration.sh
 ```
 
 ### Option B: Manual Steps
@@ -131,7 +131,7 @@ docker exec sambungchat-db-dev psql -U sambungchat -d sambungchat_dev -c "\d use
 
 **Expected Output**:
 
-```
+```text
 bio | text |
 ```
 
@@ -152,7 +152,7 @@ bio | text |
 **Hash**: `9f6f970`
 **Message**:
 
-```
+```text
 fix(database): fix migration metadata corruption and generate proper bio field migration
 
 - Fixed 0004_snapshot.json prevId to point to 0003 instead of 0002

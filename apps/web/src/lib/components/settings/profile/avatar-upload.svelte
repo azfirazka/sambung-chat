@@ -26,11 +26,18 @@
 
   // Get user initials from name
   function getInitials(name: string): string {
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return '?';
+    }
+    const parts = trimmed.split(' ');
+    if (parts.length >= 2 && parts[0] && parts[parts.length - 1]) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    if (parts[0] && parts[0].length >= 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return '?';
   }
 
   // Handle file selection

@@ -112,8 +112,8 @@ pgrep -f "esbuild.*ping"
 
 ## Related Issues
 
-- esbuild GitHub: https://github.com/evanw/esbuild/issues/2172
-- Vite GitHub: https://github.com/vitejs/vite/issues/12345
+- [esbuild issue #2172](https://github.com/evanw/esbuild/issues/2172) - EPIPE errors
+- [Vite issue #20983](https://github.com/vitejs/vite/issues/20983) - esbuild service issues
 
 ## Last Updated
 

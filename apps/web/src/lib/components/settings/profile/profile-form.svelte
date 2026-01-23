@@ -3,6 +3,7 @@
   import { Input } from '$lib/components/ui/input/index.js';
   import { Label } from '$lib/components/ui/label/index.js';
   import CheckIcon from '@lucide/svelte/icons/check';
+  import { browser } from '$app/environment';
   import type { ProfileFormData } from './types.js';
 
   // Props for the profile form component
@@ -17,18 +18,20 @@
     oncancel?: () => void;
   }
 
-  let { data = $bindable(), submitting = false, onsubmit, oncancel }: Props = $props();
+  let { data, submitting = false, onsubmit, oncancel }: Props = $props();
 
-  // Local form state - sync with data prop
+  // Local form state - initialize with safe defaults for SSR
   let formData = $state<ProfileFormData>({
-    name: data.name,
-    bio: data.bio,
+    name: data.name || '',
+    bio: data.bio || '',
   });
 
-  // Update local state when data prop changes
+  // Update local state when data prop changes (client-only)
   $effect(() => {
-    formData.name = data.name;
-    formData.bio = data.bio;
+    if (browser) {
+      formData.name = data.name || '';
+      formData.bio = data.bio || '';
+    }
   });
 
   // Validate form data

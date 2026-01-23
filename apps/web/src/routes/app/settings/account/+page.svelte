@@ -142,7 +142,18 @@
         uploadingAvatar = false;
       }
     };
-
+    reader.onerror = () => {
+      uploadingAvatar = false;
+      avatarPreview = null;
+      selectedAvatarFile = null;
+      toast.error('Failed to read image file', {
+        description: 'Please try again with a different file',
+        action: {
+          label: 'Retry',
+          onClick: () => handleAvatarUpload(file),
+        },
+      });
+    };
     reader.readAsDataURL(file);
   }
 
@@ -298,7 +309,8 @@
         description: 'Your account has been permanently deleted',
       });
 
-      // Redirect to home page after a short delay
+      // Close dialog and redirect to home page on success
+      showDeleteAccountDialog = false;
       setTimeout(() => {
         window.location.href = '/';
       }, 1000);
@@ -312,7 +324,6 @@
       });
     } finally {
       deletingAccount = false;
-      showDeleteAccountDialog = false;
     }
   }
 
@@ -376,7 +387,7 @@
             {#if loading}
               <div class="flex items-center justify-center py-8">
                 <div
-                  class="border-primary h-8 w-8 animate-spin rounded-full border-t-transparent"
+                  class="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
                   role="status"
                   aria-label="Loading"
                 >
@@ -531,7 +542,7 @@
         >
           {#if deletingAccount}
             <div
-              class="border-destructive-foreground mr-2 h-4 w-4 animate-spin rounded-full border-t-transparent"
+              class="border-destructive-foreground mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
               role="status"
               aria-label="Deleting account"
             >

@@ -31,6 +31,7 @@ export interface UpdateProfileInput {
  * Change password input
  */
 export interface ChangePasswordInput {
+  userId?: string;
   currentPassword: string;
   newPassword: string;
   revokeOtherSessions?: boolean;
@@ -110,7 +111,7 @@ export class UserService {
    * @param bio - The bio to validate
    * @throws {ORPCError} If the bio is invalid
    */
-  static validateBio(bio: string): void {
+  static validateBio(bio: string | null | undefined): void {
     if (bio !== null && bio !== undefined) {
       if (typeof bio !== 'string') {
         throw new ORPCError('BAD_REQUEST', {
@@ -241,15 +242,19 @@ export class UserService {
       updateData.name = name;
     }
 
-    // Validate and add bio if provided
-    if (bio !== undefined && bio !== null) {
-      this.validateBio(bio);
+    // Validate and add bio if provided (null means clear the field)
+    if (bio !== undefined) {
+      if (bio !== null) {
+        this.validateBio(bio);
+      }
       updateData.bio = bio;
     }
 
-    // Validate and add image if provided
-    if (image !== undefined && image !== null) {
-      this.validateImage(image);
+    // Validate and add image if provided (null means clear the field)
+    if (image !== undefined) {
+      if (image !== null) {
+        this.validateImage(image);
+      }
       updateData.image = image;
     }
 
@@ -338,7 +343,7 @@ export class UserService {
     const { auth } = await import('@sambung-chat/auth');
 
     try {
-      // Use Better Auth's changePassword API
+      // Use Better Auth's changePassword API with request context for session validation
       await auth.api.changePassword({
         body: {
           currentPassword,
@@ -423,7 +428,7 @@ export class UserService {
    * Identifies the current session based on the provided session token.
    *
    * @param userId - The user ID to fetch sessions for
-   * @param currentToken - The token of the current session (to identify current session)
+   * @param currentToken - The token of the current session (to identify current session), or undefined if not available
    * @returns Array of user sessions
    * @throws {ORPCError} If user not found
    *
@@ -433,7 +438,7 @@ export class UserService {
    * // Returns: [{ id, token, expiresAt, ipAddress, userAgent, isCurrent, ... }]
    * ```
    */
-  static async getSessions(userId: string, currentToken: string): Promise<UserSession[]> {
+  static async getSessions(userId: string, currentToken?: string): Promise<UserSession[]> {
     // Fetch all active (non-expired) sessions for the user
     const sessions = await db
       .select()
