@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.24] - 2026-01-24
+
+### Added
+
+- **Password Strength Utility**: Create password strength calculation utility with entropy-based scoring ([apps/web/src/lib/utils/password-strength.ts](apps/web/src/lib/utils/password-strength.ts))
+  - Five strength levels: very weak, weak, medium, strong, very strong
+  - Entropy calculation using character set size and length
+  - Character variety analysis (lowercase, uppercase, numbers, special characters)
+  - Actionable improvement suggestions based on missing requirements
+  - Requirements validation with structured checklist
+  - Type-safe with full TypeScript types and JSDoc comments
+
+- **Progress Component**: Add reusable progress bar component from shadcn-svelte ([apps/web/src/lib/components/ui/progress/progress.svelte](apps/web/src/lib/components/ui/progress/progress.svelte))
+  - Value-based progress indicator (0-100 range)
+  - Smooth CSS transitions and animations
+  - Proper ARIA attributes for accessibility
+  - SSR-safe div-based implementation
+  - Tailwind CSS variants for styling
+
+- **Password Strength Meter**: Create visual password strength indicator component ([apps/web/src/lib/components/password-strength-meter.svelte](apps/web/src/lib/components/password-strength-meter.svelte))
+  - Real-time password strength calculation using Svelte 5 $derived
+  - Color-coded progress bar (red for weak, yellow for medium, green for strong)
+  - Text label display ("Very Weak", "Weak", "Medium", "Strong", "Very Strong")
+  - Improvement suggestions shown when password is weak/medium
+  - SSR-safe with browser check
+  - Accessible with ARIA live region
+
+- **Password Requirements Checklist**: Create visual password requirements checklist component ([apps/web/src/lib/components/password-requirements.svelte](apps/web/src/lib/components/password-requirements.svelte))
+  - Real-time updates as user types password
+  - Visual check/cross icons for met/unmet requirements
+  - Requirements: 8+ characters, uppercase, lowercase, number, special character
+  - Green checks for met requirements, gray crosses for unmet
+  - SSR-safe with browser check
+  - Proper ARIA attributes for accessibility
+
+- **Registration Form Enhancement**: Integrate password strength meter into registration form ([apps/web/src/lib/components/register-form.svelte](apps/web/src/lib/components/register-form.svelte))
+  - Real-time password strength feedback during registration
+  - Collapsible requirements checklist (collapsed by default)
+  - Visual toggle with rotating chevron arrow
+  - Space-saving design that doesn't overwhelm the form
+  - Mobile responsive layout
+
+### Fixed
+
+- **ESLint Errors**: Fix unnecessary escape sequences in regex patterns ([apps/web/src/lib/utils/password-strength.ts](apps/web/src/lib/utils/password-strength.ts:96))
+  - Optimized regex character class by moving `]` to beginning
+  - Removed unnecessary escape for `/` inside character class
+  - Fixed 6 ESLint no-useless-escape errors
+
 ## [0.0.23] - 2026-01-22
 
 ### Added
