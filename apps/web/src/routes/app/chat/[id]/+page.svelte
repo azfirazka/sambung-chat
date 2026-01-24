@@ -8,7 +8,7 @@
   import {
     renderMarkdownSync,
     initMermaidDiagrams,
-    ensureMarkdownDependencies
+    ensureMarkdownDependencies,
   } from '$lib/markdown-renderer.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
@@ -869,6 +869,37 @@
             {/if}
           </div>
         {/each}
+
+        <!-- Loading indicator when message is being sent but before AI response starts -->
+        {#if isSubmitting && messages.length > 0}
+          <div in:fade|global={{ duration: 300 }} class="mx-auto max-w-3xl">
+            <div class="flex justify-start">
+              <div class="bg-muted max-w-[85%] rounded-2xl rounded-tl-sm px-4 py-3 shadow-lg">
+                <p class="text-muted-foreground mb-2 text-xs font-medium">AI Assistant</p>
+                <div class="flex items-center gap-2">
+                  <div class="space-y-1">
+                    <div class="h-3 w-24 animate-pulse rounded bg-current opacity-20"></div>
+                    <div
+                      class="h-3 w-48 animate-pulse rounded bg-current opacity-20"
+                      style="animation-delay: 0.1s"
+                    ></div>
+                  </div>
+                  <div class="flex gap-1">
+                    <span class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"></span>
+                    <span
+                      class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"
+                      style="animation-delay: 0.1s"
+                    ></span>
+                    <span
+                      class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"
+                      style="animation-delay: 0.2s"
+                    ></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -922,8 +953,32 @@
               size="icon"
               disabled={!input.trim() || isSubmitting}
               title="Send message"
+              class="relative"
             >
-              <SendIcon class="size-4" />
+              {#if isSubmitting}
+                <svg
+                  class="size-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              {:else}
+                <SendIcon class="size-4" />
+              {/if}
             </Button>
           {/if}
         </div>
