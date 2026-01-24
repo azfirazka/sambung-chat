@@ -7,6 +7,7 @@
   import ChatListHeader from './chat-list/ChatListHeader.svelte';
   import ChatListFilters from './chat-list/ChatListFilters.svelte';
   import ChatListLoadingState from './chat-list/ChatListLoadingState.svelte';
+  import ChatListErrorState from './chat-list/ChatListErrorState.svelte';
   import PinnedChatsSection from './chat-list/PinnedChatsSection.svelte';
   import FolderChatsSection from './chat-list/FolderChatsSection.svelte';
   import NoFolderChatsSection from './chat-list/NoFolderChatsSection.svelte';
@@ -579,31 +580,7 @@
   <!-- Content -->
   <Sidebar.Content class="flex-1 overflow-hidden">
     {#if error}
-      <div class="flex flex-col items-center gap-3 p-4 text-center">
-        <div class="text-destructive text-sm">
-          <svg class="mx-auto mb-2 size-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <p class="font-medium">Failed to load chats</p>
-          <p class="text-muted-foreground mt-1">{error}</p>
-        </div>
-        <Button size="sm" onclick={loadChats} variant="outline">
-          <svg class="mr-1 size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Retry
-        </Button>
-      </div>
+      <ChatListErrorState {error} onRetry={loadChats} />
     {:else if loading || searching}
       <ChatListLoadingState {loading} {searching} />
     {:else if chats.length === 0}
