@@ -49,6 +49,19 @@ const completionSettingsSchema = z.object({
 });
 
 /**
+ * AI SDK settings type
+ * Matches the settings accepted by generateText and streamText
+ */
+type AISettings = {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+};
+
+/**
  * Helper function to get decrypted API key
  *
  * @param apiKeyId - The API key ID from the database
