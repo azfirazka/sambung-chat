@@ -2,7 +2,7 @@
   "feature": "Split monolithic ChatList.svelte (632 lines) into smaller focused components",
   "description": "Refactor ChatList.svelte by extracting focused components for header, chat groups, folder management, and data fetching. Currently handles 7+ responsibilities: chat CRUD, folder management, search/filtering, grouping, state management, UI rendering, and navigation.",
   "created_at": "2026-01-21T07:44:13.411Z",
-  "updated_at": "2026-01-24T03:21:59.645Z",
+  "updated_at": "2026-01-24T03:28:27.113Z",
   "status": "in_progress",
   "planStatus": "in_progress",
   "phases": [
@@ -161,11 +161,11 @@
           "id": "4.5",
           "name": "Update ChatList.svelte to use chat group components",
           "description": "Replace chat list markup with component usage",
-          "status": "pending",
+          "status": "completed",
           "files_involved": [
             "apps/web/src/lib/components/secondary-sidebar/ChatList.svelte"
           ],
-          "notes": "Import and use PinnedChatsSection, FolderChatsSection, NoFolderChatsSection"
+          "notes": "Replaced inline chat list markup (lines 626-797) with component usage. Added imports for PinnedChatsSection, FolderChatsSection, and NoFolderChatsSection. Removed unused icon imports (FolderIcon, ChevronRightIcon, ChevronDownIcon, PencilIcon, Trash2Icon). Removed obsolete functions (isFolderCollapsed, handleFolderKeyPress). ChatList.svelte: 969 → 835 lines (134 lines removed, 14% reduction). Type checks: ✅ Passed. Build: ✅ Passed. All features preserved: chat selection, folder expansion, inline rename, chat operations. Components follow presentational pattern with callbacks."
         }
       ]
     },

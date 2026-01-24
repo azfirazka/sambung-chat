@@ -6,6 +6,7 @@
   import ChatEmptyState from './ChatEmptyState.svelte';
   import ChatListHeader from './chat-list/ChatListHeader.svelte';
   import ChatListFilters from './chat-list/ChatListFilters.svelte';
+  import ChatListLoadingState from './chat-list/ChatListLoadingState.svelte';
   import PinnedChatsSection from './chat-list/PinnedChatsSection.svelte';
   import FolderChatsSection from './chat-list/FolderChatsSection.svelte';
   import NoFolderChatsSection from './chat-list/NoFolderChatsSection.svelte';
@@ -18,6 +19,7 @@
   import { exportAllChats, type ChatsByFolder } from '$lib/utils/chat-export';
   import FilterIcon from '@lucide/svelte/icons/filter';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 
   // Types
   interface MatchingMessage {
@@ -603,9 +605,7 @@
         </Button>
       </div>
     {:else if loading || searching}
-      <div class="text-muted-foreground flex items-center justify-center p-8 text-sm">
-        {loading ? 'Loading chats...' : 'Searching...'}
-      </div>
+      <ChatListLoadingState {loading} {searching} />
     {:else if chats.length === 0}
       <ChatEmptyState onNewChat={createNewChat} />
     {:else}
