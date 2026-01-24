@@ -127,7 +127,14 @@ export async function* handleStream(
     const model = createAIProvider(modelConfig);
 
     // Prepare AI SDK settings from input
-    const aiSettings: any = {};
+    const aiSettings: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+      topK?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+    } = {};
 
     if (input.settings) {
       if (input.settings.temperature !== undefined) {
@@ -202,8 +209,19 @@ export async function* handleStream(
       usage: finalUsage,
     };
   } catch (error) {
-    // Clean up placeholder message if streaming failed
-    if (state.assistantMessageId && input.chatId && state.fullText.length === 0) {
+    // Handle partial content: persist it to database if streaming failed after partial output
+    if (state.assistantMessageId && input.chatId && state.fullText.length > 0) {
+      // Persist partial content so chat history reflects what the user saw
+      await updateAssistantMessage(
+        input.chatId,
+        state.assistantMessageId,
+        state.fullText,
+        '', // modelId not available on error
+        undefined, // totalTokens not available on error
+        'error' // finishReason indicates streaming failed
+      );
+    } else if (state.assistantMessageId && input.chatId && state.fullText.length === 0) {
+      // Clean up placeholder if streaming failed before any content was generated
       await cleanupPlaceholderMessage(state.assistantMessageId);
     }
 

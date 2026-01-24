@@ -549,12 +549,11 @@ describe('AI Validation Schemas', () => {
         expect(() => completionSettingsSchema.parse(settings)).toThrow(ZodError);
       });
 
-      it('should accept decimal maxTokens (schema uses number, not integer)', () => {
-        // Note: The schema uses .number() without .int(), so decimals are allowed
+      it('should reject decimal maxTokens (schema requires integer)', () => {
+        // The schema uses .int() to enforce integer values only
         const settings = { maxTokens: 100.5 };
 
-        const result = completionSettingsSchema.parse(settings);
-        expect(result.maxTokens).toBe(100.5);
+        expect(() => completionSettingsSchema.parse(settings)).toThrow(ZodError);
       });
 
       it('should reject string maxTokens', () => {
@@ -633,12 +632,11 @@ describe('AI Validation Schemas', () => {
         expect(() => completionSettingsSchema.parse(settings)).toThrow(ZodError);
       });
 
-      it('should accept decimal topK (schema uses number, not integer)', () => {
-        // Note: The schema uses .number() without .int(), so decimals are allowed
+      it('should reject decimal topK (schema requires integer)', () => {
+        // The schema uses .int() to enforce integer values only
         const settings = { topK: 50.5 };
 
-        const result = completionSettingsSchema.parse(settings);
-        expect(result.topK).toBe(50.5);
+        expect(() => completionSettingsSchema.parse(settings)).toThrow(ZodError);
       });
 
       it('should reject string topK', () => {

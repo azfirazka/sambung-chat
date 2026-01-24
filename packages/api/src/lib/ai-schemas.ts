@@ -85,7 +85,7 @@ export const completionSettingsSchema = z.object({
    * Maximum number of tokens to generate (1-1000000)
    * Limits the length of the model's response
    */
-  maxTokens: z.number().min(1).max(1000000).optional(),
+  maxTokens: z.number().int().min(1).max(1000000).optional(),
 
   /**
    * Nucleus sampling parameter (0-1)
@@ -99,7 +99,7 @@ export const completionSettingsSchema = z.object({
    * Limits token selection to the k most probable tokens
    * 0 = disabled, higher values = more diverse options
    */
-  topK: z.number().min(0).max(100).optional(),
+  topK: z.number().int().min(0).max(100).optional(),
 
   /**
    * Frequency penalty (-2 to 2)

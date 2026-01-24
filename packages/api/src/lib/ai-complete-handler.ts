@@ -105,7 +105,14 @@ export async function handleComplete(
     const model = createAIProvider(modelConfig);
 
     // Prepare AI SDK settings from input
-    const aiSettings: any = {};
+    const aiSettings: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+      topK?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+    } = {};
 
     if (input.settings) {
       if (input.settings.temperature !== undefined) {

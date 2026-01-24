@@ -2,10 +2,32 @@ import { db } from '@sambung-chat/db';
 import { messages } from '@sambung-chat/db/schema/chat';
 import { models } from '@sambung-chat/db/schema/model';
 import { apiKeys } from '@sambung-chat/db/schema/api-key';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { ORPCError } from '@orpc/server';
 import { decrypt } from '../lib/encryption';
-import type { ProviderConfig } from '../lib/ai-provider-factory';
+import type { ProviderConfig, AIProvider } from '../lib/ai-provider-factory';
+
+/**
+ * Type guard to validate that a string is a valid AIProvider
+ *
+ * This function ensures type safety by checking if a provider string
+ * matches one of the supported AI providers.
+ *
+ * @param value - The value to check
+ * @returns True if the value is a valid AIProvider
+ */
+function isValidProvider(value: string): value is AIProvider {
+  const validProviders: AIProvider[] = [
+    'openai',
+    'anthropic',
+    'google',
+    'groq',
+    'ollama',
+    'openrouter',
+    'custom',
+  ];
+  return validProviders.includes(value as AIProvider);
+}
 
 /**
  * Helper function to get decrypted API key from database
@@ -86,7 +108,7 @@ export async function messageExists(
     .select()
     .from(messages)
     .where(and(eq(messages.chatId, chatId), eq(messages.role, role)))
-    .orderBy(messages.createdAt)
+    .orderBy(desc(messages.createdAt))
     .limit(1);
 
   // Check if the most recent message with this role has the same content
@@ -144,9 +166,15 @@ export async function getModelConfig(modelId: string, userId: string): Promise<P
     });
   }
 
-  // Build provider configuration
+  // Build provider configuration with type-safe provider validation
+  if (!isValidProvider(model.provider)) {
+    throw new ORPCError('INTERNAL_SERVER_ERROR', {
+      message: `Invalid provider: ${model.provider}`,
+    });
+  }
+
   const config: ProviderConfig = {
-    provider: model.provider as any,
+    provider: model.provider, // Now type-safe due to isValidProvider check
     modelId: model.modelId,
     apiKey: '', // Will be set below
   };

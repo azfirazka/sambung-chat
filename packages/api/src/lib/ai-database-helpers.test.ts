@@ -18,11 +18,11 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ORPCError } from '@orpc/server';
-import { eq, and } from 'drizzle-orm';
 
 // Mock the database and encryption modules BEFORE importing the functions under test
-const mockSelect = vi.fn();
-const mockDecrypt = vi.fn();
+// Use vi.hoisted to ensure mocks are available at module initialization time
+const mockSelect = vi.hoisted(() => vi.fn());
+const mockDecrypt = vi.hoisted(() => vi.fn());
 
 vi.mock('@sambung-chat/db', () => ({
   db: {
