@@ -22,7 +22,7 @@ import { apiKeys } from '@sambung-chat/db/schema/api-key';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { ORPCError, eventIterator } from '@orpc/server';
-import { streamText, generateText } from 'ai';
+import { streamText, generateText, type CoreMessage } from 'ai';
 import { protectedProcedure } from '../index';
 import { ulidSchema } from '../utils/validation';
 import { createAIProvider, type ProviderConfig } from '../lib/ai-provider-factory';
