@@ -2,7 +2,7 @@ import type { RouterClient } from '@orpc/server';
 
 import { ORPCError } from '@orpc/server';
 import { protectedProcedure, publicProcedure } from '../index';
-import { chatRouter } from './chat';
+import { chatRouter } from './chat/index';
 import { messageRouter } from './message';
 import { folderRouter } from './folder';
 import { modelRouter } from './model';

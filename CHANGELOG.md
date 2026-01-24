@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.24] - 2026-01-24
+
+### Fixed
+
+- **Security: Mermaid XSS Protection**: Fix no-op escape-then-unescribe sequence and enhance Mermaid security ([apps/web/src/lib/markdown-renderer.ts](apps/web/src/lib/markdown-renderer.ts))
+  - Remove ineffective escape-then-unescribe that provided no XSS protection
+  - Change Mermaid securityLevel from 'loose' to 'strict'
+  - Add DOMPurify sanitization for SVG output (defense in depth)
+  - Direct code.text usage for Mermaid parser
+
+- **Security: CSP Configuration**: Fix CSP violations blocking API calls to localhost:3000 ([apps/web/src/lib/security/headers.ts](apps/web/src/lib/security/headers.ts:59-83))
+  - Allow both localhost:3000 (browser) and Docker container URLs in connect-src
+  - Prevents CSP errors in development mode
+  - Supports both direct browser connections and container-to-container communication
+
+- **UI: Streaming Loading Indicator**: Remove duplicate loading indicators during AI streaming ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte))
+  - Remove skeleton card that appeared alongside streaming card
+  - Keep only single streaming indicator with ●●●
+  - Add visual feedback: border-2, shadow-lg, animate-pulse for streaming state
+
+- **UI: Token Display Persistence**: Make token count persist after streaming completes ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte))
+  - Add lastStreamingTokenCounts Map to store final token counts
+  - Update getMessageTokenData() with fallback to streaming counts
+  - Token display now remains visible after streaming ends
+
+- **Mermaid: Error Handling**: Improve Mermaid diagram error handling to prevent cascade errors ([apps/web/src/lib/markdown-renderer.ts](apps/web/src/lib/markdown-renderer.ts:485-527))
+  - Add user-friendly error messages with expandable details
+  - Show original diagram code for debugging
+  - List common causes of rendering failures
+
+- **API Error Handling**: Add undefined result checks in update handlers ([packages/api/src/routers/chat/crud.ts](packages/api/src/routers/chat/crud.ts:104-106), [packages/api/src/routers/chat/organization.ts](packages/api/src/routers/chat/organization.ts:55-57))
+  - Update handler throws 'Chat not found' when no rows updated
+  - updateFolder handler throws 'Chat not found' when no rows updated
+  - Consistent error handling across all chat mutation procedures
+
+- **Documentation: Fenced Code Blocks**: Add language specifiers to fenced code blocks ([packages/api/src/routers/chat/README.md](packages/api/src/routers/chat/README.md))
+  - Change `to`text for directory trees and plain text
+  - Update Before/After listings to use ```text
+  - Ensures proper syntax highlighting and linter compliance
+
+- **Documentation: DISTINCT ON Comment**: Fix misleading comment about PostgreSQL DISTINCT ON ([packages/api/src/routers/chat/search.ts](packages/api/src/routers/chat/search.ts:105,151))
+  - Update comment to reflect SELECT DISTINCT (not DISTINCT ON)
+  - Accurately describes selectDistinct() behavior
+
+### Changed
+
+- **Performance: Static Imports**: Replace dynamic import with static import for messages table ([packages/api/src/routers/chat/crud.ts](packages/api/src/routers/chat/crud.ts:2))
+  - Add messages to static imports from @sambung-chat/db/schema/chat
+  - Remove in-handler dynamic import to improve performance
+  - Reduces per-request import overhead
+
+- **UI: Mermaid Color Contrast**: Enhance Mermaid diagram visibility with high-contrast colors ([apps/web/src/lib/markdown-renderer.ts](apps/web/src/lib/markdown-renderer.ts:243-425))
+  - Start nodes: Green (#22c55e) with white text
+  - Decision nodes: Amber (#f59e0b) with white text
+  - Process nodes: Indigo (#6366f1) with white text
+  - End nodes: Red (#ef4444) with white text
+  - Improved readability for all node types
+
+### Added
+
+- **Architecture: Chat Router Refactoring**: Split large chat router (515 lines) into domain-specific modules ([packages/api/src/routers/chat/](packages/api/src/routers/chat/))
+  - `crud.ts` - Basic CRUD operations (create, read, update, delete)
+  - `export.ts` - Export procedures (getAllChatsWithMessages, getChatsByFolder)
+  - `organization.ts` - Organization procedures (togglePin, updateFolder)
+  - `search.ts` - Search procedure with filters
+  - `index.ts` - Unified chatRouter export
+  - `README.md` - Complete module documentation
+
+- **Code Convention: Fenced Code Blocks**: Document language specifier convention in CLAUDE.md ([CLAUDE.md](CLAUDE.md:434-437))
+  - Use ```text for directory trees and plain text listings
+  - Use ```bash for shell commands
+  - Ensures proper syntax highlighting and linter compliance
+
 ## [0.0.23] - 2026-01-22
 
 ### Added
