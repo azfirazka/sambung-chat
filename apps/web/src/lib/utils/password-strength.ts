@@ -68,7 +68,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthRes
 	const hasLowercase = /[a-z]/.test(password);
 	const hasUppercase = /[A-Z]/.test(password);
 	const hasNumbers = /\d/.test(password);
-	const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+	const hasSpecial = /[\]!@#$%^&*()_+\-=[{};':"\\|,.<>/?]/.test(password);
 
 	const varietyCount = [hasLowercase, hasUppercase, hasNumbers, hasSpecial].filter(Boolean).length;
 
@@ -132,7 +132,7 @@ function calculateEntropy(password: string): number {
 	if (/[a-z]/.test(password)) charsetSize += 26;
 	if (/[A-Z]/.test(password)) charsetSize += 26;
 	if (/\d/.test(password)) charsetSize += 10;
-	if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) charsetSize += 32;
+	if (/[\]!@#$%^&*()_+\-=[{};':"\\|,.<>/?]/.test(password)) charsetSize += 32;
 
 	if (charsetSize === 0) return 0;
 
@@ -165,7 +165,7 @@ export function getPasswordRequirements(password: string): PasswordRequirement[]
 		},
 		{
 			label: 'Contains special character',
-			met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+			met: /[\]!@#$%^&*()_+\-=[{};':"\\|,.<>/?]/.test(password)
 		}
 	];
 
