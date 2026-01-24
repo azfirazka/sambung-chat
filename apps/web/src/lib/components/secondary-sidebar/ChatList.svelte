@@ -4,6 +4,8 @@
   import { onMount } from 'svelte';
   import ChatListItem from './ChatListItem.svelte';
   import ChatEmptyState from './ChatEmptyState.svelte';
+  import ChatListHeader from './chat-list/ChatListHeader.svelte';
+  import ChatListFilters from './chat-list/ChatListFilters.svelte';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
@@ -11,11 +13,6 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { exportAllChats, type ChatsByFolder } from '$lib/utils/chat-export';
-  import DownloadIcon from '@lucide/svelte/icons/download';
-  import FileJsonIcon from '@lucide/svelte/icons/file-json';
-  import CodeIcon from '@lucide/svelte/icons/code';
-  import PackageIcon from '@lucide/svelte/icons/package';
-  import PlusIcon from '@lucide/svelte/icons/plus';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
@@ -23,7 +20,6 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import FilterIcon from '@lucide/svelte/icons/filter';
   import RotateCcwIcon from '@lucide/svelte/icons/rotate-ccw';
-  import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
 
   // Types
   interface MatchingMessage {
@@ -217,6 +213,25 @@
     if (!isInitialLoad) {
       loadChats();
     }
+  }
+
+  // Handler wrappers for ChatListFilters component
+  function handleSearchChange(query: string) {
+    searchQuery = query;
+  }
+
+  function handleFolderSelect(folderId: string) {
+    selectedFolderId = folderId;
+    handleFolderChange();
+  }
+
+  function handlePinnedToggle(checked: boolean) {
+    showPinnedOnly = checked;
+    handlePinnedChange();
+  }
+
+  function handleOpenAdvancedFilters() {
+    showFilterDialog = true;
   }
 
   function handleProvidersChange() {
@@ -552,101 +567,25 @@
 <div class="flex h-full flex-col">
   <!-- Header -->
   <Sidebar.Header class="border-b p-4">
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Chats</h2>
-      <div class="flex gap-2">
-        <DropdownMenu.DropdownMenu>
-          <DropdownMenu.DropdownMenuTrigger
-            class="bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            disabled={exporting}
-            title="Export all chats"
-          >
-            <DownloadIcon class="size-4" />
-          </DropdownMenu.DropdownMenuTrigger>
-          <DropdownMenu.DropdownMenuContent>
-            <DropdownMenu.DropdownMenuItem
-              onclick={() => handleExportAll('json')}
-              disabled={exporting}
-            >
-              <FileJsonIcon class="mr-2 size-4" />
-              <span>Export All as JSON</span>
-            </DropdownMenu.DropdownMenuItem>
-            <DropdownMenu.DropdownMenuItem
-              onclick={() => handleExportAll('md')}
-              disabled={exporting}
-            >
-              <CodeIcon class="mr-2 size-4" />
-              <span>Export All as Markdown</span>
-            </DropdownMenu.DropdownMenuItem>
-            <DropdownMenu.DropdownMenuItem
-              onclick={() => handleExportAll('zip')}
-              disabled={exporting}
-            >
-              <PackageIcon class="mr-2 size-4" />
-              <span>Export All as ZIP</span>
-            </DropdownMenu.DropdownMenuItem>
-          </DropdownMenu.DropdownMenuContent>
-        </DropdownMenu.DropdownMenu>
-        <Button size="sm" onclick={createNewChat} variant="default">
-          <PlusIcon class="mr-1 size-4" />
-          New Chat
-        </Button>
-      </div>
-    </div>
+    <ChatListHeader
+      title="Chats"
+      {exporting}
+      onCreateNewChat={createNewChat}
+      onExportAll={handleExportAll}
+    />
 
-    <!-- Search Input (press Enter to search) -->
-    <div class="mb-2">
-      <div class="flex items-center gap-2">
-        <Input
-          type="text"
-          placeholder="Search chats... (press Enter)"
-          bind:value={searchQuery}
-          onkeydown={handleSearchKeydown}
-          class="h-8 flex-1"
-        />
-        <Button
-          size="sm"
-          onclick={() => (showFilterDialog = true)}
-          variant={hasActiveFilters ? 'default' : 'outline'}
-          class="h-8 px-3"
-          title={hasActiveFilters ? 'Filters active - click to view' : 'Filter chats'}
-        >
-          <SlidersHorizontalIcon class="size-4" />
-          {#if hasActiveFilters}
-            <span class="ml-1.5 text-xs">Active</span>
-          {/if}
-        </Button>
-      </div>
-    </div>
-
-    <!-- Inline Filters: Folder and Pinned -->
-    <div class="flex items-center gap-2">
-      <select
-        value={selectedFolderId}
-        onchange={(e) => {
-          selectedFolderId = e.currentTarget.value;
-          handleFolderChange();
-        }}
-        class="border-input bg-background focus:ring-ring flex-1 rounded-md border px-2 py-1.5 text-sm focus:ring-1 focus:outline-none"
-      >
-        <option value="">All Folders</option>
-        {#each folders as folder}
-          <option value={folder.id}>{folder.name}</option>
-        {/each}
-      </select>
-      <label class="text-muted-foreground flex items-center gap-1.5 text-xs">
-        <input
-          type="checkbox"
-          checked={showPinnedOnly}
-          onchange={(e) => {
-            showPinnedOnly = e.currentTarget.checked;
-            handlePinnedChange();
-          }}
-          class="border-input bg-background focus:ring-ring rounded border px-1 py-0.5 text-sm focus:ring-1 focus:outline-none"
-        />
-        Pinned only
-      </label>
-    </div>
+    <ChatListFilters
+      {searchQuery}
+      {folders}
+      selectedFolderId={selectedFolderId}
+      showPinnedOnly={showPinnedOnly}
+      hasActiveFilters={hasActiveFilters}
+      onSearchChange={handleSearchChange}
+      onSearchKeydown={handleSearchKeydown}
+      onFolderChange={handleFolderSelect}
+      onPinnedChange={handlePinnedToggle}
+      onOpenAdvancedFilters={handleOpenAdvancedFilters}
+    />
   </Sidebar.Header>
 
   <!-- Content -->
