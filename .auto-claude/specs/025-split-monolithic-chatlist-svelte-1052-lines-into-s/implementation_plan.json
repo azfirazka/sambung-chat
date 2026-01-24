@@ -2,7 +2,7 @@
   "feature": "Split monolithic ChatList.svelte (632 lines) into smaller focused components",
   "description": "Refactor ChatList.svelte by extracting focused components for header, chat groups, folder management, and data fetching. Currently handles 7+ responsibilities: chat CRUD, folder management, search/filtering, grouping, state management, UI rendering, and navigation.",
   "created_at": "2026-01-21T07:44:13.411Z",
-  "updated_at": "2026-01-24T02:48:51.666Z",
+  "updated_at": "2026-01-24T02:57:50.300Z",
   "status": "in_progress",
   "planStatus": "in_progress",
   "phases": [
@@ -92,11 +92,11 @@
           "id": "3.2",
           "name": "Create ChatListFilters.svelte",
           "description": "Extract search input and filter controls (folder dropdown, pinned checkbox)",
-          "status": "pending",
+          "status": "completed",
           "files_involved": [
             "apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListFilters.svelte"
           ],
-          "notes": "Props: searchQuery, folders, selectedFolderId, showPinnedOnly, onSearchChange, onFolderChange, onPinnedChange, onSearchKeydown"
+          "notes": "Created ChatListFilters component with search input, advanced filters button, folder dropdown, and pinned checkbox. Props: searchQuery, folders, selectedFolderId, showPinnedOnly, hasActiveFilters, onSearchChange, onSearchKeydown, onFolderChange, onPinnedChange, onOpenAdvancedFilters. Follows presentational component pattern with no internal state. 63 lines. Type checks passed."
         },
         {
           "id": "3.3",
