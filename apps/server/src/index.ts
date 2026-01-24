@@ -160,7 +160,7 @@ app.use('/api-reference/*', async (c, next) => {
 // ============================================================================
 // AI SDK-compatible endpoint that retrieves model configuration from database
 app.post('/api/ai', async (c) => {
-  const requestId = crypto.randomUUID?.().slice(0, 8) || Math.random().toString(36).slice(2, 10);
+  const requestId = crypto.randomUUID?.()?.slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
   const startTime = Date.now();
 
   console.log(`[AI:${requestId}] ============================================`);
