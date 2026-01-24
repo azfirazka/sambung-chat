@@ -160,34 +160,52 @@ app.use('/api-reference/*', async (c, next) => {
 // ============================================================================
 // AI SDK-compatible endpoint that retrieves model configuration from database
 app.post('/api/ai', async (c) => {
+  const requestId = crypto.randomUUID?.()?.slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+  const startTime = Date.now();
+
+  console.log(`[AI:${requestId}] ============================================`);
+  console.log(`[AI:${requestId}] 📨 REQUEST RECEIVED`);
+  console.log(`[AI:${requestId}] Timestamp: ${new Date().toISOString()}`);
+
   try {
     // Authentication check
+    console.log(`[AI:${requestId}] 🔐 Checking authentication...`);
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
     });
 
     if (!session?.user) {
+      console.log(`[AI:${requestId}] ❌ UNAUTHORIZED - No session found`);
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const userId = session.user.id;
+    console.log(`[AI:${requestId}] ✅ Authenticated - User ID: ${userId}`);
 
     // Parse and validate request body
+    console.log(`[AI:${requestId}] 📋 Parsing request body...`);
     const body = await c.req.json();
 
     // Input validation
     const uiMessages = body.messages;
     if (!Array.isArray(uiMessages)) {
+      console.log(`[AI:${requestId}] ❌ Invalid request - messages is not an array`);
       return c.json({ error: 'Invalid request: messages must be an array' }, 400);
     }
 
     if (uiMessages.length === 0) {
+      console.log(`[AI:${requestId}] ❌ Invalid request - messages is empty`);
       return c.json({ error: 'Invalid request: messages cannot be empty' }, 400);
     }
 
     if (uiMessages.length > 100) {
+      console.log(
+        `[AI:${requestId}] ❌ Invalid request - too many messages (${uiMessages.length})`
+      );
       return c.json({ error: 'Invalid request: too many messages (max 100)' }, 400);
     }
+
+    console.log(`[AI:${requestId}] ✅ Messages validated - ${uiMessages.length} message(s)`);
 
     // Validate AI SDK message format
     // Expected: { role: 'user'|'assistant'|'system', parts: [{ type: 'text', text: '...' }] }
@@ -215,6 +233,7 @@ app.post('/api/ai', async (c) => {
     const { apiKeys } = await import('@sambung-chat/db/schema/api-key');
 
     // Always use active model (ignore modelId from request)
+    console.log(`[AI:${requestId}] 🔍 Fetching active model from database...`);
     const modelResults = await db
       .select()
       .from(models)
@@ -222,6 +241,7 @@ app.post('/api/ai', async (c) => {
       .limit(1);
 
     if (modelResults.length === 0) {
+      console.log(`[AI:${requestId}] ❌ No active model found for user ${userId}`);
       return c.json(
         {
           error: 'No active model found',
@@ -232,10 +252,14 @@ app.post('/api/ai', async (c) => {
     }
 
     const model = modelResults[0]!;
+    console.log(
+      `[AI:${requestId}] ✅ Active model found: ${model.name} (${model.provider}/${model.modelId})`
+    );
 
     // Get decrypted API key if needed
     let apiKey = '';
     if (model.apiKeyId) {
+      console.log(`[AI:${requestId}] 🔑 Fetching API key from database...`);
       const apiKeyResults = await db
         .select()
         .from(apiKeys)
@@ -243,6 +267,7 @@ app.post('/api/ai', async (c) => {
         .limit(1);
 
       if (apiKeyResults.length === 0) {
+        console.log(`[AI:${requestId}] ❌ API key not found (ID: ${model.apiKeyId})`);
         return c.json(
           {
             error: 'API key not found',
@@ -256,7 +281,9 @@ app.post('/api/ai', async (c) => {
 
       // Decrypt API key using the existing decryption utility
       apiKey = decrypt(apiKeyRecord.encryptedKey);
+      console.log(`[AI:${requestId}] ✅ API key decrypted (${apiKeyRecord.provider})`);
     } else if (model.provider !== 'ollama') {
+      console.log(`[AI:${requestId}] ❌ Missing API key for provider: ${model.provider}`);
       return c.json(
         {
           error: 'Missing API key',
@@ -266,11 +293,14 @@ app.post('/api/ai', async (c) => {
       );
     } else {
       apiKey = 'ollama'; // Placeholder for Ollama
+      console.log(`[AI:${requestId}] ✅ Using Ollama (no API key required)`);
     }
 
     // Validate provider value from database
+    console.log(`[AI:${requestId}] 🧩 Validating provider configuration...`);
     const validatedProvider = aiProviderSchema.safeParse(model.provider);
     if (!validatedProvider.success) {
+      console.log(`[AI:${requestId}] ❌ Invalid provider: ${model.provider}`);
       return c.json(
         {
           error: 'Invalid provider',
@@ -290,18 +320,26 @@ app.post('/api/ai', async (c) => {
     // Add custom base URL if specified
     if (model.baseUrl) {
       config.baseURL = model.baseUrl;
+      console.log(`[AI:${requestId}] 📍 Using custom base URL: ${model.baseUrl}`);
     }
 
     // Create AI provider instance
+    console.log(`[AI:${requestId}] 🤖 Creating AI provider instance...`);
     const aiProvider = createAIProvider(config);
+    console.log(`[AI:${requestId}] ✅ AI provider created successfully`);
 
     // Wrap model with dev tools
+    console.log(`[AI:${requestId}] 🔧 Wrapping model with dev tools...`);
     const wrappedModel = wrapLanguageModel({
       model: aiProvider,
       middleware: devToolsMiddleware(),
     });
 
     // Stream text using AI SDK
+    console.log(`[AI:${requestId}] 📡 Starting AI stream...`);
+    const setupTime = Date.now() - startTime;
+    console.log(`[AI:${requestId}] ⏱️  Setup time: ${setupTime}ms`);
+
     const result = streamText({
       model: wrappedModel,
       messages: await convertToModelMessages(uiMessages),
@@ -310,20 +348,34 @@ app.post('/api/ai', async (c) => {
     // Use Hono's streaming API with AI SDK
     const response = result.toUIMessageStreamResponse();
 
+    console.log(`[AI:${requestId}] ✅ Streaming started - sending response to client`);
+
     // Convert AI SDK response to Hono-compatible response
     return new Response(response.body, {
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'text/plain; charset=utf-8',
         'Transfer-Encoding': 'chunked',
+        'X-Request-ID': requestId,
       },
     });
   } catch (error) {
     // Log error for debugging
-    console.error('[AI] Error processing request:', error);
+    const errorTime = Date.now() - startTime;
+    console.error(`[AI:${requestId}] ❌ ERROR after ${errorTime}ms:`, error);
+    console.error(
+      `[AI:${requestId}] Error details:`,
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    console.error(
+      `[AI:${requestId}] Stack trace:`,
+      error instanceof Error ? error.stack : 'No stack trace'
+    );
+
     return c.json(
       {
         error: 'Failed to process AI request',
         details: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
       },
       500
     );
