@@ -26,4 +26,7 @@
 
 {@render children()}
 
-<Toaster richColors position="top-right" />
+<!-- Toaster requires browser environment for portal rendering -->
+{#if mounted || browser}
+  <Toaster richColors position="top-right" />
+{/if}
