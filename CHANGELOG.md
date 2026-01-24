@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.24] - 2026-01-24
+
+### Changed
+
+- **ChatList Refactoring (Phase 5)**: Extract loading and error state components ([apps/web/src/lib/components/secondary-sidebar/ChatList.svelte](apps/web/src/lib/components/secondary-sidebar/ChatList.svelte))
+  - Created ChatListLoadingState.svelte component (12 lines)
+  - Created ChatListErrorState.svelte component (19 lines)
+  - Integrated state components into ChatList.svelte
+  - Follows presentational component pattern with no internal state
+  - Type checks passed with 0 errors
+  - ChatList.svelte: 1031 → 810 lines (21% reduction)
+  - Phase 5 complete (100%)
+
 ## [0.0.23] - 2026-01-22
 
 ### Added
