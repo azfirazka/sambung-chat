@@ -54,8 +54,14 @@ export function useChatListData() {
 
   // Computed - unique providers from user's models
   const availableProviders = $derived(() => {
-    const providerSet = new Set(models.map((m) => m.provider));
-    return Array.from(providerSet).sort() as Provider[];
+    const providers = models.map((m) => m.provider);
+    const uniqueProviders = providers.reduce<string[]>((unique, provider) => {
+      if (!unique.includes(provider)) {
+        unique.push(provider);
+      }
+      return unique;
+    }, []);
+    return uniqueProviders.sort() as Provider[];
   });
 
   // Computed - available models filtered by selected providers
@@ -64,7 +70,7 @@ export function useChatListData() {
       return models.sort((a, b) => a.name.localeCompare(b.name));
     }
     return models
-      .filter((m) => selectedProviders.includes(m.provider as any))
+      .filter((m) => selectedProviders.includes(m.provider as Provider))
       .sort((a, b) => a.name.localeCompare(b.name));
   });
 

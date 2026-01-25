@@ -9,7 +9,7 @@
   import PinnedChatsSection from './chat-list/PinnedChatsSection.svelte';
   import FolderChatsSection from './chat-list/FolderChatsSection.svelte';
   import NoFolderChatsSection from './chat-list/NoFolderChatsSection.svelte';
-  import { useChatListData } from './chat-list/useChatListData.js';
+  import { useChatListData } from './chat-list/useChatListData.svelte.js';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
   interface Props {
