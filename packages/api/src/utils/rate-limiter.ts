@@ -186,13 +186,15 @@ export class PersistentRateLimiter {
       // Atomic check-and-insert: insert only if count is under limit
       // This prevents race conditions where concurrent requests could pass the count check
       const result = await db.execute(
-        sql.raw(
-          'INSERT INTO rate_limits (id, identifier, timestamp, created_at) ' +
-            'SELECT $1, $2, $3, NOW() ' +
-            'WHERE (SELECT COUNT(*) FROM rate_limits WHERE identifier = $2 AND timestamp > $4) < $5 ' +
-            'RETURNING id',
-          [id, key, now, windowStart, this.maxRequests]
-        )
+        sql`
+          INSERT INTO rate_limits (id, identifier, timestamp, created_at)
+          SELECT ${id}, ${key}, ${now}, NOW()
+          WHERE (
+            SELECT COUNT(*) FROM rate_limits
+            WHERE identifier = ${key} AND timestamp > ${windowStart}
+          ) < ${this.maxRequests}
+          RETURNING id
+        `
       );
 
       // If a row was returned, the insert succeeded (under limit)
