@@ -9,7 +9,7 @@
   import PinnedChatsSection from './chat-list/PinnedChatsSection.svelte';
   import FolderChatsSection from './chat-list/FolderChatsSection.svelte';
   import NoFolderChatsSection from './chat-list/NoFolderChatsSection.svelte';
-  import { useChatListData } from './chat-list/useChatListData.svelte.js';
+  import { useChatListData } from './chat-list/useChatListData.js';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
   interface Props {
@@ -20,6 +20,29 @@
 
   // Use composable for all data management
   const data = useChatListData();
+
+  // Subscribe to stores - use $ for auto-subscription in Svelte 5
+  const exporting = data.exporting;
+  const searchQuery = data.searchQuery;
+  const folders = data.folders;
+  const selectedFolderId = data.selectedFolderId;
+  const showPinnedOnly = data.showPinnedOnly;
+  const hasActiveFilters = data.hasActiveFilters;
+  const error = data.error;
+  const loading = data.loading;
+  const searching = data.searching;
+  const chats = data.chats;
+  const groupedChats = data.groupedChats;
+  const collapsedFolders = data.collapsedFolders;
+  const renamingFolderId = data.renamingFolderId;
+  const folderRenameValue = data.folderRenameValue;
+  const availableProviders = data.availableProviders;
+  const availableModels = data.availableModels;
+  const selectedProviders = data.selectedProviders;
+  const selectedModelIds = data.selectedModelIds;
+  const dateFrom = data.dateFrom;
+  const dateTo = data.dateTo;
+  const hasAnyFilters = data.hasAnyFilters;
 
   // Initial load
   onMount(() => {
@@ -36,7 +59,7 @@
   }
 
   function handleFolderRenameValueChange(value: string) {
-    data.folderRenameValue = value;
+    data.folderRenameValue.set(value);
   }
 </script>
 
@@ -45,17 +68,17 @@
   <Sidebar.Header class="border-b p-4">
     <ChatListHeader
       title="Chats"
-      exporting={data.exporting}
+      exporting={$exporting}
       onCreateNewChat={data.createNewChat}
       onExportAll={data.handleExportAll}
     />
 
     <ChatListFilters
-      searchQuery={data.searchQuery}
-      folders={data.folders}
-      selectedFolderId={data.selectedFolderId}
-      showPinnedOnly={data.showPinnedOnly}
-      hasActiveFilters={data.hasActiveFilters}
+      searchQuery={$searchQuery}
+      folders={$folders}
+      selectedFolderId={$selectedFolderId}
+      showPinnedOnly={$showPinnedOnly}
+      hasActiveFilters={$hasActiveFilters}
       onSearchChange={data.handleSearchChange}
       onSearchKeydown={data.handleSearchKeydown}
       onFolderChange={data.handleFolderSelect}
@@ -66,20 +89,20 @@
 
   <!-- Content -->
   <Sidebar.Content class="flex-1 overflow-hidden">
-    {#if data.error}
-      <ChatListErrorState error={data.error} onRetry={data.loadChats} />
-    {:else if data.loading || data.searching}
-      <ChatListLoadingState loading={data.loading} searching={data.searching} />
-    {:else if data.chats.length === 0}
+    {#if $error}
+      <ChatListErrorState error={$error} onRetry={data.loadChats} />
+    {:else if $loading || $searching}
+      <ChatListLoadingState loading={$loading} searching={$searching} />
+    {:else if $chats.length === 0}
       <ChatEmptyState onNewChat={data.createNewChat} />
     {:else}
       <div class="h-full max-h-[50vh] overflow-y-auto">
         <div class="px-2">
           <PinnedChatsSection
-            pinnedChats={data.groupedChats().pinnedChats}
+            pinnedChats={$groupedChats.pinnedChats}
             {currentChatId}
-            searchQuery={data.searchQuery}
-            folders={data.folders}
+            searchQuery={$searchQuery}
+            folders={$folders}
             onSelectChat={data.selectChat}
             onDeleteChat={data.deleteChat}
             onRenameChat={data.renameChat}
@@ -89,13 +112,13 @@
           />
 
           <FolderChatsSection
-            folderGroups={data.groupedChats().folderGroups}
+            folderGroups={$groupedChats.folderGroups}
             {currentChatId}
-            searchQuery={data.searchQuery}
-            folders={data.folders}
-            collapsedFolders={data.collapsedFolders}
-            renamingFolderId={data.renamingFolderId}
-            folderRenameValue={data.folderRenameValue}
+            searchQuery={$searchQuery}
+            folders={$folders}
+            collapsedFolders={$collapsedFolders}
+            renamingFolderId={$renamingFolderId}
+            folderRenameValue={$folderRenameValue}
             onSelectChat={data.selectChat}
             onDeleteChat={data.deleteChat}
             onRenameChat={data.renameChat}
@@ -112,10 +135,10 @@
           />
 
           <NoFolderChatsSection
-            noFolderChats={data.groupedChats().noFolderChats}
+            noFolderChats={$groupedChats.noFolderChats}
             {currentChatId}
-            searchQuery={data.searchQuery}
-            folders={data.folders}
+            searchQuery={$searchQuery}
+            folders={$folders}
             onSelectChat={data.selectChat}
             onDeleteChat={data.deleteChat}
             onRenameChat={data.renameChat}
@@ -132,15 +155,15 @@
 <!-- Filter Dialog -->
 <ChatListFilterDialog
   show={showFilterDialog}
-  providers={data.availableProviders()}
-  models={data.availableModels()}
-  selectedProviders={data.selectedProviders}
-  selectedModelIds={data.selectedModelIds}
-  dateFrom={data.dateFrom}
-  dateTo={data.dateTo}
+  providers={$availableProviders}
+  models={$availableModels}
+  selectedProviders={$selectedProviders}
+  selectedModelIds={$selectedModelIds}
+  dateFrom={$dateFrom}
+  dateTo={$dateTo}
   onProvidersChange={data.handleProvidersChange}
   onModelsChange={data.handleModelsChange}
   onDateChange={data.handleDateChange}
   onClearAll={data.handleClearAllFilters}
-  hasAnyFilters={data.hasAnyFilters}
+  hasAnyFilters={$hasAnyFilters}
 />
