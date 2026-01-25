@@ -8,6 +8,8 @@
     FieldLabel,
     FieldDescription,
   } from '$lib/components/ui/field/index.js';
+  import PasswordStrengthMeter from '$lib/components/password-strength-meter.svelte';
+  import PasswordRequirements from '$lib/components/password-requirements.svelte';
 
   interface Props {
     onSignUp?: (credentials: { name: string; email: string; password: string }) => void;
@@ -91,6 +93,18 @@
               required
               disabled={isSubmitting}
             />
+            <PasswordStrengthMeter {password} class="mt-3" />
+            <details class="group mt-3">
+              <summary
+                class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-xs select-none"
+              >
+                <span class="transition-transform duration-200 group-open:rotate-90">▶</span>
+                <span>Show password requirements</span>
+              </summary>
+              <div class="mt-2 pl-4">
+                <PasswordRequirements {password} />
+              </div>
+            </details>
           </Field>
           <Field>
             <Button
