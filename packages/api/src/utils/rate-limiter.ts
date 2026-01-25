@@ -1,5 +1,5 @@
-import { db } from '@sambung-chat/db';
-import { rateLimits } from '@sambung-chat/db/schema/rate-limit';
+// NOTE: db and rateLimits are imported lazily to avoid circular dependency issues
+// with @sambung-chat/env/server during module initialization
 import { eq, and, gt, lt, sql } from 'drizzle-orm';
 
 /**
@@ -175,6 +175,10 @@ export class PersistentRateLimiter {
     const windowStart = new Date(now.getTime() - this.windowMs);
 
     try {
+      // Lazy import to avoid circular dependency with @sambung-chat/env/server
+      const { db } = await import('@sambung-chat/db');
+      const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
+
       // Count existing requests within the time window for this key
       const result = await db
         .select({ count: sql<number>`count(*)::int` })
@@ -213,6 +217,10 @@ export class PersistentRateLimiter {
     const windowStart = new Date(now.getTime() - this.windowMs);
 
     try {
+      // Lazy import to avoid circular dependency with @sambung-chat/env/server
+      const { db } = await import('@sambung-chat/db');
+      const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
+
       const result = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(rateLimits)
@@ -233,6 +241,10 @@ export class PersistentRateLimiter {
    */
   async reset(key: string): Promise<void> {
     try {
+      // Lazy import to avoid circular dependency with @sambung-chat/env/server
+      const { db } = await import('@sambung-chat/db');
+      const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
+
       await db.delete(rateLimits).where(eq(rateLimits.identifier, key));
     } catch (error) {
       console.error('Rate limiter database error:', error);
@@ -247,6 +259,10 @@ export class PersistentRateLimiter {
     const windowStart = new Date(now.getTime() - this.windowMs);
 
     try {
+      // Lazy import to avoid circular dependency with @sambung-chat/env/server
+      const { db } = await import('@sambung-chat/db');
+      const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
+
       // Delete records older than the time window
       await db.delete(rateLimits).where(lt(rateLimits.timestamp, windowStart));
     } catch (error) {
