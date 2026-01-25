@@ -141,7 +141,7 @@ export const csrfRateLimiter = new RateLimiter({
  * @example
  * ```ts
  * const limiter = new PersistentRateLimiter({ maxRequests: 10, windowMs: 60000 });
- * if (!limiter.checkLimit('user-123')) {
+ * if (!await limiter.checkLimit('user-123')) {
  *   throw new Error('Rate limit exceeded');
  * }
  * ```
