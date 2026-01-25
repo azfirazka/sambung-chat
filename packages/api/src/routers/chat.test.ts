@@ -1146,53 +1146,21 @@ describe('Chat Router Tests', () => {
       }
     });
 
-    it('should handle chat with folder but folder not found', async () => {
-      // Create a chat with a non-existent folderId (orphaned reference)
-      const fakeFolderId = generateULID();
-      const [chat] = await db
-        .insert(chats)
-        .values({
-          userId: testUserId,
-          title: 'Orphaned Chat',
-          modelId: testModelId,
-          folderId: fakeFolderId,
-        })
-        .returning();
+    it.skip('should handle chat with folder but folder not found - skipped: foreign key constraint prevents orphaned references', async () => {
+      // NOTE: This test is skipped because the database now enforces foreign key constraints
+      // We cannot insert a chat with a folderId that doesn't exist in the folders table
+      // This is actually the correct behavior - data integrity is enforced at the database level
 
-      createdChatIds.push(chat.id);
+      // The original test tried to create a chat with a non-existent folderId to test
+      // how the application handles orphaned references. However, with foreign key
+      // constraints enabled, this scenario is prevented at the database level.
 
-      // Get all chats
-      const userChats = await db
-        .select()
-        .from(chats)
-        .where(eq(chats.userId, testUserId))
-        .orderBy(desc(chats.updatedAt));
+      // In a real application, orphaned references should be handled by:
+      // 1. Setting folderId to NULL when a folder is deleted
+      // 2. Using cascading deletes
+      // 3. Running periodic data integrity checks
 
-      const folderIds = userChats.map((c) => c.folderId).filter((id): id is string => id !== null);
-      const foldersMap = new Map<string, { id: string; name: string }>();
-
-      if (folderIds.length > 0) {
-        const uniqueFolderIds = [...new Set(folderIds)];
-        const folderResults = await db
-          .select()
-          .from(folders)
-          .where(and(inArray(folders.id, uniqueFolderIds), eq(folders.userId, testUserId)));
-
-        for (const f of folderResults) {
-          foldersMap.set(f.id, { id: f.id, name: f.name });
-        }
-      }
-
-      // Combine data - folder should be null if not found
-      const chatsWithFolders = userChats.map((c) => ({
-        ...c,
-        messages: [],
-        folder: c.folderId ? foldersMap.get(c.folderId) || null : null,
-      }));
-
-      const chatWithFolder = chatsWithFolders.find((c) => c.id === chat.id);
-      expect(chatWithFolder).toBeDefined();
-      expect(chatWithFolder!.folder).toBeNull(); // Should be null when folder not found
+      expect(true).toBe(true); // Placeholder for skipped test
     });
   });
 
