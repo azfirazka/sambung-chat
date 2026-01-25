@@ -650,6 +650,11 @@ export const aiRouter = {
                 .update(messages)
                 .set({ content: fullText })
                 .where(eq(messages.id, assistantMessageId));
+              // Update chat timestamp to reflect new content
+              await db
+                .update(chats)
+                .set({ updatedAt: new Date() })
+                .where(eq(chats.id, input.chatId));
               console.error(
                 '[AI Router] Streaming failed after partial content, persisted partial response'
               );
