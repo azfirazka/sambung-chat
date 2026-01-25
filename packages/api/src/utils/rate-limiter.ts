@@ -1,6 +1,7 @@
 // NOTE: db and rateLimits are imported lazily to avoid circular dependency issues
 // with @sambung-chat/env/server during module initialization
 import { eq, and, gt, lt, sql } from 'drizzle-orm';
+import { generateULID } from '@sambung-chat/db/utils/ulid';
 
 /**
  * Simple in-memory rate limiter to prevent abuse
@@ -179,26 +180,24 @@ export class PersistentRateLimiter {
       const { db } = await import('@sambung-chat/db');
       const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
 
-      // Count existing requests within the time window for this key
-      const result = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(rateLimits)
-        .where(and(eq(rateLimits.identifier, key), gt(rateLimits.timestamp, windowStart)));
+      // Generate ULID for the new record
+      const id = generateULID();
 
-      const requestCount = result[0]?.count ?? 0;
+      // Atomic check-and-insert: insert only if count is under limit
+      // This prevents race conditions where concurrent requests could pass the count check
+      const result = await db.execute(
+        sql.raw(
+          'INSERT INTO rate_limits (id, identifier, timestamp, created_at) ' +
+            'SELECT $1, $2, $3, NOW() ' +
+            'WHERE (SELECT COUNT(*) FROM rate_limits WHERE identifier = $2 AND timestamp > $4) < $5 ' +
+            'RETURNING id',
+          [id, key, now, windowStart, this.maxRequests]
+        )
+      );
 
-      // Check if limit is exceeded
-      if (requestCount >= this.maxRequests) {
-        return false;
-      }
-
-      // Add current request record
-      await db.insert(rateLimits).values({
-        identifier: key,
-        timestamp: now,
-      });
-
-      return true;
+      // If a row was returned, the insert succeeded (under limit)
+      // If no row returned, the limit was exceeded
+      return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
       // On database errors, fail open to avoid blocking legitimate requests
       console.error('Rate limiter database error:', error);
