@@ -108,7 +108,10 @@ export function calculatePasswordStrength(password: string): PasswordStrengthRes
   const percentage = Math.round((score / 4) * 100);
 
   // Check if meets minimum requirements
-  const meetsRequirements = length >= 8 && varietyCount >= 3;
+  // Must be at least 8 characters AND have at least 3 of the 4 character types
+  // OR be at least 8 characters AND meet at least 3 of the 5 total requirements
+  const requirementsMet = getPasswordRequirements(password).filter((r) => r.met).length;
+  const meetsRequirements = length >= 8 && requirementsMet >= 3;
 
   return {
     score,

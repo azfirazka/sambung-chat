@@ -19,7 +19,7 @@ import { db } from '@sambung-chat/db';
 import { chats, messages } from '@sambung-chat/db/schema/chat';
 import { models } from '@sambung-chat/db/schema/model';
 import { apiKeys } from '@sambung-chat/db/schema/api-key';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { ORPCError, eventIterator } from '@orpc/server';
 import { streamText, generateText } from 'ai';
@@ -64,12 +64,20 @@ type AISettings = {
 /**
  * Helper function to get decrypted API key
  *
+ * SECURITY: This function validates both apiKeyId AND userId to prevent
+ * cross-user access vulnerabilities. Users can only access their own API keys.
+ *
  * @param apiKeyId - The API key ID from the database
+ * @param userId - The user ID who owns the API key
  * @returns Decrypted API key
  * @throws {ORPCError} If API key is not found or decryption fails
  */
-async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
-  const apiKeyResults = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
+async function getDecryptedApiKey(apiKeyId: string, userId: string): Promise<string> {
+  const apiKeyResults = await db
+    .select()
+    .from(apiKeys)
+    .where(and(eq(apiKeys.id, apiKeyId), eq(apiKeys.userId, userId)))
+    .limit(1);
 
   if (apiKeyResults.length === 0) {
     throw new ORPCError('NOT_FOUND', {
@@ -111,11 +119,12 @@ async function messageExists(
   role: 'user' | 'assistant' | 'system',
   content: string
 ): Promise<boolean> {
+  // Order by createdAt DESC to check the newest message first
   const existingMessages = await db
     .select()
     .from(messages)
     .where(and(eq(messages.chatId, chatId), eq(messages.role, role)))
-    .orderBy(messages.createdAt)
+    .orderBy(desc(messages.createdAt)) // Check newest message first
     .limit(1);
 
   // Check if the most recent message with this role has the same content
@@ -160,7 +169,7 @@ async function getModelConfig(modelId: string, userId: string): Promise<Provider
 
   // API key is now required (except for Ollama)
   if (model.apiKeyId) {
-    config.apiKey = await getDecryptedApiKey(model.apiKeyId);
+    config.apiKey = await getDecryptedApiKey(model.apiKeyId, userId);
   } else if (model.provider !== 'ollama') {
     // Ollama doesn't require API key, but other providers do
     throw new ORPCError('BAD_REQUEST', {

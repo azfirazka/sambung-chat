@@ -23,7 +23,9 @@ marked.setOptions({
  * Prevents use of 'any' and provides type safety for Mermaid-related window properties
  */
 interface MermaidWindow extends Window {
-  mermaid?: import('mermaid').Mermaid;
+  // mermaid is loaded from CDN dynamically
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mermaid?: any;
   mermaidInitialized?: boolean;
   mermaidTheme?: 'dark' | 'light';
   mermaidThemeObserverSetup?: boolean;
