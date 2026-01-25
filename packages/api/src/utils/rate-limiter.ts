@@ -178,7 +178,6 @@ export class PersistentRateLimiter {
     try {
       // Lazy import to avoid circular dependency with @sambung-chat/env/server
       const { db } = await import('@sambung-chat/db');
-      const { rateLimits } = await import('@sambung-chat/db/schema/rate-limit');
 
       // Generate ULID for the new record
       const id = generateULID();
