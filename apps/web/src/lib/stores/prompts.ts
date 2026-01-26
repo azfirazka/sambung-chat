@@ -1,16 +1,16 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { orpc } from '$lib/orpc';
 import type { PromptData } from '$lib/components/prompt-library.svelte';
 
 export interface PromptCategory {
   id: string;
   label: string;
-  type: 'personal' | 'marketplace' | 'shared';
+  type: 'personal' | 'marketplace';
   count: number;
   defaultOpen: boolean;
 }
 
-export type CategoryType = 'my-prompts' | 'marketplace' | 'shared';
+export type CategoryType = 'my-prompts' | 'marketplace';
 
 // State stores
 export const selectedCategory = writable<CategoryType>('my-prompts');
@@ -32,13 +32,6 @@ export const categories = writable<PromptCategory[]>([
     id: 'marketplace',
     label: 'Marketplace',
     type: 'marketplace',
-    count: 0,
-    defaultOpen: false,
-  },
-  {
-    id: 'shared',
-    label: 'Shared with me',
-    type: 'shared',
     count: 0,
     defaultOpen: false,
   },
@@ -78,7 +71,7 @@ export async function loadPrompts() {
 
       prompts.set(transformedPrompts);
 
-      // Update marketplace count
+      // Update marketplace count (use actual count from API response)
       categories.update((cats) =>
         cats.map((cat) =>
           cat.id === 'marketplace' ? { ...cat, count: transformedPrompts.length } : cat
@@ -110,24 +103,25 @@ export async function loadPrompts() {
   }
 }
 
-// Load initial counts
+// Load initial counts - optimized to fetch both categories in parallel
 export async function loadCounts() {
   try {
-    // Load my prompts count
-    const myPrompts = await orpc.prompt.getAll();
-    categories.update((cats) =>
-      cats.map((cat) => (cat.id === 'my-prompts' ? { ...cat, count: myPrompts?.length || 0 } : cat))
-    );
+    // Load counts in parallel for better performance
+    const [myPrompts, marketplacePrompts] = await Promise.all([
+      orpc.prompt.getAll(),
+      orpc.prompt.getPublicTemplates({ limit: 1000, offset: 0 }),
+    ]);
 
-    // Load marketplace count (just need total count)
-    const marketplacePrompts = await orpc.prompt.getPublicTemplates({
-      limit: 1000,
-      offset: 0,
-    });
     categories.update((cats) =>
-      cats.map((cat) =>
-        cat.id === 'marketplace' ? { ...cat, count: marketplacePrompts?.length || 0 } : cat
-      )
+      cats.map((cat) => {
+        if (cat.id === 'my-prompts') {
+          return { ...cat, count: myPrompts?.length || 0 };
+        }
+        if (cat.id === 'marketplace') {
+          return { ...cat, count: marketplacePrompts?.length || 0 };
+        }
+        return cat;
+      })
     );
   } catch (error) {
     console.error('Failed to load counts:', error);

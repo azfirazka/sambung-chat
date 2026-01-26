@@ -400,7 +400,7 @@
                     <!-- Marketplace: Show Duplicate instead of Edit/Delete -->
                     <DropdownMenuItem onclick={() => onduplicate?.(prompt.id)}>
                       <CopyIcon class="mr-2 size-4" />
-                      Copy to Library
+                      Save to My Prompts
                     </DropdownMenuItem>
                   {:else}
                     <!-- My Prompts: Show Edit and Delete -->
@@ -419,7 +419,7 @@
                   {/if}
                   <DropdownMenuItem onclick={() => handleCopy(prompt.content)}>
                     <CopyIcon class="mr-2 size-4" />
-                    Copy Content
+                    Copy to Clipboard
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

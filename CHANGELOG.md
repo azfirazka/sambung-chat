@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.30] - 2026-01-26
+
+### Changed
+
+- **Prompts UI Improvements**: Enhance prompts interface clarity and performance
+  - "Copy Content" → "Copy to Clipboard" for better user understanding
+  - "Copy to Library" → "Save to My Prompts" for clearer action description
+  - Remove "Shared with me" category (planned for future team features)
+  - Optimize count loading with `Promise.all` for parallel API calls
+  - Fix marketplace count delay by fetching counts more efficiently on mount
+
 ## [0.0.29] - 2026-01-26
 
 ### Fixed

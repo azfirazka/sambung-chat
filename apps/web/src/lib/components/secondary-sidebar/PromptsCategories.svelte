@@ -1,13 +1,6 @@
 <script lang="ts">
   import { cn } from '$lib/utils.js';
-  import {
-    SparklesIcon,
-    StoreIcon,
-    UsersIcon,
-    ChevronRightIcon,
-    PlusIcon,
-    SearchIcon,
-  } from '@lucide/svelte/icons';
+  import { SparklesIcon, StoreIcon, ChevronRightIcon, SearchIcon } from '@lucide/svelte/icons';
   import {
     categories,
     selectedCategory,
@@ -38,7 +31,6 @@
   function getCategoryIcon(categoryId: string) {
     if (categoryId === 'my-prompts') return SparklesIcon;
     if (categoryId === 'marketplace') return StoreIcon;
-    if (categoryId === 'shared') return UsersIcon;
     return SparklesIcon;
   }
 </script>
