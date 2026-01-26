@@ -13,6 +13,10 @@
   import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
 
   let activeTab = $state('general');
+
+  function handleTabChange(value: string) {
+    activeTab = value;
+  }
 </script>
 
 <header class="bg-background sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b p-4">
@@ -42,7 +46,7 @@
       </div>
 
       <!-- Tabs Navigation -->
-      <Tabs bind:value={activeTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="general">
             <SlidersHorizontalIcon class="size-4" />
