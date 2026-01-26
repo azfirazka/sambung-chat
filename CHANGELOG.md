@@ -5,6 +5,174 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.33] - 2026-01-26
+
+### Fixed
+
+- **My Prompts Search**: Fix search functionality not working for My Prompts category ([apps/web/src/lib/stores/prompts.ts](apps/web/src/lib/stores/prompts.ts))
+  - Add client-side filtering by name and content for My Prompts
+  - Search now works consistently across both My Prompts and Marketplace
+  - Uses case-insensitive matching for better user experience
+
+- **Test Cleanup Leaks**: Fix testUserId prompt leaks in getPublicTemplates tests ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts))
+  - Add local array `getPublicTemplatesTestPromptIds` to track testUserId prompts
+  - Properly clean up testUserId prompts in afterAll to prevent database pollution
+  - Separate tracking for testUserId vs otherUserId prompts for accurate cleanup
+
+## [0.0.32] - 2026-01-26
+
+### Fixed
+
+- **PromptsCategories Type Safety**: Fix unsafe type casts and race conditions ([apps/web/src/lib/components/secondary-sidebar/PromptsCategories.svelte](apps/web/src/lib/components/secondary-sidebar/PromptsCategories.svelte))
+  - Remove `as any` cast in handleCategorySelect, add proper CategoryType validation
+  - Add runtime type guard `isValidCategoryType` to ensure type safety
+  - Fix handleSearchInput race condition by awaiting loadPrompts()
+  - Add 300ms debounce to search input to reduce rapid concurrent requests
+
+- **Prompts Store Type Safety**: Fix unsafe `any` type in API response handling ([apps/web/src/lib/stores/prompts.ts](apps/web/src/lib/stores/prompts.ts))
+  - Define `PublicPromptTemplate` interface for proper type safety
+  - Replace `(p: any)` with `(p: PublicPromptTemplate)` in transformation
+  - Add comment explaining authorId is not returned by getPublicTemplates API
+
+- **Prompt Test Cleanup**: Fix test cleanup and pollution issues ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts))
+  - Add missing `.toBe(true)` assertion in export test (line 1295)
+  - Track all created prompts for cleanup: existingPrompt (line 992), duplicatePrompt (line 1007)
+  - Track existing prompt in duplicate name test (line 1551) for proper teardown
+  - Replace all hardcoded emails with unique timestamp-based identifiers
+  - Fix hardcoded emails: other-user, public-author, creator, empty, import-user, test2, other-version-test, other-restore
+
+- **Prompt Router Safety**: Add guards to prevent infinite loops and improve error handling ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Add MAX_NAME_ATTEMPTS constant (1000) for name generation safety
+  - Replace unbounded while loops with for loops in importPrompts (line 512) and duplicateFromPublic (line 383)
+  - Add fallback to timestamp+UUID suffix when max attempts reached
+  - Fix error handling in create to preserve ORPCError instead of wrapping it
+  - Add `::int` cast to COUNT(\*) queries in getCounts for proper type handling
+
+## [0.0.31] - 2026-01-26
+
+### Fixed
+
+- **Prompts Count Initial Load**: Fix category counts showing 0 on initial page load
+  - Create dedicated `getCounts` endpoint using SQL COUNT queries for efficient counting
+  - Remove duplicate `loadCounts()` call that was causing double mount issue
+  - Separation of concerns: counts now loaded only via dedicated endpoint, not from `loadPrompts()`
+  - Counts now display immediately on page load without requiring category click
+
+### Changed
+
+- **Prompts API Performance**: Optimize count loading with dedicated endpoint ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Add `getCounts` procedure using `sql<count>count(*)</count>` for efficient counting
+  - Returns `{ myPrompts: number, marketplace: number }` without fetching all data
+  - Much faster than fetching all prompts just to count them
+  - Updated prompts store to use new endpoint instead of loading all prompts for counts
+
+## [0.0.30] - 2026-01-26
+
+### Changed
+
+- **Prompts UI Improvements**: Enhance prompts interface clarity and performance
+  - "Copy Content" → "Copy to Clipboard" for better user understanding
+  - "Copy to Library" → "Save to My Prompts" for clearer action description
+  - Remove "Shared with me" category (planned for future team features)
+  - Optimize count loading with `Promise.all` for parallel API calls
+  - Fix marketplace count delay by fetching counts more efficiently on mount
+
+## [0.0.29] - 2026-01-26
+
+### Fixed
+
+- **Prompts Double Sidebar**: Fix duplicate sidebar on prompts page by integrating PromptsCategories into global app-sidebar
+  - Remove local Sidebar.Root wrapper from prompts page
+  - Add prompts handling to app-sidebar (similar to chat/settings)
+  - PromptsCategories now rendered by global app-sidebar instead of page-level
+
+- **Prompts Count Always Zero**: Fix prompt count display showing 0 for all categories
+  - Create prompts store (`apps/web/src/lib/stores/prompts.ts`) for centralized state management
+  - Add `loadCounts()` function to fetch actual counts from API
+  - Update category counts dynamically when prompts are loaded/created/deleted
+  - PromptsCategories and prompts page now share state via Svelte store
+
+### Changed
+
+- **Prompts Architecture**: Refactor prompts to use centralized store pattern
+  - Move state management from page component to dedicated store
+  - PromptsCategories now self-contained with own state and API calls
+  - Prompts page simplified to consume store and render PromptLibrary
+  - Better separation of concerns and reusability
+
+## [0.0.28] - 2026-01-26
+
+### Added
+
+- **Prompts Marketplace UI**: Add marketplace interface for browsing and copying public prompts ([apps/web/src/routes/app/prompts/+page.svelte](apps/web/src/routes/app/prompts/+page.svelte))
+  - Create PromptsCategories secondary sidebar component with category navigation
+  - Add category-based prompts loading (My Prompts, Marketplace, Shared)
+  - Integrate getPublicTemplates and duplicateFromPublic ORPC endpoints
+  - Add author information display for marketplace prompts
+  - Implement "Copy to Library" functionality for marketplace prompts
+  - Conditional UI: marketplace shows author+copy, my-prompts shows edit+delete
+  - Search functionality integration with category switching
+
+- **PromptLibrary Marketplace Support**: Add marketplace-specific features to prompt library component ([apps/web/src/lib/components/prompt-library.svelte](apps/web/src/lib/components/prompt-library.svelte))
+  - Add PromptAuthor interface for author information
+  - Add view prop to distinguish marketplace vs personal prompts
+  - Add onduplicate callback for copy functionality
+  - Conditional dropdown menu rendering based on view mode
+  - Display author name for marketplace prompts
+  - Switch to "my-prompts" category after successful duplicate
+
+## [0.0.27] - 2026-01-26
+
+### Added
+
+- **Prompt Templates Version History**: Add complete version tracking system for prompt templates ([packages/db/src/schema/prompt.ts](packages/db/src/schema/prompt.ts), [packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Create prompt_versions database table with version tracking
+  - Automatic version creation on prompt create (version 1) and update (incremental)
+  - getVersionHistory endpoint to view all versions of a prompt
+  - restoreVersion endpoint to restore prompts to previous versions
+  - Change reason tracking for audit trail
+  - Transaction-based operations for data consistency
+  - Support for pagination (limit/offset) in version history
+  - Ownership validation to ensure users can only access their own version history
+
+- **Public Prompt Templates**: Add public prompt browsing and sharing functionality ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - getPublicTemplates endpoint to browse all public prompts from community
+  - Support category filtering for public templates
+  - Support keyword search in name and content
+  - Pagination support (limit/offset)
+  - Author attribution (shows name, not email for privacy)
+  - duplicateFromPublic endpoint to copy public prompts to private collection
+  - Automatic name conflict resolution (adds "(Copy)" or numeric suffixes)
+  - CSRF protected mutations
+
+- **Prompt Import/Export**: Add JSON-based import/export functionality for prompt templates ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - exportPrompts endpoint to export all user's prompts as JSON
+  - Optional category filtering for exports
+  - Optional date range filtering for exports
+  - importPrompts endpoint to import prompts from JSON
+  - Zod schema validation for imported data
+  - Automatic name conflict resolution with numeric suffixes (1), (2), etc.
+  - Transaction-based import (all or nothing)
+  - Returns success count and imported prompts
+  - Compatible with export format for round-trip operations
+
+- **Comprehensive Test Coverage**: Add extensive tests for new prompt template features ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts))
+  - 74 tests passing (65 existing + 9 new version history tests)
+  - Public templates browsing tests (pagination, filtering, search)
+  - Duplicate functionality tests (name conflicts, variables preservation)
+  - Import/export tests (validation, round-trip, data integrity)
+  - Version history tests (creation, increments, restoration)
+  - All edge cases covered (empty results, non-existent versions, ownership)
+
+### Changed
+
+- **Prompt Create/Update**: Enhance prompt create and update procedures with version tracking ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Create procedure now creates initial version entry (versionNumber: 1, changeReason: "Initial version")
+  - Update procedure creates version entry before updating prompt
+  - Automatic versionNumber calculation based on existing versions
+  - Optional changeReason parameter for update operations
+  - Transaction-based operations to ensure data consistency
+
 ## [0.0.26] - 2026-01-26
 
 ### Fixed
