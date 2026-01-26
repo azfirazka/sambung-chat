@@ -6,6 +6,9 @@
  * @module themes
  */
 
+// Re-export Theme type for convenience
+export type { Theme } from '$lib/types/theme';
+
 export {
 	lightTheme,
 	darkTheme,

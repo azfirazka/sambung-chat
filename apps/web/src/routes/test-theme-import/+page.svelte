@@ -228,7 +228,7 @@
 	<!-- Header -->
 	<div class="border-b pb-4">
 		<h1 class="text-3xl font-bold flex items-center gap-2">
-			<FileJsonIconIcon class="w-8 h-8" />
+			<FileJsonIcon class="w-8 h-8" />
 			Theme Import Test Suite
 		</h1>
 		<p class="text-muted-foreground mt-2">
@@ -242,7 +242,7 @@
 			<!-- Instructions Card -->
 			<div class="card p-4 space-y-3">
 				<h2 class="font-semibold flex items-center gap-2">
-					<InfoIconIcon class="w-5 h-5 text-blue-500" />
+					<InfoIcon class="w-5 h-5 text-blue-500" />
 					Testing Instructions
 				</h2>
 				<ol class="list-decimal list-inside space-y-2 text-sm">

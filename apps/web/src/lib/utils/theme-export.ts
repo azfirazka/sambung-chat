@@ -10,6 +10,9 @@
 import { browser } from '$app/environment';
 import type { Theme, ThemeExport } from '$lib/types/theme';
 
+// Re-export types for convenience
+export type { ThemeExport };
+
 /**
  * Current theme export format version
  * Used for future compatibility when updating the export format
