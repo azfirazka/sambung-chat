@@ -529,4 +529,49 @@ export const promptRouter = {
         });
       }
     }),
+
+  // Get version history for a prompt
+  getVersionHistory: protectedProcedure
+    .input(
+      z.object({
+        promptId: ulidSchema,
+        limit: z.coerce.number().min(1).max(100).default(50),
+        offset: z.coerce.number().min(0).default(0),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      const { promptId, limit, offset } = input;
+
+      // First, verify prompt ownership
+      const promptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, promptId), eq(prompts.userId, userId)));
+
+      if (promptResults.length === 0) {
+        throw new ORPCError('NOT_FOUND', {
+          message: 'Prompt not found or you do not have permission to view its history',
+        });
+      }
+
+      // Fetch version history ordered by versionNumber DESC (newest first)
+      const versions = await db
+        .select({
+          versionNumber: promptVersions.versionNumber,
+          name: promptVersions.name,
+          content: promptVersions.content,
+          variables: promptVersions.variables,
+          category: promptVersions.category,
+          changeReason: promptVersions.changeReason,
+          createdAt: promptVersions.createdAt,
+        })
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, promptId))
+        .orderBy(desc(promptVersions.versionNumber))
+        .limit(limit)
+        .offset(offset);
+
+      return versions;
+    }),
 };
