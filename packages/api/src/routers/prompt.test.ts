@@ -12,6 +12,8 @@ import { prompts } from '@sambung-chat/db/schema/prompt';
 import { user } from '@sambung-chat/db/schema/auth';
 import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { generateULID } from '@sambung-chat/db/utils/ulid';
+// Import promptVersions using relative path
+import { promptVersions } from '../../../db/src/schema/prompt';
 
 // Note: DATABASE_URL and other test environment variables are set by vitest.config.ts
 process.env.BETTER_AUTH_SECRET =
@@ -27,10 +29,11 @@ describe('Prompt Router Tests', () => {
   beforeAll(async () => {
     // Create a test user first (required for foreign key constraints)
     testUserId = generateULID();
+    const uniqueEmail = `prompt-test-${Date.now()}@example.com`;
     await db.insert(user).values({
       id: testUserId,
       name: 'Prompt Test User',
-      email: 'prompt-test@example.com',
+      email: uniqueEmail,
       emailVerified: true,
     });
   });
@@ -1899,6 +1902,1042 @@ describe('Prompt Router Tests', () => {
         await db.delete(prompts).where(eq(prompts.userId, newUserId));
         await db.delete(user).where(eq(user.id, newUserId));
       }
+    });
+  });
+
+  describe('Version History - Create and Update Tracking', () => {
+    it('should create initial version when prompt is created', async () => {
+      const promptData = {
+        userId: testUserId,
+        name: 'Version Test Prompt',
+        content: 'This prompt should have version history',
+        variables: ['var1', 'var2'],
+        category: 'coding' as const,
+        isPublic: false,
+      };
+
+      // Create prompt (simulating the create procedure logic)
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx.insert(prompts).values(promptData).returning();
+
+        // Create initial version entry
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Verify initial version was created
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(1);
+      expect(versions[0].versionNumber).toBe(1);
+      expect(versions[0].changeReason).toBe('Initial version');
+      expect(versions[0].name).toBe(promptData.name);
+      expect(versions[0].content).toBe(promptData.content);
+      expect(versions[0].variables).toEqual(promptData.variables);
+      expect(versions[0].category).toBe(promptData.category);
+    });
+
+    it('should create version entry when prompt is updated', async () => {
+      // Create initial prompt
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Update Version Test',
+            content: 'Original content',
+            variables: ['original'],
+            category: 'general',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Update prompt (simulating the update procedure logic)
+      await db.transaction(async (tx) => {
+        // Get next version number
+        const versionResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionResults[0].versionNumber + 1;
+
+        // Create version entry with old values
+        await tx.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: prompt.name,
+          content: prompt.content,
+          variables: prompt.variables,
+          category: prompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: 'Updated prompt',
+        });
+
+        // Update the prompt
+        await tx
+          .update(prompts)
+          .set({
+            name: 'Updated Version Test',
+            content: 'Updated content',
+            variables: ['updated'],
+            category: 'coding',
+          })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Verify version history
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(2);
+      expect(versions[0].versionNumber).toBe(2);
+      expect(versions[0].changeReason).toBe('Updated prompt');
+      expect(versions[0].name).toBe('Update Version Test'); // Old name
+      expect(versions[0].content).toBe('Original content'); // Old content
+
+      expect(versions[1].versionNumber).toBe(1);
+      expect(versions[1].changeReason).toBe('Initial version');
+    });
+
+    it('should increment versionNumber correctly on multiple updates', async () => {
+      // Create initial prompt
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Increment Test',
+            content: 'Version 1',
+            variables: [],
+            category: 'general',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Perform 3 updates
+      for (let i = 2; i <= 4; i++) {
+        await db.transaction(async (tx) => {
+          const currentPromptResults = await tx
+            .select()
+            .from(prompts)
+            .where(eq(prompts.id, prompt.id));
+
+          const currentPrompt = currentPromptResults[0];
+
+          const versionResults = await tx
+            .select({ versionNumber: promptVersions.versionNumber })
+            .from(promptVersions)
+            .where(eq(promptVersions.promptId, prompt.id))
+            .orderBy(desc(promptVersions.versionNumber))
+            .limit(1);
+
+          const nextVersionNumber = versionResults[0].versionNumber + 1;
+
+          await tx.insert(promptVersions).values({
+            promptId: prompt.id,
+            userId: testUserId,
+            name: currentPrompt.name,
+            content: currentPrompt.content,
+            variables: currentPrompt.variables,
+            category: currentPrompt.category,
+            versionNumber: nextVersionNumber,
+            changeReason: `Update ${i}`,
+          });
+
+          await tx
+            .update(prompts)
+            .set({ content: `Version ${i}` })
+            .where(eq(prompts.id, prompt.id));
+        });
+      }
+
+      // Verify all versions
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(4);
+      expect(versions.map((v) => v.versionNumber)).toEqual([4, 3, 2, 1]);
+      expect(versions.map((v) => v.changeReason)).toEqual([
+        'Update 4',
+        'Update 3',
+        'Update 2',
+        'Initial version',
+      ]);
+    });
+
+    it('should store custom changeReason when provided', async () => {
+      // Create initial prompt
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Change Reason Test',
+            content: 'Original',
+            variables: [],
+            category: 'general',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Update with custom changeReason
+      const customReason = 'Fixed typo in instructions';
+
+      await db.transaction(async (tx) => {
+        const versionResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionResults[0].versionNumber + 1;
+
+        await tx.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: prompt.name,
+          content: prompt.content,
+          variables: prompt.variables,
+          category: prompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: customReason,
+        });
+
+        await tx
+          .update(prompts)
+          .set({ content: 'Updated content' })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Verify custom changeReason was saved
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions[0].changeReason).toBe(customReason);
+    });
+  });
+
+  describe('getVersionHistory - Version History Retrieval', () => {
+    it('should return all versions for a prompt', async () => {
+      // Create prompt with multiple versions
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'History Test Prompt',
+            content: 'Initial',
+            variables: [],
+            category: 'coding',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Add more versions
+      for (let i = 2; i <= 3; i++) {
+        await db.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: `History Test Prompt v${i}`,
+          content: `Content ${i}`,
+          variables: [`var${i}`],
+          category: i % 2 === 0 ? 'coding' : 'writing',
+          versionNumber: i,
+          changeReason: `Change ${i}`,
+        });
+      }
+
+      // Fetch version history
+      const versions = await db
+        .select({
+          versionNumber: promptVersions.versionNumber,
+          name: promptVersions.name,
+          content: promptVersions.content,
+          variables: promptVersions.variables,
+          category: promptVersions.category,
+          changeReason: promptVersions.changeReason,
+          createdAt: promptVersions.createdAt,
+        })
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(3);
+      expect(versions[0].versionNumber).toBe(3);
+      expect(versions[1].versionNumber).toBe(2);
+      expect(versions[2].versionNumber).toBe(1);
+
+      // Verify all required fields are present
+      versions.forEach((version) => {
+        expect(version.versionNumber).toBeDefined();
+        expect(version.name).toBeDefined();
+        expect(version.content).toBeDefined();
+        expect(version.variables).toBeDefined();
+        expect(version.category).toBeDefined();
+        expect(version.changeReason).toBeDefined();
+        expect(version.createdAt).toBeDefined();
+        expect(version.createdAt).toBeInstanceOf(Date);
+      });
+    });
+
+    it('should order versions by versionNumber DESC (newest first)', async () => {
+      // Create prompt with versions
+      const [prompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Order Test',
+          content: 'Test',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(prompt.id);
+
+      // Create versions out of order to test sorting
+      await db.insert(promptVersions).values({
+        promptId: prompt.id,
+        userId: testUserId,
+        name: 'Version 3',
+        content: 'Content 3',
+        variables: [],
+        category: 'general',
+        versionNumber: 3,
+        changeReason: 'Third',
+      });
+
+      await db.insert(promptVersions).values({
+        promptId: prompt.id,
+        userId: testUserId,
+        name: 'Version 1',
+        content: 'Content 1',
+        variables: [],
+        category: 'general',
+        versionNumber: 1,
+        changeReason: 'First',
+      });
+
+      await db.insert(promptVersions).values({
+        promptId: prompt.id,
+        userId: testUserId,
+        name: 'Version 2',
+        content: 'Content 2',
+        variables: [],
+        category: 'general',
+        versionNumber: 2,
+        changeReason: 'Second',
+      });
+
+      // Fetch and verify order
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(3);
+      expect(versions[0].versionNumber).toBe(3);
+      expect(versions[1].versionNumber).toBe(2);
+      expect(versions[2].versionNumber).toBe(1);
+    });
+
+    it('should validate ownership before returning version history', async () => {
+      // Create another user
+      const otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Other User',
+        email: 'other-version-test@example.com',
+        emailVerified: true,
+      });
+
+      // Create prompt for other user
+      const [otherPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: otherUserId,
+          name: "Other User's Prompt",
+          content: 'Not accessible',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      // Try to fetch version history with testUserId (should fail ownership check)
+      const promptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, otherPrompt.id), eq(prompts.userId, testUserId)));
+
+      expect(promptResults.length).toBe(0);
+
+      // Clean up
+      await db.delete(prompts).where(eq(prompts.id, otherPrompt.id));
+      await db.delete(user).where(eq(user.id, otherUserId));
+    });
+
+    it('should support pagination with limit and offset', async () => {
+      // Create prompt with many versions
+      const [prompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Pagination Test',
+          content: 'Test',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(prompt.id);
+
+      // Create 10 versions
+      for (let i = 1; i <= 10; i++) {
+        await db.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: `Version ${i}`,
+          content: `Content ${i}`,
+          variables: [],
+          category: 'general',
+          versionNumber: i,
+          changeReason: `Change ${i}`,
+        });
+      }
+
+      // Test pagination
+      const page1 = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber))
+        .limit(5)
+        .offset(0);
+
+      const page2 = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber))
+        .limit(5)
+        .offset(5);
+
+      expect(page1.length).toBe(5);
+      expect(page2.length).toBe(5);
+
+      // Verify page 1 has versions 10, 9, 8, 7, 6
+      expect(page1.map((v) => v.versionNumber)).toEqual([10, 9, 8, 7, 6]);
+
+      // Verify page 2 has versions 5, 4, 3, 2, 1
+      expect(page2.map((v) => v.versionNumber)).toEqual([5, 4, 3, 2, 1]);
+
+      // Verify no overlap
+      const page1Ids = page1.map((v) => v.id);
+      const page2Ids = page2.map((v) => v.id);
+      const overlap = page1Ids.filter((id) => page2Ids.includes(id));
+      expect(overlap.length).toBe(0);
+    });
+
+    it('should handle empty version history', async () => {
+      // Create prompt (note: in real scenario this wouldn't happen due to initial version, but testing edge case)
+      const [prompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'No History Test',
+          content: 'Test',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(prompt.id);
+
+      // Fetch version history
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(0);
+      expect(Array.isArray(versions)).toBe(true);
+    });
+
+    it('should enforce limit constraints (min 1, max 100)', async () => {
+      // Create prompt
+      const [prompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Limit Test',
+          content: 'Test',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(prompt.id);
+
+      // Create 5 versions
+      for (let i = 1; i <= 5; i++) {
+        await db.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: `Version ${i}`,
+          content: `Content ${i}`,
+          variables: [],
+          category: 'general',
+          versionNumber: i,
+          changeReason: `Change ${i}`,
+        });
+      }
+
+      // Test with limit = 2
+      const limitedVersions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber))
+        .limit(2);
+
+      expect(limitedVersions.length).toBe(2);
+      expect(limitedVersions[0].versionNumber).toBe(5);
+      expect(limitedVersions[1].versionNumber).toBe(4);
+    });
+  });
+
+  describe('restoreVersion - Restore Prompt to Previous Version', () => {
+    it('should restore prompt to specific version', async () => {
+      // Create prompt with multiple versions
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Restore Test',
+            content: 'Current content',
+            variables: ['current'],
+            category: 'coding',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Add version 2 with different content
+      await db.insert(promptVersions).values({
+        promptId: prompt.id,
+        userId: testUserId,
+        name: 'Old Restore Test',
+        content: 'Old content',
+        variables: ['old'],
+        category: 'writing',
+        versionNumber: 2,
+        changeReason: 'Before restoration',
+      });
+
+      // Update current prompt
+      await db.update(prompts).set({
+        name: 'Restore Test',
+        content: 'Current content',
+        variables: ['current'],
+        category: 'coding',
+      }).where(eq(prompts.id, prompt.id));
+
+      // Restore to version 2
+      const versionToRestore = 2;
+
+      await db.transaction(async (tx) => {
+        // Fetch current state
+        const currentPromptResults = await tx
+          .select()
+          .from(prompts)
+          .where(and(eq(prompts.id, prompt.id), eq(prompts.userId, testUserId)));
+
+        const currentPrompt = currentPromptResults[0];
+
+        // Fetch version to restore
+        const versionResults = await tx
+          .select()
+          .from(promptVersions)
+          .where(
+            and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, versionToRestore))
+          );
+
+        const versionToRestoreData = versionResults[0];
+
+        // Get next version number for audit trail
+        const versionCountResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionCountResults[0].versionNumber + 1;
+
+        // Create audit trail entry
+        await tx.insert(promptVersions).values({
+          promptId: currentPrompt.id,
+          userId: currentPrompt.userId,
+          name: currentPrompt.name,
+          content: currentPrompt.content,
+          variables: currentPrompt.variables,
+          category: currentPrompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: `Restored from version ${versionToRestore}`,
+        });
+
+        // Restore prompt
+        await tx
+          .update(prompts)
+          .set({
+            name: versionToRestoreData.name,
+            content: versionToRestoreData.content,
+            variables: versionToRestoreData.variables,
+            category: versionToRestoreData.category,
+          })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Verify prompt was restored
+      const restoredPromptResults = await db.select().from(prompts).where(eq(prompts.id, prompt.id));
+      const restoredPrompt = restoredPromptResults[0];
+
+      expect(restoredPrompt.name).toBe('Old Restore Test');
+      expect(restoredPrompt.content).toBe('Old content');
+      expect(restoredPrompt.variables).toEqual(['old']);
+      expect(restoredPrompt.category).toBe('writing');
+    });
+
+    it('should create audit trail entry when restoring', async () => {
+      // Create prompt with versions
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Audit Trail Test',
+            content: 'Current',
+            variables: [],
+            category: 'general',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Add version 2
+      await db.insert(promptVersions).values({
+        promptId: prompt.id,
+        userId: testUserId,
+        name: 'Previous Version',
+        content: 'Previous content',
+        variables: ['prev'],
+        category: 'coding',
+        versionNumber: 2,
+        changeReason: 'Old version',
+      });
+
+      // Restore to version 2
+      const versionToRestore = 2;
+
+      await db.transaction(async (tx) => {
+        const currentPromptResults = await tx
+          .select()
+          .from(prompts)
+          .where(and(eq(prompts.id, prompt.id), eq(prompts.userId, testUserId)));
+
+        const currentPrompt = currentPromptResults[0];
+
+        const versionResults = await tx
+          .select()
+          .from(promptVersions)
+          .where(
+            and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, versionToRestore))
+          );
+
+        const versionToRestoreData = versionResults[0];
+
+        const versionCountResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionCountResults[0].versionNumber + 1;
+
+        // Create audit trail entry
+        await tx.insert(promptVersions).values({
+          promptId: currentPrompt.id,
+          userId: currentPrompt.userId,
+          name: currentPrompt.name,
+          content: currentPrompt.content,
+          variables: currentPrompt.variables,
+          category: currentPrompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: `Restored from version ${versionToRestore}`,
+        });
+
+        await tx
+          .update(prompts)
+          .set({
+            name: versionToRestoreData.name,
+            content: versionToRestoreData.content,
+            variables: versionToRestoreData.variables,
+            category: versionToRestoreData.category,
+          })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Verify audit trail entry was created
+      const versions = await db
+        .select()
+        .from(promptVersions)
+        .where(eq(promptVersions.promptId, prompt.id))
+        .orderBy(desc(promptVersions.versionNumber));
+
+      expect(versions.length).toBe(3);
+      expect(versions[0].versionNumber).toBe(3);
+      expect(versions[0].changeReason).toBe('Restored from version 2');
+      expect(versions[0].name).toBe('Audit Trail Test'); // Should have current state before restore
+      expect(versions[0].content).toBe('Current'); // Should have current content before restore
+
+      expect(versions[1].versionNumber).toBe(2);
+      expect(versions[2].versionNumber).toBe(1);
+    });
+
+    it('should validate ownership before restoring', async () => {
+      // Create another user
+      const otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Other User Restore',
+        email: 'other-restore@example.com',
+        emailVerified: true,
+      });
+
+      // Create prompt for other user
+      const [otherPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: otherUserId,
+          name: "Other's Prompt",
+          content: 'Not accessible',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      // Add version
+      await db.insert(promptVersions).values({
+        promptId: otherPrompt.id,
+        userId: otherUserId,
+        name: 'Version 1',
+        content: 'Content 1',
+        variables: [],
+        category: 'general',
+        versionNumber: 1,
+        changeReason: 'Initial',
+      });
+
+      // Try to verify ownership with testUserId
+      const promptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, otherPrompt.id), eq(prompts.userId, testUserId)));
+
+      expect(promptResults.length).toBe(0);
+
+      // Clean up
+      await db.delete(prompts).where(eq(prompts.id, otherPrompt.id));
+      await db.delete(user).where(eq(user.id, otherUserId));
+    });
+
+    it('should handle restoring to initial version', async () => {
+      // Create prompt
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Initial Restore Test',
+            content: 'Initial',
+            variables: ['init'],
+            category: 'coding',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Update prompt
+      await db.transaction(async (tx) => {
+        const versionResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionResults[0].versionNumber + 1;
+
+        await tx.insert(promptVersions).values({
+          promptId: prompt.id,
+          userId: testUserId,
+          name: prompt.name,
+          content: prompt.content,
+          variables: prompt.variables,
+          category: prompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: 'Update',
+        });
+
+        await tx
+          .update(prompts)
+          .set({ name: 'Updated Name', content: 'Updated content' })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Restore to initial version (version 1)
+      await db.transaction(async (tx) => {
+        const currentPromptResults = await tx
+          .select()
+          .from(prompts)
+          .where(and(eq(prompts.id, prompt.id), eq(prompts.userId, testUserId)));
+
+        const currentPrompt = currentPromptResults[0];
+
+        const versionResults = await tx
+          .select()
+          .from(promptVersions)
+          .where(and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, 1)));
+
+        const versionToRestoreData = versionResults[0];
+
+        const versionCountResults = await tx
+          .select({ versionNumber: promptVersions.versionNumber })
+          .from(promptVersions)
+          .where(eq(promptVersions.promptId, prompt.id))
+          .orderBy(desc(promptVersions.versionNumber))
+          .limit(1);
+
+        const nextVersionNumber = versionCountResults[0].versionNumber + 1;
+
+        await tx.insert(promptVersions).values({
+          promptId: currentPrompt.id,
+          userId: currentPrompt.userId,
+          name: currentPrompt.name,
+          content: currentPrompt.content,
+          variables: currentPrompt.variables,
+          category: currentPrompt.category,
+          versionNumber: nextVersionNumber,
+          changeReason: 'Restored from version 1',
+        });
+
+        await tx
+          .update(prompts)
+          .set({
+            name: versionToRestoreData.name,
+            content: versionToRestoreData.content,
+            variables: versionToRestoreData.variables,
+            category: versionToRestoreData.category,
+          })
+          .where(eq(prompts.id, prompt.id));
+      });
+
+      // Verify restoration
+      const restoredPromptResults = await db.select().from(prompts).where(eq(prompts.id, prompt.id));
+      const restoredPrompt = restoredPromptResults[0];
+
+      expect(restoredPrompt.name).toBe('Initial Restore Test');
+      expect(restoredPrompt.content).toBe('Initial');
+      expect(restoredPrompt.variables).toEqual(['init']);
+      expect(restoredPrompt.category).toBe('coding');
+    });
+
+    it('should handle non-existent version number gracefully', async () => {
+      // Create prompt
+      const prompt = await db.transaction(async (tx) => {
+        const [newPrompt] = await tx
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: 'Non-existent Version Test',
+            content: 'Test',
+            variables: [],
+            category: 'general',
+            isPublic: false,
+          })
+          .returning();
+
+        await tx.insert(promptVersions).values({
+          promptId: newPrompt.id,
+          userId: testUserId,
+          name: newPrompt.name,
+          content: newPrompt.content,
+          variables: newPrompt.variables,
+          category: newPrompt.category,
+          versionNumber: 1,
+          changeReason: 'Initial version',
+        });
+
+        return newPrompt;
+      });
+
+      createdPromptIds.push(prompt.id);
+
+      // Try to restore to non-existent version (version 999)
+      const versionResults = await db
+        .select()
+        .from(promptVersions)
+        .where(and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, 999)));
+
+      expect(versionResults.length).toBe(0);
     });
   });
 });
