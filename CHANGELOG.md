@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.29] - 2026-01-26
+
+### Fixed
+
+- **Prompts Double Sidebar**: Fix duplicate sidebar on prompts page by integrating PromptsCategories into global app-sidebar
+  - Remove local Sidebar.Root wrapper from prompts page
+  - Add prompts handling to app-sidebar (similar to chat/settings)
+  - PromptsCategories now rendered by global app-sidebar instead of page-level
+
+- **Prompts Count Always Zero**: Fix prompt count display showing 0 for all categories
+  - Create prompts store (`apps/web/src/lib/stores/prompts.ts`) for centralized state management
+  - Add `loadCounts()` function to fetch actual counts from API
+  - Update category counts dynamically when prompts are loaded/created/deleted
+  - PromptsCategories and prompts page now share state via Svelte store
+
+### Changed
+
+- **Prompts Architecture**: Refactor prompts to use centralized store pattern
+  - Move state management from page component to dedicated store
+  - PromptsCategories now self-contained with own state and API calls
+  - Prompts page simplified to consume store and render PromptLibrary
+  - Better separation of concerns and reusability
+
 ## [0.0.28] - 2026-01-26
 
 ### Added
