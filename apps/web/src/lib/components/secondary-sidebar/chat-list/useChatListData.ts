@@ -121,11 +121,11 @@ export function useChatListData(): ChatListData {
 
   const availableModels = derived([models, selectedProviders], ([$models, $selectedProviders]) => {
     if ($selectedProviders.length === 0) {
-      return $models.sort((a, b) => a.name.localeCompare(b.name));
+      return [...$models].sort((a, b) => a.name.localeCompare(b.name));
     }
     return $models
       .filter((m) => $selectedProviders.includes(m.provider as Provider))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .toSorted((a, b) => a.name.localeCompare(b.name));
   });
 
   const hasActiveFilters = derived(

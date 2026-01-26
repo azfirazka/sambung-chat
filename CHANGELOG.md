@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.26] - 2026-01-26
 
+### Fixed
+
+- **useChatListData: Fix Mutation in Derived Callback**: Fix availableModels derived store mutating underlying models store ([apps/web/src/lib/components/secondary-sidebar/chat-list/useChatListData.ts:122-129](apps/web/src/lib/components/secondary-sidebar/chat-list/useChatListData.ts:122-129))
+  - Use spread operator `[...$models]` to create array copy before sorting
+  - Use `toSorted()` method instead of `sort()` on filtered array
+  - Ensure derived callbacks remain pure and don't mutate source stores
+
 ### Changed
 
 - **useChatListData: Use Svelte Built-in get**: Replace custom get helper with Svelte's built-in get function ([apps/web/src/lib/components/secondary-sidebar/chat-list/useChatListData.ts](apps/web/src/lib/components/secondary-sidebar/chat-list/useChatListData.ts:6))
   - Import `get` from 'svelte/store' instead of custom implementation
   - Remove custom get helper function (previously at lines 578-584)
   - Use standard Svelte API to avoid potential edge-case divergence
+
+- **CHANGELOG: Remove Duplicate Version Header**: Remove duplicate `## [0.0.25] - 2026-01-25` entry
 
 ## [0.0.25] - 2026-01-26
 
@@ -119,27 +128,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use ```text for directory trees and plain text listings
   - Use ```bash for shell commands
   - Ensures proper syntax highlighting and linter compliance
-
-## [0.0.25] - 2026-01-25
-
-### Changed
-
-- **ChatList Refactoring**: Split monolithic ChatList component (1052+ lines) into smaller, maintainable modules ([apps/web/src/lib/components/secondary-sidebar/chat-list/](apps/web/src/lib/components/secondary-sidebar/chat-list/))
-  - Created ChatListHeader.svelte - Header with title and actions
-  - Created ChatListFilters.svelte - Search and filter controls
-  - Created ChatListFilterDialog.svelte - Advanced filter dialog
-  - Created PinnedChatsSection.svelte - Pinned chats list
-  - Created NoFolderChatsSection.svelte - Uncategorized chats list
-  - Created FolderChatsSection.svelte - Folder-based chat groups
-  - Created FolderItem.svelte - Individual folder item
-  - Created ChatListLoadingState.svelte - Loading state component
-  - Created ChatListErrorState.svelte - Error state component
-  - Created useChatListData.ts - Data fetching composable
-  - Created utils/chat-grouping.ts - Chat grouping utilities
-  - Created types.ts - Shared TypeScript types
-  - Refactored ChatList.svelte to orchestrate components (147 lines)
-  - Improved code maintainability and testability
-  - Type checks passed with 0 errors
 
 ## [0.0.23] - 2026-01-22
 
