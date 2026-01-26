@@ -28,61 +28,17 @@
    */
 </script>
 
-<!--
-  SETTINGS LAYOUT PATTERN
+<!-- SETTINGS LAYOUT PATTERN REFERENCE
 
-  This component documents the standard layout pattern for settings pages.
-  Copy this structure for new settings pages:
+This component documents the standard layout pattern for settings pages.
+For a complete working example, see: apps/web/src/routes/app/settings/appearance/+page.svelte
 
-  1. HEADER SECTION:
-     <header class="bg-background sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b p-4">
-       <SecondarySidebarTrigger class="-ms-1" />
-       <Separator orientation="vertical" class="me-2 data-[orientation=vertical]:h-4" />
-       <Breadcrumb.Root>
-         <Breadcrumb.List>
-           <Breadcrumb.Item>
-             <Breadcrumb.Link href="/app/settings">Settings</Breadcrumb.Link>
-           </Breadcrumb.Item>
-           <Breadcrumb.Separator />
-           <Breadcrumb.Item>
-             <Breadcrumb.Page>Your Page Name</Breadcrumb.Page>
-           </Breadcrumb.Item>
-         </Breadcrumb.List>
-       </Breadcrumb.Root>
-     </header>
-
-  2. MAIN CONTENT SECTION:
-     <div class="flex h-[calc(100vh-61px)]">
-       <main class="flex-1 overflow-auto p-6">
-         <div class="mx-auto max-w-5xl">
-           <div class="mb-8">
-             <h1 class="text-foreground mb-2 text-3xl font-bold">Page Title</h1>
-             <p class="text-muted-foreground">Page description</p>
-           </div>
-
-           <!-- Tabs and content here -->
-
-         </div>
-       </main>
-     </div>
-
-  3. TABS PATTERN:
-     <Tabs bind:value={activeTab}>
-       <TabsList>
-         <TabsTrigger value="tab1">
-           <Icon class="size-4" />
-           <span class="ml-2">Tab 1</span>
-         </TabsTrigger>
-         <!-- More tabs... -->
-       </TabsList>
-
-       <TabsContent value="tab1">
-         <!-- Tab content here -->
-       </TabsContent>
-     </Tabs>
-
-  For a complete working example, see:
-  apps/web/src/routes/app/settings/appearance/+page.svelte
+The pattern consists of:
+- Header with breadcrumb navigation
+- Page title and description
+- Tabbed navigation (Tabs, TabsList, TabsTrigger)
+- Tab content areas (TabsContent)
+- Card-based sections for organization
 -->
 
 <div class="flex items-center justify-center p-12">

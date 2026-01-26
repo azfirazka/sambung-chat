@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { mergeProps as mergeBitsProps } from 'bits-ui';
-	import type { HTMLAttributes, Snippet } from 'svelte/elements';
+	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils';
 
 	type TabsContext = {

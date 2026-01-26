@@ -8,6 +8,7 @@
   import FontFamilySetting from '$lib/components/settings/font-family-setting.svelte';
   import SidebarWidthSetting from '$lib/components/settings/sidebar-width-setting.svelte';
   import MessageDensitySetting from '$lib/components/settings/message-density-setting.svelte';
+  import SettingsPreview from '$lib/components/settings/settings-preview.svelte';
   import PaletteIcon from '@lucide/svelte/icons/palette';
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
@@ -94,6 +95,9 @@
                 <MessageDensitySetting />
               </CardContent>
             </Card>
+
+            <!-- Live Preview Section -->
+            <SettingsPreview />
           </div>
         </TabsContent>
 

@@ -14,12 +14,11 @@ import type {
 	CreateThemeData,
 	UpdateThemeData,
 	ThemeExport,
-	ThemeType,
-	ThemePresetCategory,
 	ThemeValidationResult,
 	ThemePreview,
 	ThemeApplicationSettings,
 } from '../theme';
+import { ThemeType, ThemePresetCategory } from '../theme';
 
 /**
  * Example HSL color values
