@@ -236,7 +236,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: otherUserId,
         name: 'Other User',
-        email: 'other-user@example.com',
+        email: `other-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -644,7 +644,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: otherUserId,
         name: 'Public Template Author',
-        email: 'public-author@example.com',
+        email: `public-author-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -914,7 +914,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: otherUserId,
         name: 'Template Creator',
-        email: 'creator@example.com',
+        email: `creator-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -989,7 +989,7 @@ describe('Prompt Router Tests', () => {
       const publicPrompt = publicPromptResults[0];
 
       // Create first prompt with the same name
-      await db
+      const [existingPrompt] = await db
         .insert(prompts)
         .values({
           userId: testUserId,
@@ -1000,6 +1000,8 @@ describe('Prompt Router Tests', () => {
           isPublic: false,
         })
         .returning();
+
+      createdPromptIds.push(existingPrompt.id);
 
       // Create duplicate - should add (Copy) suffix
       const [duplicatePrompt] = await db
@@ -1292,7 +1294,9 @@ describe('Prompt Router Tests', () => {
         .orderBy(desc(prompts.updatedAt));
 
       expect(userPrompts.length).toBeGreaterThanOrEqual(4);
-      expect(userPrompts.every((p) => p.userId === testUserId || p.userId === undefined));
+      expect(userPrompts.every((p) => p.userId === testUserId || p.userId === undefined)).toBe(
+        true
+      );
     });
 
     it('should export prompts with valid JSON structure', async () => {
@@ -1436,7 +1440,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: newUserId,
         name: 'Empty User',
-        email: 'empty@example.com',
+        email: `empty-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -1546,7 +1550,7 @@ describe('Prompt Router Tests', () => {
     it('should handle duplicate names by adding numeric suffixes', async () => {
       // Create an existing prompt
       const existingName = 'Duplicate Name Test';
-      await db
+      const [existingPrompt] = await db
         .insert(prompts)
         .values({
           userId: testUserId,
@@ -1557,6 +1561,8 @@ describe('Prompt Router Tests', () => {
           isPublic: false,
         })
         .returning();
+
+      createdPromptIds.push(existingPrompt.id);
 
       // Import prompts with duplicate names
       const promptsToImport = [
@@ -1826,7 +1832,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: newUserId,
         name: 'Import User',
-        email: 'import-user@example.com',
+        email: `import-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -1890,7 +1896,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: newUserId,
         name: 'Test User 2',
-        email: 'test2@example.com',
+        email: `test2-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -2360,7 +2366,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: otherUserId,
         name: 'Other User',
-        email: 'other-version-test@example.com',
+        email: `other-version-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 
@@ -2772,7 +2778,7 @@ describe('Prompt Router Tests', () => {
       await db.insert(user).values({
         id: otherUserId,
         name: 'Other User Restore',
-        email: 'other-restore@example.com',
+        email: `other-restore-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
         emailVerified: true,
       });
 

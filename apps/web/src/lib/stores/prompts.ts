@@ -2,6 +2,19 @@ import { writable, get } from 'svelte/store';
 import { orpc } from '$lib/orpc';
 import type { PromptData } from '$lib/components/prompt-library.svelte';
 
+// Type for public template API response
+export interface PublicPromptTemplate {
+  id: string;
+  name: string;
+  content: string;
+  variables: string[];
+  category: string | null;
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  authorName: string | null;
+}
+
 export interface PromptCategory {
   id: string;
   label: string;
@@ -75,7 +88,7 @@ export async function loadPrompts() {
       });
 
       // Transform to include author info
-      const transformedPrompts = (data || []).map((p: any) => ({
+      const transformedPrompts = (data || []).map((p: PublicPromptTemplate) => ({
         id: p.id,
         name: p.name,
         content: p.content,
@@ -85,7 +98,7 @@ export async function loadPrompts() {
         createdAt: new Date(p.createdAt),
         updatedAt: new Date(p.updatedAt),
         author: {
-          id: p.authorId,
+          id: '', // authorId is not returned by getPublicTemplates API
           name: p.authorName || 'Unknown',
         },
       }));

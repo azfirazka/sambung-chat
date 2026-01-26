@@ -7,6 +7,9 @@ import { ORPCError } from '@orpc/server';
 import { protectedProcedure, withCsrfProtection } from '../index';
 import { ulidSchema } from '../utils/validation';
 
+// Constants for name generation safety limits
+const MAX_NAME_ATTEMPTS = 1000;
+
 export const promptRouter = {
   // Get all prompts for current user
   getAll: protectedProcedure.handler(async ({ context }) => {
@@ -24,13 +27,13 @@ export const promptRouter = {
 
     // Count user's prompts
     const myPromptsResult = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql<number>`count(*)::int` })
       .from(prompts)
       .where(eq(prompts.userId, userId));
 
     // Count public prompts (marketplace)
     const publicPromptsResult = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql<number>`count(*)::int` })
       .from(prompts)
       .where(eq(prompts.isPublic, true));
 
@@ -116,6 +119,11 @@ export const promptRouter = {
 
         return prompt;
       } catch (error) {
+        // Rethrow ORPCError as-is to preserve error type and message
+        if (error instanceof ORPCError) {
+          throw error;
+        }
+        // Wrap other errors into INTERNAL_SERVER_ERROR
         throw new ORPCError('INTERNAL_SERVER_ERROR', {
           message: `Failed to create prompt: ${error instanceof Error ? error.message : String(error)}`,
         });
@@ -375,7 +383,9 @@ export const promptRouter = {
           // Already has (Copy) suffix, add number
           let counter = 2;
           let uniqueNameFound = false;
-          while (!uniqueNameFound) {
+
+          // Safety limit to prevent infinite loops (use smaller limit for duplicate)
+          for (let attempt = 0; attempt < 50 && !uniqueNameFound; attempt++) {
             const testName = `${finalName} ${counter}`;
             const nameCheckResults = await db
               .select()
@@ -388,6 +398,11 @@ export const promptRouter = {
             } else {
               counter++;
             }
+          }
+
+          // Fallback: if we still haven't found a unique name, use timestamp suffix
+          if (!uniqueNameFound) {
+            finalName = `${publicPrompt.name} (Copy ${Date.now()}-${crypto.randomUUID().slice(0, 8)})`;
           }
         } else {
           // No (Copy) suffix, add it
@@ -504,7 +519,9 @@ export const promptRouter = {
             if (existingPrompts.length > 0) {
               let counter = 1;
               let uniqueNameFound = false;
-              while (!uniqueNameFound) {
+
+              // Safety limit to prevent infinite loops
+              for (let attempt = 0; attempt < MAX_NAME_ATTEMPTS && !uniqueNameFound; attempt++) {
                 const testName = importedPrompt.name.includes(' (')
                   ? importedPrompt.name.split(' (')[0] + ` (${counter})`
                   : `${importedPrompt.name} (${counter})`;
@@ -520,6 +537,11 @@ export const promptRouter = {
                 } else {
                   counter++;
                 }
+              }
+
+              // Fallback: if we still haven't found a unique name, use timestamp suffix
+              if (!uniqueNameFound) {
+                finalName = `${importedPrompt.name}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
               }
             }
 

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.32] - 2026-01-26
+
+### Fixed
+
+- **PromptsCategories Type Safety**: Fix unsafe type casts and race conditions ([apps/web/src/lib/components/secondary-sidebar/PromptsCategories.svelte](apps/web/src/lib/components/secondary-sidebar/PromptsCategories.svelte))
+  - Remove `as any` cast in handleCategorySelect, add proper CategoryType validation
+  - Add runtime type guard `isValidCategoryType` to ensure type safety
+  - Fix handleSearchInput race condition by awaiting loadPrompts()
+  - Add 300ms debounce to search input to reduce rapid concurrent requests
+
+- **Prompts Store Type Safety**: Fix unsafe `any` type in API response handling ([apps/web/src/lib/stores/prompts.ts](apps/web/src/lib/stores/prompts.ts))
+  - Define `PublicPromptTemplate` interface for proper type safety
+  - Replace `(p: any)` with `(p: PublicPromptTemplate)` in transformation
+  - Add comment explaining authorId is not returned by getPublicTemplates API
+
+- **Prompt Test Cleanup**: Fix test cleanup and pollution issues ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts))
+  - Add missing `.toBe(true)` assertion in export test (line 1295)
+  - Track all created prompts for cleanup: existingPrompt (line 992), duplicatePrompt (line 1007)
+  - Track existing prompt in duplicate name test (line 1551) for proper teardown
+  - Replace all hardcoded emails with unique timestamp-based identifiers
+  - Fix hardcoded emails: other-user, public-author, creator, empty, import-user, test2, other-version-test, other-restore
+
+- **Prompt Router Safety**: Add guards to prevent infinite loops and improve error handling ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Add MAX_NAME_ATTEMPTS constant (1000) for name generation safety
+  - Replace unbounded while loops with for loops in importPrompts (line 512) and duplicateFromPublic (line 383)
+  - Add fallback to timestamp+UUID suffix when max attempts reached
+  - Fix error handling in create to preserve ORPCError instead of wrapping it
+  - Add `::int` cast to COUNT(\*) queries in getCounts for proper type handling
+
 ## [0.0.31] - 2026-01-26
 
 ### Fixed

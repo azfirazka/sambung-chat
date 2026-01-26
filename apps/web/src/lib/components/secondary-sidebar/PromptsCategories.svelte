@@ -8,8 +8,12 @@
     loading,
     loadPrompts,
     loadCounts,
+    type CategoryType,
   } from '$lib/stores/prompts.js';
   import { onMount } from 'svelte';
+
+  // Debounce timer for search input
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   // Load initial data
   onMount(async () => {
@@ -20,12 +24,25 @@
   function handleSearchInput(event: Event) {
     const target = event.target as HTMLInputElement;
     searchQuery.set(target.value);
+
+    // Clear existing timer and set new debounce
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    // Debounce with 300ms to reduce rapid concurrent requests
+    searchDebounceTimer = setTimeout(async () => {
+      await loadPrompts();
+    }, 300);
+  }
+
+  function handleCategorySelect(categoryId: CategoryType) {
+    selectedCategory.set(categoryId);
     loadPrompts();
   }
 
-  function handleCategorySelect(categoryId: string) {
-    selectedCategory.set(categoryId as any);
-    loadPrompts();
+  function isValidCategoryType(value: string): value is CategoryType {
+    return value === 'my-prompts' || value === 'marketplace';
   }
 
   function getCategoryIcon(categoryId: string) {
@@ -65,7 +82,11 @@
           'hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
           isOpen ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
         )}
-        onclick={() => handleCategorySelect(category.id)}
+        onclick={() => {
+          if (isValidCategoryType(category.id)) {
+            handleCategorySelect(category.id);
+          }
+        }}
       >
         <CategoryIcon class="h-4 w-4 flex-shrink-0" />
         <span class="flex-1 text-left">{category.label}</span>
