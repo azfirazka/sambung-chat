@@ -8,7 +8,7 @@
   import {
     renderMarkdownSync,
     initMermaidDiagrams,
-    ensureMarkdownDependencies
+    ensureMarkdownDependencies,
   } from '$lib/markdown-renderer.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
@@ -55,6 +55,8 @@
   let messageTokenData = $state<Map<string, { exactTokens?: number; promptTokens?: number }>>(
     new Map()
   );
+  // Track final token count for messages that just finished streaming
+  let lastStreamingTokenCounts = $state<Map<string, number>>(new Map());
 
   // Custom fetch wrapper to include credentials (cookies) and modelId
   const authenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -262,7 +264,10 @@
         streamingTokenCount = estimateTokens(content);
       }
     } else if (!isStreamingResponse && streamingMessageId) {
-      // Streaming just ended, keep the last token count
+      // Streaming just ended, save the final token count
+      if (streamingMessageId && streamingTokenCount > 0) {
+        lastStreamingTokenCounts.set(streamingMessageId, streamingTokenCount);
+      }
       streamingMessageId = null;
       streamingTokenCount = 0;
       // Initialize Mermaid diagrams after streaming completes
@@ -676,7 +681,17 @@
 
   // Get token data for a message
   function getMessageTokenData(messageId: string) {
-    return messageTokenData.get(messageId);
+    // First try to get exact token data from database
+    const dbData = messageTokenData.get(messageId);
+    if (dbData) {
+      return dbData;
+    }
+    // Fallback to last streaming count (estimated but better than nothing)
+    const streamingCount = lastStreamingTokenCounts.get(messageId);
+    if (streamingCount) {
+      return { exactTokens: streamingCount };
+    }
+    return undefined;
   }
 </script>
 
@@ -774,7 +789,9 @@
               class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base {message.role ===
               'user'
                 ? 'bg-accent text-accent-foreground rounded-tr-sm'
-                : 'bg-muted text-card-foreground rounded-tl-sm'}"
+                : 'bg-muted text-card-foreground rounded-tl-sm'} {isStreamingMessage
+                ? 'border-primary animate-pulse border-2 shadow-lg'
+                : ''}"
             >
               <p
                 class="mb-1.5 text-xs font-medium opacity-70"
@@ -819,10 +836,6 @@
                   {:else}
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized by DOMPurify in markdown-renderer.ts -->
                     {@html renderMarkdownSync(messageText)}
-                    {#if isStreamingMessage && !messageText}
-                      <span class="ml-1 inline-block h-4 w-2 animate-pulse bg-current opacity-50"
-                      ></span>
-                    {/if}
                   {/if}
                 </div>
                 <!-- Token display for assistant messages -->
@@ -922,8 +935,32 @@
               size="icon"
               disabled={!input.trim() || isSubmitting}
               title="Send message"
+              class="relative"
             >
-              <SendIcon class="size-4" />
+              {#if isSubmitting}
+                <svg
+                  class="size-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              {:else}
+                <SendIcon class="size-4" />
+              {/if}
             </Button>
           {/if}
         </div>

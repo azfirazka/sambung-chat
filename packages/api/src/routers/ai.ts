@@ -19,13 +19,13 @@ import { db } from '@sambung-chat/db';
 import { chats, messages } from '@sambung-chat/db/schema/chat';
 import { models } from '@sambung-chat/db/schema/model';
 import { apiKeys } from '@sambung-chat/db/schema/api-key';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { ORPCError, eventIterator } from '@orpc/server';
 import { streamText, generateText } from 'ai';
 import { protectedProcedure } from '../index';
 import { ulidSchema } from '../utils/validation';
-import { createAIProvider, type ProviderConfig } from '../lib/ai-provider-factory';
+import { createAIProvider, type ProviderConfig, type AIProvider } from '../lib/ai-provider-factory';
 import { decrypt } from '../lib/encryption';
 
 /**
@@ -49,14 +49,54 @@ const completionSettingsSchema = z.object({
 });
 
 /**
+ * AI SDK settings type
+ * Matches the settings accepted by generateText and streamText
+ */
+type AISettings = {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+};
+
+/**
+ * Helper function to build AI settings from input
+ * Reduces code duplication between complete and stream handlers
+ *
+ * @param settings - Optional completion settings from input
+ * @returns Partial AISettings object
+ */
+function buildAISettings(settings?: Partial<AISettings>): Partial<AISettings> {
+  if (!settings) return {};
+  return {
+    temperature: settings.temperature,
+    maxTokens: settings.maxTokens,
+    topP: settings.topP,
+    topK: settings.topK,
+    frequencyPenalty: settings.frequencyPenalty,
+    presencePenalty: settings.presencePenalty,
+  };
+}
+
+/**
  * Helper function to get decrypted API key
  *
+ * SECURITY: This function validates both apiKeyId AND userId to prevent
+ * cross-user access vulnerabilities. Users can only access their own API keys.
+ *
  * @param apiKeyId - The API key ID from the database
+ * @param userId - The user ID who owns the API key
  * @returns Decrypted API key
  * @throws {ORPCError} If API key is not found or decryption fails
  */
-async function getDecryptedApiKey(apiKeyId: string): Promise<string> {
-  const apiKeyResults = await db.select().from(apiKeys).where(eq(apiKeys.id, apiKeyId)).limit(1);
+async function getDecryptedApiKey(apiKeyId: string, userId: string): Promise<string> {
+  const apiKeyResults = await db
+    .select()
+    .from(apiKeys)
+    .where(and(eq(apiKeys.id, apiKeyId), eq(apiKeys.userId, userId)))
+    .limit(1);
 
   if (apiKeyResults.length === 0) {
     throw new ORPCError('NOT_FOUND', {
@@ -98,11 +138,12 @@ async function messageExists(
   role: 'user' | 'assistant' | 'system',
   content: string
 ): Promise<boolean> {
+  // Order by createdAt DESC to check the newest message first
   const existingMessages = await db
     .select()
     .from(messages)
     .where(and(eq(messages.chatId, chatId), eq(messages.role, role)))
-    .orderBy(messages.createdAt)
+    .orderBy(desc(messages.createdAt)) // Check newest message first
     .limit(1);
 
   // Check if the most recent message with this role has the same content
@@ -140,14 +181,14 @@ async function getModelConfig(modelId: string, userId: string): Promise<Provider
 
   // Build provider configuration
   const config: ProviderConfig = {
-    provider: model.provider as any,
+    provider: model.provider as AIProvider,
     modelId: model.modelId,
     apiKey: '', // Will be set below
   };
 
   // API key is now required (except for Ollama)
   if (model.apiKeyId) {
-    config.apiKey = await getDecryptedApiKey(model.apiKeyId);
+    config.apiKey = await getDecryptedApiKey(model.apiKeyId, userId);
   } else if (model.provider !== 'ollama') {
     // Ollama doesn't require API key, but other providers do
     throw new ORPCError('BAD_REQUEST', {
@@ -384,33 +425,12 @@ export const aiRouter = {
         const model = createAIProvider(modelConfig);
 
         // Prepare AI SDK settings
-        const aiSettings: any = {};
-
-        if (input.settings) {
-          if (input.settings.temperature !== undefined) {
-            aiSettings.temperature = input.settings.temperature;
-          }
-          if (input.settings.maxTokens !== undefined) {
-            aiSettings.maxTokens = input.settings.maxTokens;
-          }
-          if (input.settings.topP !== undefined) {
-            aiSettings.topP = input.settings.topP;
-          }
-          if (input.settings.topK !== undefined) {
-            aiSettings.topK = input.settings.topK;
-          }
-          if (input.settings.frequencyPenalty !== undefined) {
-            aiSettings.frequencyPenalty = input.settings.frequencyPenalty;
-          }
-          if (input.settings.presencePenalty !== undefined) {
-            aiSettings.presencePenalty = input.settings.presencePenalty;
-          }
-        }
+        const aiSettings = buildAISettings(input.settings);
 
         // Generate completion
         const result = await generateText({
           model,
-          messages: input.messages as any,
+          messages: input.messages,
           ...aiSettings,
         });
 
@@ -531,28 +551,7 @@ export const aiRouter = {
         const model = createAIProvider(modelConfig);
 
         // Prepare AI SDK settings
-        const aiSettings: any = {};
-
-        if (input.settings) {
-          if (input.settings.temperature !== undefined) {
-            aiSettings.temperature = input.settings.temperature;
-          }
-          if (input.settings.maxTokens !== undefined) {
-            aiSettings.maxTokens = input.settings.maxTokens;
-          }
-          if (input.settings.topP !== undefined) {
-            aiSettings.topP = input.settings.topP;
-          }
-          if (input.settings.topK !== undefined) {
-            aiSettings.topK = input.settings.topK;
-          }
-          if (input.settings.frequencyPenalty !== undefined) {
-            aiSettings.frequencyPenalty = input.settings.frequencyPenalty;
-          }
-          if (input.settings.presencePenalty !== undefined) {
-            aiSettings.presencePenalty = input.settings.presencePenalty;
-          }
-        }
+        const aiSettings = buildAISettings(input.settings);
 
         // If chatId is provided, save user message and create placeholder for assistant
         if (input.chatId) {
@@ -596,7 +595,7 @@ export const aiRouter = {
         // Start streaming with AI SDK
         const result = await streamText({
           model,
-          messages: input.messages as any,
+          messages: input.messages,
           ...aiSettings,
         });
 
@@ -642,13 +641,30 @@ export const aiRouter = {
           usage: finalUsage,
         } as const;
       } catch (error) {
-        // Clean up placeholder message if streaming failed
-        if (assistantMessageId && input.chatId && fullText.length === 0) {
+        // Handle cleanup of placeholder message on streaming failure
+        if (assistantMessageId && input.chatId) {
           try {
-            await db.delete(messages).where(eq(messages.id, assistantMessageId));
-          } catch (deleteError) {
+            if (fullText.length > 0) {
+              // Persist partial content if streaming errored after emitting some deltas
+              await db
+                .update(messages)
+                .set({ content: fullText })
+                .where(eq(messages.id, assistantMessageId));
+              // Update chat timestamp to reflect new content
+              await db
+                .update(chats)
+                .set({ updatedAt: new Date() })
+                .where(eq(chats.id, input.chatId));
+              console.error(
+                '[AI Router] Streaming failed after partial content, persisted partial response'
+              );
+            } else {
+              // Delete placeholder if no content was generated
+              await db.delete(messages).where(eq(messages.id, assistantMessageId));
+            }
+          } catch (cleanupError) {
             // Log but don't throw - we still need to yield the error to client
-            console.error('[AI Router] Failed to clean up placeholder message:', deleteError);
+            console.error('[AI Router] Failed to clean up placeholder message:', cleanupError);
           }
         }
 

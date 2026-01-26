@@ -53,6 +53,16 @@ coverage
 test-results
 playwright-report
 
+# Development reports (verification, test results, summaries)
+docs/reports/
+
+# Task completion summaries and build cache files
+*-completion-summary.md
+*-COMPLETION-SUMMARY.md
+build-results.txt
+test-results.txt
+typecheck-results.txt
+
 # Misc
 *.tgz
 .cache

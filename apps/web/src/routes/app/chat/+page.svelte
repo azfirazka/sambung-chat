@@ -470,6 +470,37 @@
       </div>
     {/each}
 
+    <!-- Loading indicator when message is being sent but before AI response starts -->
+    {#if isSubmitting && chat.messages.length > 0}
+      <div in:fade|global={{ duration: 300 }} class="w-full">
+        <div class="flex justify-start">
+          <div class="bg-muted max-w-[85%] rounded-2xl rounded-tl-sm px-4 py-3 shadow-lg">
+            <p class="text-muted-foreground mb-2 text-xs font-medium">AI Assistant</p>
+            <div class="flex items-center gap-2">
+              <div class="space-y-1">
+                <div class="h-3 w-24 animate-pulse rounded bg-current opacity-20"></div>
+                <div
+                  class="h-3 w-48 animate-pulse rounded bg-current opacity-20"
+                  style="animation-delay: 0.1s"
+                ></div>
+              </div>
+              <div class="flex gap-1">
+                <span class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"></span>
+                <span
+                  class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"
+                  style="animation-delay: 0.1s"
+                ></span>
+                <span
+                  class="h-2 w-2 animate-bounce rounded-full bg-current opacity-60"
+                  style="animation-delay: 0.2s"
+                ></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     {#if hasError()}
       <div
         in:fade={{ duration: 300 }}
@@ -611,7 +642,7 @@
         class="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Send message"
       >
-        {#if isRetrying}
+        {#if isSubmitting || isRetrying}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"

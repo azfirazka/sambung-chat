@@ -431,6 +431,10 @@ bun run format           # Prettier
 - Prettier + ESLint (auto-format on save)
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
 - File naming: `kebab-case` files, `PascalCase` components
+- **Fenced code blocks**: Always use language specifiers (e.g., ` ```text `, ` ```typescript `)
+  - Use ` ```text ` for directory trees, file paths, and plain text listings
+  - Use ` ```bash ` for shell commands
+  - This ensures proper syntax highlighting and linter compliance
 
 **TypeScript:**
 
