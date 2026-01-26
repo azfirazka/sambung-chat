@@ -3,7 +3,7 @@ import { orpc } from '$lib/orpc';
 import { exportAllChats, type ChatsByFolder } from '$lib/utils/chat-export';
 import type { Chat, Folder, GroupedChats } from './types.js';
 import { groupChatsByFolder } from './utils/chat-grouping.js';
-import { writable, derived, type Writable, type Readable } from 'svelte/store';
+import { writable, derived, get, type Writable, type Readable } from 'svelte/store';
 
 interface Model {
   id: string;
@@ -573,12 +573,4 @@ export function useChatListData(): ChatListData {
     handleDateChange,
     handleClearAllFilters,
   };
-}
-
-// Helper function to get store values
-function get<T>(store: Readable<T>): T {
-  let value: T;
-  const unsubscribe = store.subscribe((v) => (value = v));
-  unsubscribe();
-  return value!;
 }
