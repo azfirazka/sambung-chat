@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.27] - 2026-01-26
+
+### Added
+
+- **Prompt Templates Version History**: Add complete version tracking system for prompt templates ([packages/db/src/schema/prompt.ts](packages/db/src/schema/prompt.ts), [packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Create prompt_versions database table with version tracking
+  - Automatic version creation on prompt create (version 1) and update (incremental)
+  - getVersionHistory endpoint to view all versions of a prompt
+  - restoreVersion endpoint to restore prompts to previous versions
+  - Change reason tracking for audit trail
+  - Transaction-based operations for data consistency
+  - Support for pagination (limit/offset) in version history
+  - Ownership validation to ensure users can only access their own version history
+
+- **Public Prompt Templates**: Add public prompt browsing and sharing functionality ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - getPublicTemplates endpoint to browse all public prompts from community
+  - Support category filtering for public templates
+  - Support keyword search in name and content
+  - Pagination support (limit/offset)
+  - Author attribution (shows name, not email for privacy)
+  - duplicateFromPublic endpoint to copy public prompts to private collection
+  - Automatic name conflict resolution (adds "(Copy)" or numeric suffixes)
+  - CSRF protected mutations
+
+- **Prompt Import/Export**: Add JSON-based import/export functionality for prompt templates ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - exportPrompts endpoint to export all user's prompts as JSON
+  - Optional category filtering for exports
+  - Optional date range filtering for exports
+  - importPrompts endpoint to import prompts from JSON
+  - Zod schema validation for imported data
+  - Automatic name conflict resolution with numeric suffixes (1), (2), etc.
+  - Transaction-based import (all or nothing)
+  - Returns success count and imported prompts
+  - Compatible with export format for round-trip operations
+
+- **Comprehensive Test Coverage**: Add extensive tests for new prompt template features ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts))
+  - 74 tests passing (65 existing + 9 new version history tests)
+  - Public templates browsing tests (pagination, filtering, search)
+  - Duplicate functionality tests (name conflicts, variables preservation)
+  - Import/export tests (validation, round-trip, data integrity)
+  - Version history tests (creation, increments, restoration)
+  - All edge cases covered (empty results, non-existent versions, ownership)
+
+### Changed
+
+- **Prompt Create/Update**: Enhance prompt create and update procedures with version tracking ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Create procedure now creates initial version entry (versionNumber: 1, changeReason: "Initial version")
+  - Update procedure creates version entry before updating prompt
+  - Automatic versionNumber calculation based on existing versions
+  - Optional changeReason parameter for update operations
+  - Transaction-based operations to ensure data consistency
+
 ## [0.0.26] - 2026-01-26
 
 ### Fixed
