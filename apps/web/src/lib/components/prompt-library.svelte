@@ -29,6 +29,14 @@
   } from '$lib/components/ui/dialog/index.js';
 
   /**
+   * Prompt author info (for marketplace)
+   */
+  export interface PromptAuthor {
+    id: string;
+    name: string;
+  }
+
+  /**
    * Prompt data structure (matches database schema)
    */
   export interface PromptData {
@@ -40,6 +48,7 @@
     isPublic: boolean;
     createdAt: Date | string;
     updatedAt: Date | string;
+    author?: PromptAuthor;
   }
 
   /**
@@ -50,6 +59,8 @@
     prompts: PromptData[];
     /** Whether the list is currently loading */
     loading?: boolean;
+    /** Current view: 'my-prompts' or 'marketplace' */
+    view?: string;
     /** Callback when add button is clicked */
     onadd?: () => void;
     /** Callback when create is submitted */
@@ -79,6 +90,8 @@
     onview?: (id: string) => void;
     /** Callback when copy is clicked */
     oncopy?: (content: string) => void;
+    /** Callback when duplicate is clicked (marketplace only) */
+    onduplicate?: (id: string) => void | Promise<void>;
     /** Whether create/update is in progress */
     submitting?: boolean;
   }
@@ -86,6 +99,7 @@
   let {
     prompts,
     loading = false,
+    view = 'my-prompts',
     onadd,
     oncreate,
     onedit,
@@ -93,6 +107,7 @@
     ondelete,
     onview,
     oncopy,
+    onduplicate,
     submitting = false,
   }: Props = $props();
 
@@ -350,6 +365,11 @@
                 <h4 class="text-foreground text-base leading-tight font-semibold">
                   {prompt.name}
                 </h4>
+                {#if view === 'marketplace' && prompt.author}
+                  <p class="text-muted-foreground text-xs">
+                    by {prompt.author.name}
+                  </p>
+                {/if}
                 <div class="flex items-center gap-2">
                   <span
                     class={getCategoryBadgeColor(prompt.category) +
@@ -376,21 +396,30 @@
                     <EyeIcon class="mr-2 size-4" />
                     View
                   </DropdownMenuItem>
-                  <DropdownMenuItem onclick={() => openEditDialog(prompt)}>
-                    <EditIcon class="mr-2 size-4" />
-                    Edit
-                  </DropdownMenuItem>
+                  {#if view === 'marketplace'}
+                    <!-- Marketplace: Show Duplicate instead of Edit/Delete -->
+                    <DropdownMenuItem onclick={() => onduplicate?.(prompt.id)}>
+                      <CopyIcon class="mr-2 size-4" />
+                      Copy to Library
+                    </DropdownMenuItem>
+                  {:else}
+                    <!-- My Prompts: Show Edit and Delete -->
+                    <DropdownMenuItem onclick={() => openEditDialog(prompt)}>
+                      <EditIcon class="mr-2 size-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onclick={() => handleDelete(prompt.id)}
+                      class="text-destructive focus:text-destructive"
+                    >
+                      <TrashIcon class="mr-2 size-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  {/if}
                   <DropdownMenuItem onclick={() => handleCopy(prompt.content)}>
                     <CopyIcon class="mr-2 size-4" />
                     Copy Content
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onclick={() => handleDelete(prompt.id)}
-                    class="text-destructive focus:text-destructive"
-                  >
-                    <TrashIcon class="mr-2 size-4" />
-                    Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.28] - 2026-01-26
+
+### Added
+
+- **Prompts Marketplace UI**: Add marketplace interface for browsing and copying public prompts ([apps/web/src/routes/app/prompts/+page.svelte](apps/web/src/routes/app/prompts/+page.svelte))
+  - Create PromptsCategories secondary sidebar component with category navigation
+  - Add category-based prompts loading (My Prompts, Marketplace, Shared)
+  - Integrate getPublicTemplates and duplicateFromPublic ORPC endpoints
+  - Add author information display for marketplace prompts
+  - Implement "Copy to Library" functionality for marketplace prompts
+  - Conditional UI: marketplace shows author+copy, my-prompts shows edit+delete
+  - Search functionality integration with category switching
+
+- **PromptLibrary Marketplace Support**: Add marketplace-specific features to prompt library component ([apps/web/src/lib/components/prompt-library.svelte](apps/web/src/lib/components/prompt-library.svelte))
+  - Add PromptAuthor interface for author information
+  - Add view prop to distinguish marketplace vs personal prompts
+  - Add onduplicate callback for copy functionality
+  - Conditional dropdown menu rendering based on view mode
+  - Display author name for marketplace prompts
+  - Switch to "my-prompts" category after successful duplicate
+
 ## [0.0.27] - 2026-01-26
 
 ### Added
