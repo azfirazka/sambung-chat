@@ -636,7 +636,7 @@ describe('Prompt Router Tests', () => {
 
   describe('getPublicTemplates - Public Templates Browsing', () => {
     let otherUserId: string;
-    let publicPromptIds: string[] = [];
+    const publicPromptIds: string[] = [];
 
     beforeAll(async () => {
       // Create another user for testing public prompts from different users
@@ -788,8 +788,7 @@ describe('Prompt Router Tests', () => {
       expect(results.length).toBeGreaterThan(0);
       expect(
         results.every(
-          (r) =>
-            r.name.toLowerCase().includes(query) || r.content.toLowerCase().includes(query)
+          (r) => r.name.toLowerCase().includes(query) || r.content.toLowerCase().includes(query)
         )
       ).toBe(true);
     });
@@ -1325,9 +1324,15 @@ describe('Prompt Router Tests', () => {
         expect(prompt.variables).toBeDefined();
         expect(Array.isArray(prompt.variables)).toBe(true);
         expect(prompt.category).toBeDefined();
-        expect(['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom']).toContain(
-          prompt.category
-        );
+        expect([
+          'general',
+          'coding',
+          'writing',
+          'analysis',
+          'creative',
+          'business',
+          'custom',
+        ]).toContain(prompt.category);
         expect(prompt.isPublic).toBeDefined();
         expect(typeof prompt.isPublic).toBe('boolean');
         expect(prompt.createdAt).toBeDefined();
@@ -1374,9 +1379,7 @@ describe('Prompt Router Tests', () => {
         .orderBy(desc(prompts.updatedAt));
 
       expect(userPrompts.length).toBeGreaterThan(0);
-      expect(
-        userPrompts.every((p) => p.createdAt >= dateFrom && p.createdAt <= dateTo)
-      ).toBe(true);
+      expect(userPrompts.every((p) => p.createdAt >= dateFrom && p.createdAt <= dateTo)).toBe(true);
     });
 
     it('should combine category and date filters', async () => {
@@ -1403,7 +1406,9 @@ describe('Prompt Router Tests', () => {
         .orderBy(desc(prompts.updatedAt));
 
       expect(
-        userPrompts.every((p) => p.category === category && p.createdAt >= dateFrom && p.createdAt <= dateTo)
+        userPrompts.every(
+          (p) => p.category === category && p.createdAt >= dateFrom && p.createdAt <= dateTo
+        )
       ).toBe(true);
     });
 
@@ -1640,7 +1645,15 @@ describe('Prompt Router Tests', () => {
     });
 
     it('should validate enum values for category', () => {
-      const validCategories = ['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom'];
+      const validCategories = [
+        'general',
+        'coding',
+        'writing',
+        'analysis',
+        'creative',
+        'business',
+        'custom',
+      ];
 
       // Test that all valid categories are strings
       validCategories.forEach((category) => {
@@ -1692,7 +1705,15 @@ describe('Prompt Router Tests', () => {
     });
 
     it('should import all prompt categories', async () => {
-      const categories = ['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom'] as const;
+      const categories = [
+        'general',
+        'coding',
+        'writing',
+        'analysis',
+        'creative',
+        'business',
+        'custom',
+      ] as const;
 
       for (const category of categories) {
         const [prompt] = await db
@@ -1862,10 +1883,7 @@ describe('Prompt Router Tests', () => {
       createdPromptIds.push(originalPrompt.id);
 
       // Export
-      const [exported] = await db
-        .select()
-        .from(prompts)
-        .where(eq(prompts.id, originalPrompt.id));
+      const [exported] = await db.select().from(prompts).where(eq(prompts.id, originalPrompt.id));
 
       // Import to new user
       const newUserId = generateULID();
@@ -2551,12 +2569,15 @@ describe('Prompt Router Tests', () => {
       });
 
       // Update current prompt
-      await db.update(prompts).set({
-        name: 'Restore Test',
-        content: 'Current content',
-        variables: ['current'],
-        category: 'coding',
-      }).where(eq(prompts.id, prompt.id));
+      await db
+        .update(prompts)
+        .set({
+          name: 'Restore Test',
+          content: 'Current content',
+          variables: ['current'],
+          category: 'coding',
+        })
+        .where(eq(prompts.id, prompt.id));
 
       // Restore to version 2
       const versionToRestore = 2;
@@ -2575,7 +2596,10 @@ describe('Prompt Router Tests', () => {
           .select()
           .from(promptVersions)
           .where(
-            and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, versionToRestore))
+            and(
+              eq(promptVersions.promptId, prompt.id),
+              eq(promptVersions.versionNumber, versionToRestore)
+            )
           );
 
         const versionToRestoreData = versionResults[0];
@@ -2615,7 +2639,10 @@ describe('Prompt Router Tests', () => {
       });
 
       // Verify prompt was restored
-      const restoredPromptResults = await db.select().from(prompts).where(eq(prompts.id, prompt.id));
+      const restoredPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(eq(prompts.id, prompt.id));
       const restoredPrompt = restoredPromptResults[0];
 
       expect(restoredPrompt.name).toBe('Old Restore Test');
@@ -2682,7 +2709,10 @@ describe('Prompt Router Tests', () => {
           .select()
           .from(promptVersions)
           .where(
-            and(eq(promptVersions.promptId, prompt.id), eq(promptVersions.versionNumber, versionToRestore))
+            and(
+              eq(promptVersions.promptId, prompt.id),
+              eq(promptVersions.versionNumber, versionToRestore)
+            )
           );
 
         const versionToRestoreData = versionResults[0];
@@ -2891,7 +2921,10 @@ describe('Prompt Router Tests', () => {
       });
 
       // Verify restoration
-      const restoredPromptResults = await db.select().from(prompts).where(eq(prompts.id, prompt.id));
+      const restoredPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(eq(prompts.id, prompt.id));
       const restoredPrompt = restoredPromptResults[0];
 
       expect(restoredPrompt.name).toBe('Initial Restore Test');

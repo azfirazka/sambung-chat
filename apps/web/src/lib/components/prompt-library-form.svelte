@@ -87,8 +87,8 @@
   async function handleSubmit() {
     if (!validateForm() || submitting) return;
 
-    // Debug log
-    console.log('[FORM] Submitting formData:', formData);
+    // Debug log - use snapshot to avoid $state proxy warning
+    console.log('[FORM] Submitting formData:', $state.snapshot(formData));
 
     try {
       await onsubmit(formData);
