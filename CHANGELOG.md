@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.31] - 2026-01-26
+
+### Fixed
+
+- **Prompts Count Initial Load**: Fix category counts showing 0 on initial page load
+  - Create dedicated `getCounts` endpoint using SQL COUNT queries for efficient counting
+  - Remove duplicate `loadCounts()` call that was causing double mount issue
+  - Separation of concerns: counts now loaded only via dedicated endpoint, not from `loadPrompts()`
+  - Counts now display immediately on page load without requiring category click
+
+### Changed
+
+- **Prompts API Performance**: Optimize count loading with dedicated endpoint ([packages/api/src/routers/prompt.ts](packages/api/src/routers/prompt.ts))
+  - Add `getCounts` procedure using `sql<count>count(*)</count>` for efficient counting
+  - Returns `{ myPrompts: number, marketplace: number }` without fetching all data
+  - Much faster than fetching all prompts just to count them
+  - Updated prompts store to use new endpoint instead of loading all prompts for counts
+
 ## [0.0.30] - 2026-01-26
 
 ### Changed

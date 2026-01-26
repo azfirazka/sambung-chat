@@ -15,9 +15,8 @@
   import { toast } from 'svelte-sonner';
   import { onMount } from 'svelte';
 
-  // Load initial data
+  // Load initial data - counts are already loaded by PromptsCategories
   onMount(async () => {
-    await loadCounts();
     await loadPrompts();
   });
 

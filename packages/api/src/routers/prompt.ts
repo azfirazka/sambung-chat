@@ -18,6 +18,28 @@ export const promptRouter = {
       .orderBy(desc(prompts.createdAt));
   }),
 
+  // Get counts for prompts (my prompts and marketplace)
+  getCounts: protectedProcedure.handler(async ({ context }) => {
+    const userId = context.session.user.id;
+
+    // Count user's prompts
+    const myPromptsResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(prompts)
+      .where(eq(prompts.userId, userId));
+
+    // Count public prompts (marketplace)
+    const publicPromptsResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(prompts)
+      .where(eq(prompts.isPublic, true));
+
+    return {
+      myPrompts: myPromptsResult[0]?.count || 0,
+      marketplace: publicPromptsResult[0]?.count || 0,
+    };
+  }),
+
   // Get prompt by ID with ownership validation
   getById: protectedProcedure
     .input(z.object({ id: ulidSchema }))

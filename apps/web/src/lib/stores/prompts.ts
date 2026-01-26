@@ -37,6 +37,27 @@ export const categories = writable<PromptCategory[]>([
   },
 ]);
 
+// Load counts only - optimized with dedicated endpoint
+export async function loadCounts() {
+  try {
+    const counts = await orpc.prompt.getCounts();
+
+    categories.update((cats) =>
+      cats.map((cat) => {
+        if (cat.id === 'my-prompts') {
+          return { ...cat, count: counts.myPrompts };
+        }
+        if (cat.id === 'marketplace') {
+          return { ...cat, count: counts.marketplace };
+        }
+        return cat;
+      })
+    );
+  } catch (error) {
+    console.error('Failed to load counts:', error);
+  }
+}
+
 // Load prompts based on current category and search query
 export async function loadPrompts() {
   try {
@@ -70,13 +91,6 @@ export async function loadPrompts() {
       }));
 
       prompts.set(transformedPrompts);
-
-      // Update marketplace count (use actual count from API response)
-      categories.update((cats) =>
-        cats.map((cat) =>
-          cat.id === 'marketplace' ? { ...cat, count: transformedPrompts.length } : cat
-        )
-      );
     } else {
       // Load user's own prompts
       const data = await orpc.prompt.getAll();
@@ -87,43 +101,11 @@ export async function loadPrompts() {
       }));
 
       prompts.set(transformedPrompts);
-
-      // Update my-prompts count
-      categories.update((cats) =>
-        cats.map((cat) =>
-          cat.id === 'my-prompts' ? { ...cat, count: transformedPrompts.length } : cat
-        )
-      );
     }
   } catch (error) {
     console.error('Failed to load prompts:', error);
     throw error;
   } finally {
     loading.set(false);
-  }
-}
-
-// Load initial counts - optimized to fetch both categories in parallel
-export async function loadCounts() {
-  try {
-    // Load counts in parallel for better performance
-    const [myPrompts, marketplacePrompts] = await Promise.all([
-      orpc.prompt.getAll(),
-      orpc.prompt.getPublicTemplates({ limit: 1000, offset: 0 }),
-    ]);
-
-    categories.update((cats) =>
-      cats.map((cat) => {
-        if (cat.id === 'my-prompts') {
-          return { ...cat, count: myPrompts?.length || 0 };
-        }
-        if (cat.id === 'marketplace') {
-          return { ...cat, count: marketplacePrompts?.length || 0 };
-        }
-        return cat;
-      })
-    );
-  } catch (error) {
-    console.error('Failed to load counts:', error);
   }
 }
