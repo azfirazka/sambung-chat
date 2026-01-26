@@ -1,5 +1,5 @@
 import { db } from '@sambung-chat/db';
-import { prompts } from '@sambung-chat/db/schema/prompt';
+import { prompts, promptVersions } from '@sambung-chat/db/schema/prompt';
 import { user } from '@sambung-chat/db/schema/auth';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import z from 'zod';
@@ -53,19 +53,43 @@ export const promptRouter = {
     .handler(async ({ input, context }) => {
       const userId = context.session.user.id;
 
-      const [prompt] = await db
-        .insert(prompts)
-        .values({
-          userId,
-          name: input.name,
-          content: input.content,
-          variables: input.variables,
-          category: input.category,
-          isPublic: input.isPublic,
-        })
-        .returning();
+      // Use transaction to ensure prompt and version are created atomically
+      try {
+        const [prompt] = await db.transaction(async (tx) => {
+          // Create the prompt
+          const [newPrompt] = await tx
+            .insert(prompts)
+            .values({
+              userId,
+              name: input.name,
+              content: input.content,
+              variables: input.variables,
+              category: input.category,
+              isPublic: input.isPublic,
+            })
+            .returning();
 
-      return prompt;
+          // Create initial version entry
+          await tx.insert(promptVersions).values({
+            promptId: newPrompt.id,
+            userId: userId,
+            name: newPrompt.name,
+            content: newPrompt.content,
+            variables: newPrompt.variables,
+            category: newPrompt.category,
+            versionNumber: 1,
+            changeReason: 'Initial version',
+          });
+
+          return newPrompt;
+        });
+
+        return prompt;
+      } catch (error) {
+        throw new ORPCError('INTERNAL_SERVER_ERROR', {
+          message: `Failed to create prompt: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
     }),
 
   // Update prompt
