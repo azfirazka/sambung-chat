@@ -55,9 +55,9 @@ export const promptRouter = {
 
       // Use transaction to ensure prompt and version are created atomically
       try {
-        const [prompt] = await db.transaction(async (tx) => {
+        const prompt = await db.transaction(async (tx) => {
           // Create the prompt
-          const [newPrompt] = await tx
+          const newPromptResults = await tx
             .insert(prompts)
             .values({
               userId,
@@ -69,6 +69,14 @@ export const promptRouter = {
             })
             .returning();
 
+          if (!newPromptResults[0]) {
+            throw new ORPCError('INTERNAL_SERVER_ERROR', {
+              message: 'Failed to create prompt: No prompt returned from insert',
+            });
+          }
+
+          const newPrompt = newPromptResults[0];
+
           // Create initial version entry
           await tx.insert(promptVersions).values({
             promptId: newPrompt.id,
@@ -76,7 +84,7 @@ export const promptRouter = {
             name: newPrompt.name,
             content: newPrompt.content,
             variables: newPrompt.variables,
-            category: newPrompt.category,
+            category: newPrompt.category ?? 'general',
             versionNumber: 1,
             changeReason: 'Initial version',
           });
@@ -114,7 +122,7 @@ export const promptRouter = {
 
       // Use transaction to ensure version entry and prompt update are atomic
       try {
-        const [updatedPrompt] = await db.transaction(async (tx) => {
+        const updatedPrompt = await db.transaction(async (tx) => {
           // Fetch current prompt state before update
           const currentPromptResults = await tx
             .select()
@@ -127,7 +135,7 @@ export const promptRouter = {
             });
           }
 
-          const currentPrompt = currentPromptResults[0];
+          const currentPrompt = currentPromptResults[0]!;
 
           // Get the next version number
           const versionResults = await tx
@@ -137,7 +145,7 @@ export const promptRouter = {
             .orderBy(desc(promptVersions.versionNumber))
             .limit(1);
 
-          const nextVersionNumber = versionResults.length > 0 ? versionResults[0].versionNumber + 1 : 1;
+          const nextVersionNumber = versionResults[0] ? versionResults[0].versionNumber + 1 : 1;
 
           // Create version entry with old values
           await tx.insert(promptVersions).values({
@@ -146,19 +154,15 @@ export const promptRouter = {
             name: currentPrompt.name,
             content: currentPrompt.content,
             variables: currentPrompt.variables,
-            category: currentPrompt.category,
+            category: currentPrompt.category ?? 'general',
             versionNumber: nextVersionNumber,
             changeReason: changeReason || 'Updated prompt',
           });
 
           // Update the prompt with new values
-          const results = await tx
-            .update(prompts)
-            .set(data)
-            .where(eq(prompts.id, id))
-            .returning();
+          const results = await tx.update(prompts).set(data).where(eq(prompts.id, id)).returning();
 
-          return results;
+          return results[0];
         });
 
         return updatedPrompt;
@@ -333,7 +337,7 @@ export const promptRouter = {
         });
       }
 
-      const publicPrompt = publicPromptResults[0];
+      const publicPrompt = publicPromptResults[0]!;
 
       // Check if user already has a prompt with the same name
       const existingPrompts = await db
@@ -498,7 +502,7 @@ export const promptRouter = {
             }
 
             // Create new prompt with current user as owner
-            const [newPrompt] = await tx
+            const newPromptResults = await tx
               .insert(prompts)
               .values({
                 userId,
@@ -510,7 +514,13 @@ export const promptRouter = {
               })
               .returning();
 
-            results.push(newPrompt);
+            if (!newPromptResults[0]) {
+              throw new ORPCError('INTERNAL_SERVER_ERROR', {
+                message: 'Failed to create prompt from import: No prompt returned from insert',
+              });
+            }
+
+            results.push(newPromptResults[0]);
           }
 
           return results;
@@ -590,7 +600,7 @@ export const promptRouter = {
 
       // Use transaction to ensure version entry and prompt update are atomic
       try {
-        const [restoredPrompt] = await db.transaction(async (tx) => {
+        const restoredPrompt = await db.transaction(async (tx) => {
           // Verify prompt ownership and fetch current state
           const currentPromptResults = await tx
             .select()
@@ -603,14 +613,17 @@ export const promptRouter = {
             });
           }
 
-          const currentPrompt = currentPromptResults[0];
+          const currentPrompt = currentPromptResults[0]!;
 
           // Fetch the specific version to restore
           const versionResults = await tx
             .select()
             .from(promptVersions)
             .where(
-              and(eq(promptVersions.promptId, promptId), eq(promptVersions.versionNumber, versionNumber))
+              and(
+                eq(promptVersions.promptId, promptId),
+                eq(promptVersions.versionNumber, versionNumber)
+              )
             );
 
           if (versionResults.length === 0) {
@@ -619,7 +632,7 @@ export const promptRouter = {
             });
           }
 
-          const versionToRestore = versionResults[0];
+          const versionToRestore = versionResults[0]!;
 
           // Get the next version number for the audit trail entry
           const versionCountResults = await tx
@@ -629,8 +642,9 @@ export const promptRouter = {
             .orderBy(desc(promptVersions.versionNumber))
             .limit(1);
 
-          const nextVersionNumber =
-            versionCountResults.length > 0 ? versionCountResults[0].versionNumber + 1 : 1;
+          const nextVersionNumber = versionCountResults[0]
+            ? versionCountResults[0].versionNumber + 1
+            : 1;
 
           // Create version entry with current state before restoring (for audit trail)
           await tx.insert(promptVersions).values({
@@ -639,7 +653,7 @@ export const promptRouter = {
             name: currentPrompt.name,
             content: currentPrompt.content,
             variables: currentPrompt.variables,
-            category: currentPrompt.category,
+            category: currentPrompt.category ?? 'general',
             versionNumber: nextVersionNumber,
             changeReason: `Restored from version ${versionNumber}`,
           });
@@ -656,7 +670,7 @@ export const promptRouter = {
             .where(eq(prompts.id, promptId))
             .returning();
 
-          return results;
+          return results[0];
         });
 
         return restoredPrompt;
