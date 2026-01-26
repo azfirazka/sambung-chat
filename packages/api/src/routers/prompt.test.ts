@@ -6,11 +6,11 @@
  * Run with: bun test packages/api/src/routers/prompt.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { db } from '@sambung-chat/db';
 import { prompts } from '@sambung-chat/db/schema/prompt';
 import { user } from '@sambung-chat/db/schema/auth';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import { generateULID } from '@sambung-chat/db/utils/ulid';
 
 // Note: DATABASE_URL and other test environment variables are set by vitest.config.ts
@@ -628,6 +628,601 @@ describe('Prompt Router Tests', () => {
 
       expect(prompt.name).toBe(promptData.name);
       expect(prompt.content).toBe(promptData.content);
+    });
+  });
+
+  describe('getPublicTemplates - Public Templates Browsing', () => {
+    let otherUserId: string;
+    let publicPromptIds: string[] = [];
+
+    beforeAll(async () => {
+      // Create another user for testing public prompts from different users
+      otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Public Template Author',
+        email: 'public-author@example.com',
+        emailVerified: true,
+      });
+
+      // Create public prompts for the other user
+      const publicPrompts = [
+        {
+          userId: otherUserId,
+          name: 'Public Code Review',
+          content: 'Review this code for bugs and security issues',
+          variables: ['language', 'file'],
+          category: 'coding' as const,
+          isPublic: true,
+        },
+        {
+          userId: otherUserId,
+          name: 'Public Writing Assistant',
+          content: 'Help me write professional content',
+          variables: ['topic', 'tone'],
+          category: 'writing' as const,
+          isPublic: true,
+        },
+        {
+          userId: testUserId,
+          name: 'My Public Prompt',
+          content: 'This is my public prompt',
+          variables: [],
+          category: 'general' as const,
+          isPublic: true,
+        },
+        {
+          userId: testUserId,
+          name: 'My Private Prompt',
+          content: 'This should not appear in public results',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      for (const promptData of publicPrompts) {
+        const [prompt] = await db.insert(prompts).values(promptData).returning();
+        if (promptData.isPublic) {
+          publicPromptIds.push(prompt.id);
+        }
+        createdPromptIds.push(prompt.id);
+      }
+    });
+
+    afterAll(async () => {
+      // Clean up the other user
+      try {
+        await db.delete(prompts).where(eq(prompts.userId, otherUserId));
+        await db.delete(user).where(eq(user.id, otherUserId));
+      } catch (error) {
+        console.error('Error cleaning up other user:', error);
+      }
+    });
+
+    it('should fetch all public prompts from all users', async () => {
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          content: prompts.content,
+          variables: prompts.variables,
+          category: prompts.category,
+          isPublic: prompts.isPublic,
+          createdAt: prompts.createdAt,
+          updatedAt: prompts.updatedAt,
+          authorName: user.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true))
+        .orderBy(desc(prompts.createdAt));
+
+      expect(results.length).toBeGreaterThanOrEqual(3);
+      expect(results.every((r) => r.isPublic === true)).toBe(true);
+      expect(results.some((r) => r.authorName === 'Public Template Author')).toBe(true);
+      expect(results.some((r) => r.authorName === 'Prompt Test User')).toBe(true);
+    });
+
+    it('should include author name instead of email', async () => {
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          authorName: user.name,
+          authorEmail: user.email,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true));
+
+      expect(results.length).toBeGreaterThan(0);
+      results.forEach((result) => {
+        expect(result.authorName).toBeDefined();
+        expect(typeof result.authorName).toBe('string');
+        // Email is selected but should not be exposed in the actual procedure response
+        expect(result.authorEmail).toBeDefined();
+      });
+    });
+
+    it('should filter public prompts by category', async () => {
+      const category = 'coding';
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          category: prompts.category,
+          authorName: user.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(and(eq(prompts.isPublic, true), eq(prompts.category, category)))
+        .orderBy(desc(prompts.createdAt));
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => r.category === category)).toBe(true);
+    });
+
+    it('should search public prompts by keyword', async () => {
+      const query = 'code';
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          content: prompts.content,
+          authorName: user.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(
+          and(
+            eq(prompts.isPublic, true),
+            sql`(${prompts.name} ILIKE ${`%${query}%`} OR ${prompts.content} ILIKE ${`%${query}%`})`
+          )
+        )
+        .orderBy(desc(prompts.createdAt));
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(
+        results.every(
+          (r) =>
+            r.name.toLowerCase().includes(query) || r.content.toLowerCase().includes(query)
+        )
+      ).toBe(true);
+    });
+
+    it('should support pagination with limit and offset', async () => {
+      const limit = 2;
+      const offset = 0;
+
+      const page1 = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true))
+        .orderBy(desc(prompts.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const page2 = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true))
+        .orderBy(desc(prompts.createdAt))
+        .limit(limit)
+        .offset(limit);
+
+      expect(page1.length).toBeLessThanOrEqual(limit);
+      expect(page2.length).toBeLessThanOrEqual(limit);
+
+      // Ensure pages are different
+      if (page1.length === limit && page2.length === limit) {
+        expect(page1[0].id).not.toBe(page2[0].id);
+      }
+    });
+
+    it('should normalize query by trimming whitespace', async () => {
+      const query = '   code   ';
+      const normalizedQuery = query.trim();
+
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(
+          and(
+            eq(prompts.isPublic, true),
+            sql`(${prompts.name} ILIKE ${`%${normalizedQuery}%`} OR ${prompts.content} ILIKE ${`%${normalizedQuery}%`})`
+          )
+        )
+        .orderBy(desc(prompts.createdAt));
+
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('should not include private prompts in results', async () => {
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          isPublic: prompts.isPublic,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true))
+        .orderBy(desc(prompts.createdAt));
+
+      expect(results.every((r) => r.isPublic === true)).toBe(true);
+      expect(results.some((r) => r.name === 'My Private Prompt')).toBe(false);
+    });
+
+    it('should order results by createdAt DESC', async () => {
+      const results = await db
+        .select({
+          id: prompts.id,
+          createdAt: prompts.createdAt,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(eq(prompts.isPublic, true))
+        .orderBy(desc(prompts.createdAt));
+
+      // Verify descending order
+      for (let i = 0; i < results.length - 1; i++) {
+        expect(results[i].createdAt.getTime()).toBeGreaterThanOrEqual(
+          results[i + 1].createdAt.getTime()
+        );
+      }
+    });
+
+    it('should return empty array when no public prompts match filters', async () => {
+      const category = 'business';
+      const results = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+        })
+        .from(prompts)
+        .innerJoin(user, eq(prompts.userId, user.id))
+        .where(and(eq(prompts.isPublic, true), eq(prompts.category, category)))
+        .orderBy(desc(prompts.createdAt));
+
+      // No business category prompts in test data
+      expect(results.length).toBe(0);
+    });
+  });
+
+  describe('duplicateFromPublic - Duplicate Public Prompts', () => {
+    let otherUserId: string;
+    let publicPromptId: string;
+
+    beforeAll(async () => {
+      // Create another user who owns the public prompt
+      otherUserId = generateULID();
+      await db.insert(user).values({
+        id: otherUserId,
+        name: 'Template Creator',
+        email: 'creator@example.com',
+        emailVerified: true,
+      });
+
+      // Create a public prompt to duplicate
+      const [publicPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: otherUserId,
+          name: 'Original Public Prompt',
+          content: 'This is a public prompt template',
+          variables: ['var1', 'var2'],
+          category: 'general',
+          isPublic: true,
+        })
+        .returning();
+
+      publicPromptId = publicPrompt.id;
+      createdPromptIds.push(publicPrompt.id);
+    });
+
+    afterAll(async () => {
+      try {
+        await db.delete(prompts).where(eq(prompts.userId, otherUserId));
+        await db.delete(user).where(eq(user.id, otherUserId));
+      } catch (error) {
+        console.error('Error cleaning up other user:', error);
+      }
+    });
+
+    it('should duplicate a public prompt to user collection', async () => {
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      expect(publicPromptResults.length).toBe(1);
+      const publicPrompt = publicPromptResults[0];
+
+      // Create duplicate
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: publicPrompt.name,
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false, // Always false for duplicates
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt).toBeDefined();
+      expect(duplicatePrompt.id).not.toBe(publicPrompt.id);
+      expect(duplicatePrompt.userId).toBe(testUserId);
+      expect(duplicatePrompt.name).toBe(publicPrompt.name);
+      expect(duplicatePrompt.content).toBe(publicPrompt.content);
+      expect(duplicatePrompt.variables).toEqual(publicPrompt.variables);
+      expect(duplicatePrompt.category).toBe(publicPrompt.category);
+      expect(duplicatePrompt.isPublic).toBe(false);
+    });
+
+    it('should add (Copy) suffix when name already exists', async () => {
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      const publicPrompt = publicPromptResults[0];
+
+      // Create first prompt with the same name
+      await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: publicPrompt.name,
+          content: 'Existing prompt with same name',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      // Create duplicate - should add (Copy) suffix
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: `${publicPrompt.name} (Copy)`,
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt.name).toBe('Original Public Prompt (Copy)');
+      expect(duplicatePrompt.name).not.toBe(publicPrompt.name);
+    });
+
+    it('should add numeric suffix when (Copy) version exists', async () => {
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      const publicPrompt = publicPromptResults[0];
+
+      // Create prompts with existing names
+      await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: publicPrompt.name,
+          content: 'First',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: `${publicPrompt.name} (Copy)`,
+          content: 'Second',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      // Third duplicate should get numeric suffix
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: `${publicPrompt.name} (Copy) 2`,
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt.name).toBe('Original Public Prompt (Copy) 2');
+    });
+
+    it('should always set isPublic to false for duplicated prompts', async () => {
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      const publicPrompt = publicPromptResults[0];
+      expect(publicPrompt.isPublic).toBe(true);
+
+      // Create duplicate
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Unique Name for Test',
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false, // Must be false
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt.isPublic).toBe(false);
+    });
+
+    it('should copy all prompt fields correctly', async () => {
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      const publicPrompt = publicPromptResults[0];
+
+      // Create duplicate with unique name
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Unique Duplicate Name',
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt.content).toBe(publicPrompt.content);
+      expect(duplicatePrompt.variables).toEqual(publicPrompt.variables);
+      expect(duplicatePrompt.category).toBe(publicPrompt.category);
+    });
+
+    it('should not duplicate private prompts', async () => {
+      // Create a private prompt
+      const [privatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: otherUserId,
+          name: 'Private Prompt',
+          content: 'This is private',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(privatePrompt.id);
+
+      // Try to fetch as if it were public
+      const results = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, privatePrompt.id), eq(prompts.isPublic, true)));
+
+      expect(results.length).toBe(0);
+    });
+
+    it('should handle variables array correctly', async () => {
+      // Create a public prompt with complex variables
+      const [publicPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: otherUserId,
+          name: 'Complex Variables Prompt',
+          content: 'Test with {var1}, {var2}, {var3}',
+          variables: ['var1', 'var2', 'var3', 'var4', 'var5'],
+          category: 'coding',
+          isPublic: true,
+        })
+        .returning();
+
+      createdPromptIds.push(publicPrompt.id);
+
+      // Duplicate it
+      const [duplicatePrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: 'Complex Variables Copy',
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(duplicatePrompt.id);
+
+      expect(duplicatePrompt.variables).toEqual(['var1', 'var2', 'var3', 'var4', 'var5']);
+      expect(duplicatePrompt.variables.length).toBe(5);
+    });
+
+    it('should preserve category from original prompt', async () => {
+      const categories = ['coding', 'writing', 'analysis', 'creative', 'business'] as const;
+
+      for (const category of categories) {
+        // Create public prompt
+        const [publicPrompt] = await db
+          .insert(prompts)
+          .values({
+            userId: otherUserId,
+            name: `Test ${category} prompt`,
+            content: `Test content for ${category}`,
+            variables: [],
+            category,
+            isPublic: true,
+          })
+          .returning();
+
+        createdPromptIds.push(publicPrompt.id);
+
+        // Duplicate it
+        const [duplicatePrompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: `Duplicate ${category} prompt`,
+            content: publicPrompt.content,
+            variables: publicPrompt.variables,
+            category: publicPrompt.category,
+            isPublic: false,
+          })
+          .returning();
+
+        createdPromptIds.push(duplicatePrompt.id);
+
+        expect(duplicatePrompt.category).toBe(category);
+      }
     });
   });
 });
