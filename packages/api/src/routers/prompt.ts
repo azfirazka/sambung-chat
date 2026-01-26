@@ -365,4 +365,98 @@ export const promptRouter = {
 
       return userPrompts;
     }),
+
+  // Import prompts from JSON
+  importPrompts: protectedProcedure
+    .use(withCsrfProtection)
+    .input(
+      z.object({
+        prompts: z.array(
+          z.object({
+            id: ulidSchema.optional(), // Optional, will be ignored
+            name: z.string().min(1).max(200),
+            content: z.string().min(1),
+            variables: z.array(z.string()).default([]),
+            category: z
+              .enum(['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom'])
+              .default('general'),
+            isPublic: z.boolean().default(false),
+            createdAt: z.coerce.date().optional(), // Optional, will be ignored
+            updatedAt: z.coerce.date().optional(), // Optional, will be ignored
+          })
+        ),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      const { prompts: promptsToImport } = input;
+
+      // Use transaction for atomicity (all or nothing)
+      try {
+        const createdPrompts = await db.transaction(async (tx) => {
+          const results: Array<typeof prompts.$inferInsert> = [];
+
+          for (const importedPrompt of promptsToImport) {
+            // Check if user already has a prompt with the same name
+            const existingPrompts = await tx
+              .select()
+              .from(prompts)
+              .where(and(eq(prompts.userId, userId), eq(prompts.name, importedPrompt.name)));
+
+            // Generate unique name by adding suffix if needed
+            let finalName = importedPrompt.name;
+            if (existingPrompts.length > 0) {
+              let counter = 1;
+              let uniqueNameFound = false;
+              while (!uniqueNameFound) {
+                const testName = importedPrompt.name.includes(' (')
+                  ? importedPrompt.name.split(' (')[0] + ` (${counter})`
+                  : `${importedPrompt.name} (${counter})`;
+
+                const nameCheckResults = await tx
+                  .select()
+                  .from(prompts)
+                  .where(and(eq(prompts.userId, userId), eq(prompts.name, testName)));
+
+                if (nameCheckResults.length === 0) {
+                  finalName = testName;
+                  uniqueNameFound = true;
+                } else {
+                  counter++;
+                }
+              }
+            }
+
+            // Create new prompt with current user as owner
+            const [newPrompt] = await tx
+              .insert(prompts)
+              .values({
+                userId,
+                name: finalName,
+                content: importedPrompt.content,
+                variables: importedPrompt.variables,
+                category: importedPrompt.category,
+                isPublic: importedPrompt.isPublic,
+              })
+              .returning();
+
+            results.push(newPrompt);
+          }
+
+          return results;
+        });
+
+        // Transaction succeeded
+        return {
+          success: true,
+          importedCount: createdPrompts.length,
+          prompts: createdPrompts,
+        };
+      } catch (error) {
+        // Transaction failed, rollback occurred
+        throw new ORPCError('INTERNAL_SERVER_ERROR', {
+          message: `Failed to import prompts: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+    }),
 };
