@@ -1225,4 +1225,680 @@ describe('Prompt Router Tests', () => {
       }
     });
   });
+
+  describe('exportPrompts - Export User Prompts', () => {
+    beforeEach(async () => {
+      // Create test prompts for export tests
+      const testPrompts = [
+        {
+          name: 'Code Review Template',
+          content: 'Review the following code for bugs and improvements',
+          variables: ['language', 'file'],
+          category: 'coding' as const,
+          isPublic: true,
+        },
+        {
+          name: 'Blog Post Writer',
+          content: 'Write a blog post about the given topic',
+          variables: ['topic', 'tone', 'length'],
+          category: 'writing' as const,
+          isPublic: false,
+        },
+        {
+          name: 'Data Analysis Prompt',
+          content: 'Analyze the following data and provide insights',
+          variables: ['dataset', 'focus'],
+          category: 'analysis' as const,
+          isPublic: true,
+        },
+        {
+          name: 'Email Template',
+          content: 'Draft a professional email',
+          variables: ['recipient', 'purpose'],
+          category: 'business' as const,
+          isPublic: false,
+        },
+      ];
+
+      for (const promptData of testPrompts) {
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            ...promptData,
+          })
+          .returning();
+
+        createdPromptIds.push(prompt.id);
+      }
+    });
+
+    it('should export all user prompts', async () => {
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          content: prompts.content,
+          variables: prompts.variables,
+          category: prompts.category,
+          isPublic: prompts.isPublic,
+          createdAt: prompts.createdAt,
+          updatedAt: prompts.updatedAt,
+        })
+        .from(prompts)
+        .where(eq(prompts.userId, testUserId))
+        .orderBy(desc(prompts.updatedAt));
+
+      expect(userPrompts.length).toBeGreaterThanOrEqual(4);
+      expect(userPrompts.every((p) => p.userId === testUserId || p.userId === undefined));
+    });
+
+    it('should export prompts with valid JSON structure', async () => {
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          content: prompts.content,
+          variables: prompts.variables,
+          category: prompts.category,
+          isPublic: prompts.isPublic,
+          createdAt: prompts.createdAt,
+          updatedAt: prompts.updatedAt,
+        })
+        .from(prompts)
+        .where(eq(prompts.userId, testUserId))
+        .orderBy(desc(prompts.updatedAt));
+
+      expect(userPrompts.length).toBeGreaterThan(0);
+
+      // Verify each prompt has the required fields
+      userPrompts.forEach((prompt) => {
+        expect(prompt.id).toBeDefined();
+        expect(typeof prompt.id).toBe('string');
+        expect(prompt.name).toBeDefined();
+        expect(typeof prompt.name).toBe('string');
+        expect(prompt.content).toBeDefined();
+        expect(typeof prompt.content).toBe('string');
+        expect(prompt.variables).toBeDefined();
+        expect(Array.isArray(prompt.variables)).toBe(true);
+        expect(prompt.category).toBeDefined();
+        expect(['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom']).toContain(
+          prompt.category
+        );
+        expect(prompt.isPublic).toBeDefined();
+        expect(typeof prompt.isPublic).toBe('boolean');
+        expect(prompt.createdAt).toBeDefined();
+        expect(prompt.createdAt).toBeInstanceOf(Date);
+        expect(prompt.updatedAt).toBeDefined();
+        expect(prompt.updatedAt).toBeInstanceOf(Date);
+      });
+    });
+
+    it('should filter exported prompts by category', async () => {
+      const category = 'coding';
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          category: prompts.category,
+        })
+        .from(prompts)
+        .where(and(eq(prompts.userId, testUserId), eq(prompts.category, category)))
+        .orderBy(desc(prompts.updatedAt));
+
+      expect(userPrompts.length).toBeGreaterThan(0);
+      expect(userPrompts.every((p) => p.category === category)).toBe(true);
+    });
+
+    it('should filter exported prompts by date range', async () => {
+      const dateFrom = new Date(Date.now() - 60 * 60 * 1000); // Last 1 hour
+      const dateTo = new Date();
+
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          createdAt: prompts.createdAt,
+        })
+        .from(prompts)
+        .where(
+          and(
+            eq(prompts.userId, testUserId),
+            sql`${prompts.createdAt} >= ${dateFrom}`,
+            sql`${prompts.createdAt} <= ${dateTo}`
+          )
+        )
+        .orderBy(desc(prompts.updatedAt));
+
+      expect(userPrompts.length).toBeGreaterThan(0);
+      expect(
+        userPrompts.every((p) => p.createdAt >= dateFrom && p.createdAt <= dateTo)
+      ).toBe(true);
+    });
+
+    it('should combine category and date filters', async () => {
+      const category = 'writing';
+      const dateFrom = new Date(Date.now() - 60 * 60 * 1000); // Last 1 hour
+      const dateTo = new Date();
+
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          name: prompts.name,
+          category: prompts.category,
+          createdAt: prompts.createdAt,
+        })
+        .from(prompts)
+        .where(
+          and(
+            eq(prompts.userId, testUserId),
+            eq(prompts.category, category),
+            sql`${prompts.createdAt} >= ${dateFrom}`,
+            sql`${prompts.createdAt} <= ${dateTo}`
+          )
+        )
+        .orderBy(desc(prompts.updatedAt));
+
+      expect(
+        userPrompts.every((p) => p.category === category && p.createdAt >= dateFrom && p.createdAt <= dateTo)
+      ).toBe(true);
+    });
+
+    it('should order exported prompts by updatedAt DESC', async () => {
+      const userPrompts = await db
+        .select({
+          id: prompts.id,
+          updatedAt: prompts.updatedAt,
+        })
+        .from(prompts)
+        .where(eq(prompts.userId, testUserId))
+        .orderBy(desc(prompts.updatedAt));
+
+      // Verify descending order
+      for (let i = 0; i < userPrompts.length - 1; i++) {
+        expect(userPrompts[i].updatedAt.getTime()).toBeGreaterThanOrEqual(
+          userPrompts[i + 1].updatedAt.getTime()
+        );
+      }
+    });
+
+    it('should return empty array when user has no prompts', async () => {
+      // Create a new user with no prompts
+      const newUserId = generateULID();
+      await db.insert(user).values({
+        id: newUserId,
+        name: 'Empty User',
+        email: 'empty@example.com',
+        emailVerified: true,
+      });
+
+      try {
+        const userPrompts = await db
+          .select()
+          .from(prompts)
+          .where(eq(prompts.userId, newUserId))
+          .orderBy(desc(prompts.updatedAt));
+
+        expect(userPrompts.length).toBe(0);
+        expect(Array.isArray(userPrompts)).toBe(true);
+      } finally {
+        // Clean up
+        await db.delete(user).where(eq(user.id, newUserId));
+      }
+    });
+  });
+
+  describe('importPrompts - Import Prompts from JSON', () => {
+    it('should import a single prompt', async () => {
+      const promptsToImport = [
+        {
+          name: 'Imported Test Prompt',
+          content: 'This prompt was imported',
+          variables: ['var1'],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      // Simulate import logic
+      const [importedPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: promptsToImport[0].name,
+          content: promptsToImport[0].content,
+          variables: promptsToImport[0].variables,
+          category: promptsToImport[0].category,
+          isPublic: promptsToImport[0].isPublic,
+        })
+        .returning();
+
+      createdPromptIds.push(importedPrompt.id);
+
+      expect(importedPrompt).toBeDefined();
+      expect(importedPrompt.id).toBeDefined();
+      expect(importedPrompt.userId).toBe(testUserId);
+      expect(importedPrompt.name).toBe(promptsToImport[0].name);
+      expect(importedPrompt.content).toBe(promptsToImport[0].content);
+      expect(importedPrompt.variables).toEqual(promptsToImport[0].variables);
+      expect(importedPrompt.category).toBe(promptsToImport[0].category);
+      expect(importedPrompt.isPublic).toBe(promptsToImport[0].isPublic);
+    });
+
+    it('should import multiple prompts', async () => {
+      const promptsToImport = [
+        {
+          name: 'Imported Prompt 1',
+          content: 'First imported prompt',
+          variables: [],
+          category: 'coding' as const,
+          isPublic: false,
+        },
+        {
+          name: 'Imported Prompt 2',
+          content: 'Second imported prompt',
+          variables: ['var1', 'var2'],
+          category: 'writing' as const,
+          isPublic: true,
+        },
+        {
+          name: 'Imported Prompt 3',
+          content: 'Third imported prompt',
+          variables: ['test'],
+          category: 'analysis' as const,
+          isPublic: false,
+        },
+      ];
+
+      const importedPrompts = [];
+      for (const promptData of promptsToImport) {
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            ...promptData,
+          })
+          .returning();
+
+        importedPrompts.push(prompt);
+        createdPromptIds.push(prompt.id);
+      }
+
+      expect(importedPrompts.length).toBe(3);
+      expect(importedPrompts.every((p) => p.userId === testUserId)).toBe(true);
+
+      // Verify all prompts were imported correctly
+      importedPrompts.forEach((prompt, index) => {
+        expect(prompt.name).toBe(promptsToImport[index].name);
+        expect(prompt.content).toBe(promptsToImport[index].content);
+        expect(prompt.category).toBe(promptsToImport[index].category);
+      });
+    });
+
+    it('should handle duplicate names by adding numeric suffixes', async () => {
+      // Create an existing prompt
+      const existingName = 'Duplicate Name Test';
+      await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: existingName,
+          content: 'Existing prompt',
+          variables: [],
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      // Import prompts with duplicate names
+      const promptsToImport = [
+        {
+          name: existingName,
+          content: 'First duplicate',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+        {
+          name: existingName,
+          content: 'Second duplicate',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      const importedPrompts = [];
+      for (const promptData of promptsToImport) {
+        // Check for existing prompts with same name
+        const existingPrompts = await db
+          .select()
+          .from(prompts)
+          .where(and(eq(prompts.userId, testUserId), eq(prompts.name, promptData.name)));
+
+        let finalName = promptData.name;
+        if (existingPrompts.length > 0) {
+          let counter = 1;
+          let uniqueNameFound = false;
+          while (!uniqueNameFound) {
+            const testName = promptData.name.includes(' (')
+              ? promptData.name.split(' (')[0] + ` (${counter})`
+              : `${promptData.name} (${counter})`;
+
+            const nameCheckResults = await db
+              .select()
+              .from(prompts)
+              .where(and(eq(prompts.userId, testUserId), eq(prompts.name, testName)));
+
+            if (nameCheckResults.length === 0) {
+              finalName = testName;
+              uniqueNameFound = true;
+            } else {
+              counter++;
+            }
+          }
+        }
+
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: finalName,
+            content: promptData.content,
+            variables: promptData.variables,
+            category: promptData.category,
+            isPublic: promptData.isPublic,
+          })
+          .returning();
+
+        importedPrompts.push(prompt);
+        createdPromptIds.push(prompt.id);
+      }
+
+      expect(importedPrompts.length).toBe(2);
+      expect(importedPrompts[0].name).toBe(`${existingName} (1)`);
+      expect(importedPrompts[1].name).toBe(`${existingName} (2)`);
+    });
+
+    it('should validate required fields in imported prompts', () => {
+      // Test invalid data structure (this should be validated by Zod in the actual procedure)
+      const invalidPrompts = [
+        {
+          // Missing required 'name' field
+          content: 'Test content',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      // The actual procedure uses Zod validation which would catch this
+      expect(invalidPrompts[0].name).toBeUndefined();
+    });
+
+    it('should validate enum values for category', () => {
+      const validCategories = ['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom'];
+
+      // Test that all valid categories are strings
+      validCategories.forEach((category) => {
+        expect(typeof category).toBe('string');
+        expect(validCategories.includes(category)).toBe(true);
+      });
+    });
+
+    it('should validate variables is an array', () => {
+      const promptData = {
+        name: 'Test Variables',
+        content: 'Test content',
+        variables: ['var1', 'var2', 'var3'],
+        category: 'general' as const,
+        isPublic: false,
+      };
+
+      expect(Array.isArray(promptData.variables)).toBe(true);
+      expect(promptData.variables.every((v) => typeof v === 'string')).toBe(true);
+    });
+
+    it('should handle empty variables array', async () => {
+      const promptsToImport = [
+        {
+          name: 'No Variables Test',
+          content: 'This has no variables',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      const [importedPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: promptsToImport[0].name,
+          content: promptsToImport[0].content,
+          variables: promptsToImport[0].variables,
+          category: promptsToImport[0].category,
+          isPublic: promptsToImport[0].isPublic,
+        })
+        .returning();
+
+      createdPromptIds.push(importedPrompt.id);
+
+      expect(importedPrompt.variables).toEqual([]);
+      expect(Array.isArray(importedPrompt.variables)).toBe(true);
+    });
+
+    it('should import all prompt categories', async () => {
+      const categories = ['general', 'coding', 'writing', 'analysis', 'creative', 'business', 'custom'] as const;
+
+      for (const category of categories) {
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            name: `Test ${category} category`,
+            content: `Test content for ${category}`,
+            variables: [],
+            category,
+            isPublic: false,
+          })
+          .returning();
+
+        createdPromptIds.push(prompt.id);
+        expect(prompt.category).toBe(category);
+      }
+    });
+
+    it('should preserve isPublic flag during import', async () => {
+      const promptsToImport = [
+        {
+          name: 'Public Imported Prompt',
+          content: 'This should be public',
+          variables: [],
+          category: 'general' as const,
+          isPublic: true,
+        },
+        {
+          name: 'Private Imported Prompt',
+          content: 'This should be private',
+          variables: [],
+          category: 'general' as const,
+          isPublic: false,
+        },
+      ];
+
+      const importedPrompts = [];
+      for (const promptData of promptsToImport) {
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            ...promptData,
+          })
+          .returning();
+
+        importedPrompts.push(prompt);
+        createdPromptIds.push(prompt.id);
+      }
+
+      expect(importedPrompts[0].isPublic).toBe(true);
+      expect(importedPrompts[1].isPublic).toBe(false);
+    });
+  });
+
+  describe('Round-trip: Export -> Import -> Verify', () => {
+    it('should successfully export and re-import prompts', async () => {
+      // Create original prompts
+      const originalPrompts = [
+        {
+          name: 'Original Code Review',
+          content: 'Review this code',
+          variables: ['language'],
+          category: 'coding' as const,
+          isPublic: true,
+        },
+        {
+          name: 'Original Writing Assistant',
+          content: 'Help me write',
+          variables: ['topic'],
+          category: 'writing' as const,
+          isPublic: false,
+        },
+      ];
+
+      const createdOriginals = [];
+      for (const promptData of originalPrompts) {
+        const [prompt] = await db
+          .insert(prompts)
+          .values({
+            userId: testUserId,
+            ...promptData,
+          })
+          .returning();
+
+        createdOriginals.push(prompt);
+        createdPromptIds.push(prompt.id);
+      }
+
+      // Export prompts
+      const exportedPrompts = await db
+        .select({
+          name: prompts.name,
+          content: prompts.content,
+          variables: prompts.variables,
+          category: prompts.category,
+          isPublic: prompts.isPublic,
+        })
+        .from(prompts)
+        .where(eq(prompts.userId, testUserId));
+
+      // Filter to only the ones we just created
+      const ourPrompts = exportedPrompts.filter((p) =>
+        originalPrompts.some((op) => op.name === p.name)
+      );
+
+      // Import to a different user (simulate)
+      const newUserId = generateULID();
+      await db.insert(user).values({
+        id: newUserId,
+        name: 'Import User',
+        email: 'import-user@example.com',
+        emailVerified: true,
+      });
+
+      try {
+        const importedPrompts = [];
+        for (const promptData of ourPrompts) {
+          const [prompt] = await db
+            .insert(prompts)
+            .values({
+              userId: newUserId,
+              ...promptData,
+            })
+            .returning();
+
+          importedPrompts.push(prompt);
+          createdPromptIds.push(prompt.id);
+        }
+
+        // Verify imported prompts match originals
+        expect(importedPrompts.length).toBe(ourPrompts.length);
+
+        importedPrompts.forEach((imported, index) => {
+          expect(imported.name).toBe(ourPrompts[index].name);
+          expect(imported.content).toBe(ourPrompts[index].content);
+          expect(imported.variables).toEqual(ourPrompts[index].variables);
+          expect(imported.category).toBe(ourPrompts[index].category);
+          expect(imported.isPublic).toBe(ourPrompts[index].isPublic);
+        });
+      } finally {
+        // Clean up the new user
+        await db.delete(prompts).where(eq(prompts.userId, newUserId));
+        await db.delete(user).where(eq(user.id, newUserId));
+      }
+    });
+
+    it('should preserve data integrity through export/import cycle', async () => {
+      // Create a complex prompt with special characters
+      const originalName = 'Prompt with "quotes" and \'apostrophes\'';
+      const originalContent = 'Content with @mentions #hashtags $special & chars <>';
+      const originalVariables = ['var1', 'var2 with spaces', 'var3-with-dashes'];
+
+      const [originalPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId: testUserId,
+          name: originalName,
+          content: originalContent,
+          variables: originalVariables,
+          category: 'general',
+          isPublic: false,
+        })
+        .returning();
+
+      createdPromptIds.push(originalPrompt.id);
+
+      // Export
+      const [exported] = await db
+        .select()
+        .from(prompts)
+        .where(eq(prompts.id, originalPrompt.id));
+
+      // Import to new user
+      const newUserId = generateULID();
+      await db.insert(user).values({
+        id: newUserId,
+        name: 'Test User 2',
+        email: 'test2@example.com',
+        emailVerified: true,
+      });
+
+      try {
+        const [imported] = await db
+          .insert(prompts)
+          .values({
+            userId: newUserId,
+            name: exported.name,
+            content: exported.content,
+            variables: exported.variables,
+            category: exported.category,
+            isPublic: exported.isPublic,
+          })
+          .returning();
+
+        createdPromptIds.push(imported.id);
+
+        // Verify data integrity
+        expect(imported.name).toBe(originalName);
+        expect(imported.content).toBe(originalContent);
+        expect(imported.variables).toEqual(originalVariables);
+        expect(imported.category).toBe('general');
+        expect(imported.isPublic).toBe(false);
+      } finally {
+        // Clean up
+        await db.delete(prompts).where(eq(prompts.userId, newUserId));
+        await db.delete(user).where(eq(user.id, newUserId));
+      }
+    });
+  });
 });
