@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.27] - 2026-01-26
+
+### Added
+
+- **Appearance Settings Navigation Link**: Add appearance settings link to user menu in navigation rail ([apps/web/src/lib/navigation/nav-rail-menu.config.json:60-66](apps/web/src/lib/navigation/nav-rail-menu.config.json:60-66))
+  - Add "Appearance" menu item between "Settings" and "Toggle Theme"
+  - Configure with Palette icon, path to /app/settings/appearance
+  - Provide easy access to appearance customization options (font size, font family, sidebar width, message density, themes)
+  - Follow existing navigation menu patterns for consistency
+
 ## [0.0.26] - 2026-01-26
 
 ### Fixed
