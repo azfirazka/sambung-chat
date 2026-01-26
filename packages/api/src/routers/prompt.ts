@@ -238,4 +238,80 @@ export const promptRouter = {
 
       return results;
     }),
+
+  // Duplicate a public prompt to user's private collection
+  duplicateFromPublic: protectedProcedure
+    .use(withCsrfProtection)
+    .input(
+      z.object({
+        publicPromptId: ulidSchema,
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const userId = context.session.user.id;
+      const { publicPromptId } = input;
+
+      // Fetch the public prompt
+      const publicPromptResults = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.id, publicPromptId), eq(prompts.isPublic, true)));
+
+      if (publicPromptResults.length === 0) {
+        throw new ORPCError('NOT_FOUND', {
+          message: 'Public prompt not found',
+        });
+      }
+
+      const publicPrompt = publicPromptResults[0];
+
+      // Check if user already has a prompt with the same name
+      const existingPrompts = await db
+        .select()
+        .from(prompts)
+        .where(and(eq(prompts.userId, userId), eq(prompts.name, publicPrompt.name)));
+
+      // Generate unique name by adding (Copy) suffix if needed
+      let finalName = publicPrompt.name;
+      if (existingPrompts.length > 0) {
+        // Check if name already ends with (Copy)
+        if (finalName.endsWith(' (Copy)')) {
+          // Already has (Copy) suffix, add number
+          let counter = 2;
+          let uniqueNameFound = false;
+          while (!uniqueNameFound) {
+            const testName = `${finalName} ${counter}`;
+            const nameCheckResults = await db
+              .select()
+              .from(prompts)
+              .where(and(eq(prompts.userId, userId), eq(prompts.name, testName)));
+
+            if (nameCheckResults.length === 0) {
+              finalName = testName;
+              uniqueNameFound = true;
+            } else {
+              counter++;
+            }
+          }
+        } else {
+          // No (Copy) suffix, add it
+          finalName = `${finalName} (Copy)`;
+        }
+      }
+
+      // Create new prompt with current user as owner
+      const [newPrompt] = await db
+        .insert(prompts)
+        .values({
+          userId,
+          name: finalName,
+          content: publicPrompt.content,
+          variables: publicPrompt.variables,
+          category: publicPrompt.category,
+          isPublic: false, // Always set to false for duplicated prompts
+        })
+        .returning();
+
+      return newPrompt;
+    }),
 };
