@@ -1,19 +1,24 @@
 # SambungChat Development Status
 
-**Last Updated:** January 21, 2026
-**Current Version:** v0.0.18
+**Last Updated:** January 26, 2026
+**Current Version:** v0.0.19
 **Current Phase:** Phase 1 - MVP Foundation
-**Current Week:** 8
-**Overall Progress:** 55% (37/67 tasks completed)
+**Current Week:** 9
+**Overall Progress:** 58% (39/67 tasks completed)
 
 ---
 
 ## 🚀 Active Development
 
-**Current Focus:** Completing chat UI polish and prompt templates system
+**Current Focus:** Completing prompt templates system and chat UI polish
 
-**Recent Progress (v0.0.18):**
+**Recent Progress (v0.0.19):**
 
+- ✅ Prompt templates router with full CRUD
+- ✅ Public prompt browsing and sharing
+- ✅ Prompt import/export (JSON format)
+- ✅ Version history for prompt edits
+- ✅ Prompt restore from previous versions
 - ✅ Query normalization for search (trim whitespace)
 - ✅ Date validation with Zod coercion
 - ✅ Empty array guards for SQL safety
@@ -39,6 +44,10 @@
 - ✅ CSRF protection
 - ✅ Rate limiting
 - ✅ Multi-provider AI integration (OpenAI, Anthropic, Google, Groq, Ollama)
+- ✅ Prompt templates with CRUD operations
+- ✅ Public prompt browsing and sharing
+- ✅ Prompt import/export functionality
+- ✅ Version history for prompt templates
 
 ---
 
@@ -47,9 +56,9 @@
 | Metric          | Value |
 | --------------- | ----- |
 | **Total Tasks** | 67    |
-| **Completed**   | 37    |
-| **In Progress** | 3     |
-| **Pending**     | 27    |
+| **Completed**   | 39    |
+| **In Progress** | 2     |
+| **Pending**     | 26    |
 | **Blocked**     | 0     |
 | **P0 Blockers** | 0     |
 
@@ -102,14 +111,17 @@
 - ✅ Export functionality (JSON, MD, TXT)
 - ⏳ Search UI connection to backend
 
-### Week 9-10: Chat Features & Prompts 🔄 50%
+### Week 9-10: Chat Features & Prompts 🔄 70%
 
 - Chat list, search backend, export - complete
 - ✅ Chat CRUD in frontend
 - ✅ Search backend (with query normalization)
 - ✅ Pin/unpin functionality
 - ⏳ Search UI connection
-- ⏳ Prompt router implementation
+- ✅ Prompt router implementation
+- ✅ Public prompt browsing
+- ✅ Prompt import/export
+- ✅ Version history for prompts
 - ⏳ Prompt library UI
 
 ### Week 11: Settings & API Key UI ✅ 70%
@@ -228,33 +240,34 @@
 
 ## Database Tables
 
-| Table      | Status | Description        |
-| ---------- | ------ | ------------------ |
-| `user`     | ✅     | User accounts      |
-| `session`  | ✅     | User sessions      |
-| `account`  | ✅     | OAuth accounts     |
-| `chats`    | ✅     | Chat sessions      |
-| `messages` | ✅     | Chat messages      |
-| `folders`  | ✅     | Chat folders       |
-| `models`   | ✅     | AI models          |
-| `api_keys` | ✅     | Encrypted API keys |
-| `prompts`  | ✅     | Prompt templates   |
-| `todos`    | ✅     | Todo items (demo)  |
+| Table            | Status | Description                  |
+| --------------- | ------ | ---------------------------- |
+| `user`          | ✅     | User accounts                |
+| `session`       | ✅     | User sessions                |
+| `account`       | ✅     | OAuth accounts               |
+| `chats`         | ✅     | Chat sessions                |
+| `messages`      | ✅     | Chat messages                |
+| `folders`       | ✅     | Chat folders                 |
+| `models`        | ✅     | AI models                    |
+| `api_keys`      | ✅     | Encrypted API keys           |
+| `prompts`       | ✅     | Prompt templates             |
+| `prompt_versions` | ✅     | Prompt template version history |
+| `todos`         | ✅     | Todo items (demo)            |
 
 ---
 
 ## API Endpoints
 
-| Router    | Endpoints                         | Status |
-| --------- | --------------------------------- | ------ |
-| `auth`    | Login, register, logout           | ✅     |
-| `chat`    | CRUD, search, export, pin, folder | ✅     |
-| `message` | Stream, CRUD                      | ✅     |
-| `folder`  | CRUD                              | ✅     |
-| `apiKeys` | CRUD                              | ✅     |
-| `model`   | Get active, list all              | ✅     |
-| `prompt`  | CRUD                              | ⏳     |
-| `ai`      | Stream chat                       | ✅     |
+| Router    | Endpoints                                                         | Status |
+| --------- | ----------------------------------------------------------------- | ------ |
+| `auth`    | Login, register, logout                                           | ✅     |
+| `chat`    | CRUD, search, export, pin, folder                                 | ✅     |
+| `message` | Stream, CRUD                                                      | ✅     |
+| `folder`  | CRUD                                                              | ✅     |
+| `apiKeys` | CRUD                                                              | ✅     |
+| `model`   | Get active, list all                                              | ✅     |
+| `prompt`  | CRUD, search, public browsing, import/export, version history     | ✅     |
+| `ai`      | Stream chat                                                       | ✅     |
 
 ---
 
