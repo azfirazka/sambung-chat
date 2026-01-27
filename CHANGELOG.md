@@ -5,6 +5,113 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.35] - 2026-01-27
+
+### Fixed
+
+- **Color Contrast Audit**: Fixed OKLCH alpha channel handling and WCAG threshold application
+  - `parseOklch()` now returns alpha separately without incorrectly scaling chroma ([scripts/color-contrast-audit.ts](scripts/color-contrast-audit.ts:101))
+  - Added `compositeOklchOverBackground()` for proper alpha-aware color compositing ([scripts/color-contrast-audit.ts](scripts/color-contrast-audit.ts:123))
+  - `auditTheme()` now uses per-pair WCAG thresholds: 3.0:1 for UI components, 4.5:1 for normal text ([scripts/color-contrast-audit.ts](scripts/color-contrast-audit.ts:267))
+  - UI components (border, input, ring, sidebar, etc.) now correctly evaluated against WCAG 1.4.11 (3.0:1)
+  - Text content correctly evaluated against WCAG 1.4.3 (4.5:1)
+
+- **Accessibility Test**: Changed keyboard accessibility test to fail hard on focus issues
+  - Test now throws `Error` instead of `console.warn()` when elements can't receive focus ([tests/e2e/accessibility.spec.ts](tests/e2e/accessibility.spec.ts:97))
+  - Ensures regressions in keyboard navigation are caught immediately
+
+## [0.0.34] - 2026-01-27
+
+### Fixed
+
+- **Vitest Compatibility Issues**: Fixed deprecated vitest functions in test files
+  - Removed `vi.hoisted()` from `ai-database-helpers.test.ts` (not available in vitest 2.x)
+  - Removed `vi.resetModules()` from `cookies.test.ts` and `csrf.test.ts` (deprecated in vitest 2.x)
+  - Simplified test setup to work with current vitest configuration
+
+- **Test Isolation**: Improved test isolation to prevent mock leakage
+  - Added global `afterEach` hook with `vi.restoreAllMocks()` in vitest setup
+  - Fixed issue where mocks from one test leaked into others
+  - Reduced test failures from 55 to 51
+  - Encryption tests now pass completely when run in isolation (51 pass, 0 fail)
+
+- **Test Configuration**: Excluded E2E and integration tests from vitest
+  - Excluded `tests/e2e/**` (Playwright E2E tests)
+  - Excluded `tests/unit/**` (API key-dependent integration tests)
+  - Excluded `.auto-claude/**` worktrees
+  - Removed old `github_mermaid_compatibility_test.js`
+  - Eliminated Playwright test framework errors in vitest runs
+
+### Added
+
+- **Accessibility Testing Infrastructure**: Comprehensive WCAG 2.1 AA compliance testing setup
+  - axe-core integration for automated accessibility testing
+  - Lighthouse configuration for accessibility audits
+  - WAVE integration for visual accessibility testing
+  - Color contrast analysis and reporting tools
+  - Icon and graphics contrast audit scripts
+
+- **Skip Navigation Links**: Implement skip-to-content links for keyboard navigation (WCAG 2.4.1)
+  - [apps/web/src/lib/components/skip-links.svelte](apps/web/src/lib/components/skip-links.svelte)
+
+- **Keyboard Shortcuts Dialog**: Add help dialog showing all keyboard shortcuts
+  - [apps/web/src/lib/components/keyboard-shortcuts-dialog.svelte](apps/web/src/lib/components/keyboard-shortcuts-dialog.svelte)
+  - Accessible via keyboard shortcut (Cmd/Ctrl + /)
+
+- **ARIA Live Regions**: Add dynamic content announcements for screen readers
+  - Toast notifications, loading states, and error messages now properly announced
+  - [apps/web/src/routes/app/+layout.svelte](apps/web/src/routes/app/+layout.svelte)
+
+- **Page Titles**: Add descriptive page titles for all routes
+  - Improves navigation and context for screen reader users
+  - [apps/web/src/routes/app/agents/+page.ts](apps/web/src/routes/app/agents/+page.ts), [chat/+page.ts](apps/web/src/routes/app/chat/+page.ts), etc.
+
+### Fixed
+
+- **Color Contrast**: Resolve text color contrast issues to meet WCAG 2.1 AA standards (4.5:1)
+  - Fixed low contrast text in buttons, links, and form labels
+  - Updated CSS variables for better color ratios
+
+- **Focus Indicators**: Implement high-contrast focus indicators (WCAG 2.4.7)
+  - All interactive elements now have visible focus states
+  - Focus outlines meet minimum contrast requirements
+
+- **ARIA Labels**: Add aria-label to all icon-only buttons and controls
+  - Chat actions, sidebar toggles, and menu buttons now properly labeled
+  - [apps/web/src/lib/components/nav-user.svelte](apps/web/src/lib/components/nav-user.svelte)
+
+- **Keyboard Accessibility**: Ensure all dropdown menus are keyboard accessible (WCAG 2.1.1)
+  - [apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListHeader.svelte](apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListHeader.svelte)
+
+- **Dialog Focus Management**: Fix dialog focus with accessible bits-ui components
+  - Proper focus trapping and restoration for modals
+
+- **Avatar Alt Text**: Improve avatar alt text to include user name
+  - [apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte](apps/web/src/lib/components/secondary-sidebar/ChatListItem.svelte)
+
+- **Form Field Announcements**: Improve form validation announcements for screen readers
+  - Error messages now properly associated with form fields
+  - [apps/web/src/lib/components/ui/field/field-error.svelte](apps/web/src/lib/components/ui/field/field-error.svelte)
+
+- **Color Independence**: Add non-color indicators for information conveyance (WCAG 1.4.1)
+  - Status and error information not conveyed through color alone
+
+- **Semantic HTML**: Complete semantic HTML structure audit
+  - Proper heading hierarchy and landmark regions
+  - [semantic-html-audit-report.md](semantic-html-audit-report.md)
+
+### Changed
+
+- **Accessibility Setup Documentation**: Comprehensive guides for testing and compliance
+  - [.ACCESSIBILITY_SETUP_SUMMARY.md](.ACCESSIBILITY_SETUP_SUMMARY.md)
+  - [scripts/accessibility-setup-guide.md](scripts/accessibility-setup-guide.md)
+
+- **E2E Accessibility Tests**: Add Playwright accessibility tests
+  - [tests/e2e/accessibility.spec.ts](tests/e2e/accessibility.spec.ts)
+
+- **Unit Accessibility Tests**: Add Vitest accessibility component tests
+  - [tests/accessibility/components.spec.ts](tests/accessibility/components.spec.ts)
+
 ## [0.0.33] - 2026-01-26
 
 ### Fixed

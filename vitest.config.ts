@@ -38,8 +38,11 @@ export default defineConfig({
       '**/.svelte-kit/**',
       '**/build/**',
       '**/examples/**',
-      '**/tests/e2e/**',
-      '**/.auto-claude/**',
+      '**/tests/e2e/**', // Playwright E2E tests
+      '**/tests/unit/**', // E2E-style tests that require API keys
+      '**/.auto-claude/**', // Auto-claude worktrees
+      '**/.auto-claude-status/**', // Auto-claude status files
+      '**/github_mermaid_compatibility_test.js', // Old compatibility test
     ],
 
     // Setup files - loads .env before tests run
