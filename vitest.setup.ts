@@ -9,8 +9,9 @@
 
 import { afterEach, vi } from 'vitest';
 
-// Clear all mocks after each test to ensure test isolation
+// Restore all mocks after each test to ensure test isolation
 // This prevents mocks from one test leaking into others
+// Using restoreAllMocks() instead of clearAllMocks() to fully reset mock implementations
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
