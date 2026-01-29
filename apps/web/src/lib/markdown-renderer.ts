@@ -233,6 +233,15 @@ function restoreLatexPlaceholders(
 // Counter for unique mermaid diagram IDs
 let mermaidCounter = 0;
 
+// Cache for mermaid config to avoid recalculating
+let cachedMermaidConfig: ReturnType<typeof getMermaidTheme> | null = null;
+
+// Debounce timer for theme changes
+let themeChangeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Track which diagrams have been rendered to avoid re-rendering
+const renderedDiagrams = new Set<string>();
+
 // Custom renderer for code blocks
 const renderer = new marked.Renderer();
 
@@ -434,6 +443,7 @@ function getMermaidTheme() {
  * Initialize Mermaid diagrams after rendering
  * This should be called after the DOM is updated
  * Note: This will lazy-load Mermaid if not already loaded
+ * OPTIMIZED: Caches config, tracks rendered diagrams, debounces theme changes
  */
 export async function initMermaidDiagrams() {
   const mermaidWindow = getMermaidWindow();
@@ -473,28 +483,39 @@ export async function initMermaidDiagrams() {
 
     // Re-initialize if theme changed
     if (previousTheme !== currentTheme) {
-      // Clear previous initialization
+      // Clear previous initialization and cache
       if (mermaidWindow.mermaidInitialized) {
         await mermaid.initialize({ startOnLoad: false });
         mermaidWindow.mermaidInitialized = false;
+        cachedMermaidConfig = null;
+        renderedDiagrams.clear();
       }
     }
 
     // Initialize mermaid with current theme if not already initialized
     if (!mermaidWindow.mermaidInitialized) {
-      await mermaid.initialize(getMermaidTheme());
+      // Use cached config if available
+      const config = cachedMermaidConfig || getMermaidTheme();
+      cachedMermaidConfig = config;
+
+      await mermaid.initialize(config);
       mermaidWindow.mermaidInitialized = true;
       mermaidWindow.mermaidTheme = currentTheme;
     }
 
-    // Render each diagram individually
+    // Render each diagram individually (skip already rendered)
     const diagramArray = Array.from(diagrams);
     for (const diagram of diagramArray) {
+      const diagramId = diagram.getAttribute('data-mermaid');
+
+      // Skip if already rendered (performance optimization)
+      if (diagramId && renderedDiagrams.has(diagramId)) {
+        continue;
+      }
+
       try {
         const definition = diagram.textContent || '';
-        const id =
-          diagram.getAttribute('data-mermaid') ||
-          `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        const id = diagramId || `mermaid-${Math.random().toString(36).substr(2, 9)}`;
 
         // Create SVG from mermaid definition
         const { svg } = await mermaid.render(id, definition);
@@ -546,6 +567,11 @@ export async function initMermaidDiagrams() {
 
         // Replace the pre element with the sanitized SVG
         diagram.outerHTML = `<div class="flex justify-center items-center p-4 rounded-b-lg bg-muted/30">${sanitizedSvg}</div>`;
+
+        // Mark as rendered
+        if (diagramId) {
+          renderedDiagrams.add(diagramId);
+        }
       } catch (error) {
         // Sanitized logging: only log error type in production, full details in development
         const isDev = import.meta.env?.DEV ?? process.env?.NODE_ENV === 'development';
@@ -568,9 +594,9 @@ export async function initMermaidDiagrams() {
         // Replace entire pre element (not innerHTML) to prevent Mermaid from re-parsing error message
         // Using outerHTML ensures the mermaid class and data-mermaid attribute are removed
         diagram.outerHTML = `
-          <div class="p-4 rounded-b-lg bg-muted/30 border border-red-500/30">
+          <div class="diagram-error">
             <details class="group" open>
-              <summary class="cursor-pointer text-red-500 font-medium flex items-center gap-2 hover:text-red-400">
+              <summary class="cursor-pointer text-destructive font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
@@ -597,6 +623,7 @@ export async function initMermaidDiagrams() {
 /**
  * Force re-render all Mermaid diagrams with current theme
  * Call this when the app theme changes
+ * OPTIMIZED: Clears cache and rendered diagram tracking
  */
 export async function reinitMermaidDiagrams() {
   const mermaidWindow = getMermaidWindow();
@@ -604,6 +631,8 @@ export async function reinitMermaidDiagrams() {
     // Reset initialization state to force re-init with new theme
     mermaidWindow.mermaidInitialized = false;
     mermaidWindow.mermaidTheme = undefined;
+    cachedMermaidConfig = null;
+    renderedDiagrams.clear();
     await initMermaidDiagrams();
   }
 }
@@ -659,6 +688,7 @@ export async function ensureMarkdownDependencies(): Promise<void> {
 /**
  * Setup theme change observer for Mermaid diagrams
  * Automatically re-renders diagrams when the theme changes
+ * OPTIMIZED: Uses debouncing to prevent excessive re-renders
  */
 export function setupMermaidThemeObserver() {
   const mermaidWindow = getMermaidWindow();
@@ -671,7 +701,7 @@ export function setupMermaidThemeObserver() {
   mermaidWindow.mermaidThemeObserverSetup = true;
 
   // Use MutationObserver to watch for class changes on the html element
-  const observer = new MutationObserver(async (mutations) => {
+  const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
         const currentTheme = detectTheme();
@@ -679,15 +709,20 @@ export function setupMermaidThemeObserver() {
 
         // Re-render diagrams only if theme actually changed
         if (previousTheme && previousTheme !== currentTheme) {
-          // Small delay to ensure CSS has been applied
-          setTimeout(async () => {
+          // Clear existing timeout (debounce)
+          if (themeChangeTimeout) {
+            clearTimeout(themeChangeTimeout);
+          }
+
+          // Debounce theme change to prevent excessive re-renders
+          themeChangeTimeout = setTimeout(async () => {
             // Find all rendered Mermaid SVGs
             const svgContainers = document.querySelectorAll('.bg-muted\\/30 svg[id^="mermaid-"]');
 
             if (svgContainers.length > 0) {
               await reinitMermaidDiagrams();
             }
-          }, 50);
+          }, 150); // 150ms debounce delay
         }
       }
     }

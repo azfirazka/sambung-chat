@@ -421,6 +421,152 @@
 }
 
 /* =============================================================================
+   KaTeX & Math Styling
+   ============================================================================= */
+
+/* Base KaTeX styles */
+.prose .katex {
+  @apply text-foreground;
+  font-size: 1em;
+}
+
+/* Inline math */
+.prose .katex-display:not(.katex) {
+  @apply px-1;
+}
+
+/* Display (block) math */
+.prose .katex-display {
+  @apply my-4 overflow-x-auto;
+  padding: 1rem 0;
+}
+
+.prose .katex-display > .katex {
+  @apply text-center;
+}
+
+/* KaTeX elements styling */
+.prose .katex-mathml {
+  @apply hidden;
+}
+
+/* Fraction bars */
+.prose .katex .mfrac .frac-line {
+  @apply border-border;
+}
+
+/* Subscripts and superscripts */
+.prose .katex .msupsub,
+.prose .katex .msub {
+  @apply relative;
+}
+
+/* =============================================================================
+   Mermaid Diagram Styling
+   ============================================================================= */
+
+/* Mermaid diagram containers */
+.prose .mermaid {
+  @apply my-4 overflow-hidden rounded-lg;
+}
+
+.prose .mermaid svg {
+  @apply h-auto max-w-full;
+}
+
+/* Mermaid node styling */
+.prose .mermaid .node rect,
+.prose .mermaid .node circle,
+.prose .mermaid .node ellipse,
+.prose .mermaid .node polygon,
+.prose .mermaid .node path {
+  @apply transition-colors duration-200;
+}
+
+/* Mermaid edges/lines */
+.prose .mermaid .edgePath .path,
+.prose .mermaid .edgeLabel {
+  @apply transition-colors duration-200;
+}
+
+/* Mermaid text labels */
+.prose .mermaid .nodeLabel,
+.prose .mermaid .edgeLabel {
+  @apply text-foreground;
+}
+
+/* Mermaid cluster backgrounds */
+.prose .mermaid .cluster rect {
+  @apply fill-muted/20;
+}
+
+.prose .mermaid .cluster path {
+  @apply stroke-border;
+}
+
+/* =============================================================================
+   Diagram Loading States
+   ============================================================================= */
+
+.mermaid-loading {
+  @apply bg-muted/30 flex items-center justify-center rounded-lg p-8;
+  min-height: 200px;
+}
+
+.mermaid-loading::after {
+  content: '';
+  @apply border-primary block h-8 w-8 animate-spin rounded-full border-4 border-t-transparent;
+}
+
+/* =============================================================================
+   Diagram Error States
+   ============================================================================= */
+
+.diagram-error {
+  @apply bg-destructive/10 border-destructive/30 rounded-lg border p-4;
+}
+
+.diagram-error summary {
+  @apply text-destructive hover:text-destructive/80 flex cursor-pointer items-center gap-2 font-medium transition-colors;
+}
+
+.diagram-error pre {
+  @apply border-border mt-2 overflow-x-auto rounded border bg-black/5 p-3 font-mono text-xs dark:bg-black/30;
+}
+
+/* =============================================================================
+   Responsive Math & Diagrams
+   ============================================================================= */
+
+@media (max-width: 640px) {
+  /* Scale down large formulas on mobile */
+  .prose .katex-display {
+    @apply text-sm;
+  }
+
+  /* Make diagrams scrollable on mobile */
+  .prose .mermaid {
+    @apply overflow-x-auto;
+  }
+}
+
+/* =============================================================================
+   Print Styles for Math & Diagrams
+   ============================================================================= */
+
+@media print {
+  /* Ensure math renders properly in print */
+  .prose .katex-mathml {
+    display: inline-block !important;
+  }
+
+  /* Ensure diagrams are visible in print */
+  .prose .mermaid svg {
+    @apply w-full;
+  }
+}
+
+/* =============================================================================
    Copy Button Success Feedback Animation
    ============================================================================= */
 
