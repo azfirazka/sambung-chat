@@ -72,6 +72,12 @@ function unescapeHtml(text: string): string {
 }
 
 /**
+ * Global flag to track if markdown dependencies are loaded
+ */
+let markdownDependenciesLoaded = false;
+let markdownDependenciesLoading = false;
+
+/**
  * Cache for lazy-loaded KaTeX module
  */
 let cachedKatex: typeof import('katex') | null = null;
@@ -644,6 +650,28 @@ export async function reinitMermaidDiagrams() {
  * @returns Promise that resolves when all dependencies are loaded
  */
 export async function ensureMarkdownDependencies(): Promise<void> {
+  // Prevent concurrent loading
+  if (markdownDependenciesLoaded) {
+    return;
+  }
+
+  if (markdownDependenciesLoading) {
+    // Wait for existing load to complete (poll every 50ms)
+    return new Promise((resolve, reject) => {
+      const checkInterval = setInterval(() => {
+        if (markdownDependenciesLoaded) {
+          clearInterval(checkInterval);
+          resolve();
+        } else if (!markdownDependenciesLoading) {
+          clearInterval(checkInterval);
+          reject(new Error('Markdown dependencies loading failed'));
+        }
+      }, 50);
+    });
+  }
+
+  markdownDependenciesLoading = true;
+
   try {
     // Load KaTeX and CSS if not already loaded
     if (!cachedKatex && !katexLoadInProgress) {
@@ -673,7 +701,11 @@ export async function ensureMarkdownDependencies(): Promise<void> {
     if (mermaidWindow && !mermaidWindow.mermaid) {
       await loadMermaid();
     }
+
+    // Mark as loaded
+    markdownDependenciesLoaded = true;
   } catch (error) {
+    markdownDependenciesLoading = false;
     const isDev = import.meta.env?.DEV ?? process.env?.NODE_ENV === 'development';
     const errorName = error instanceof Error ? error.name : 'UnknownError';
     if (isDev) {
@@ -682,6 +714,8 @@ export async function ensureMarkdownDependencies(): Promise<void> {
       console.error(`Failed to load markdown dependencies: ${errorName}`);
     }
     throw error;
+  } finally {
+    markdownDependenciesLoading = false;
   }
 }
 
@@ -762,6 +796,7 @@ export function renderMarkdownSync(markdown: string): string {
     return DOMPurify.sanitize(html, {
       // Keep all default DOMPurify tags, and add KaTeX/Mermaid specific ones
       ADD_TAGS: [
+        // MathML elements for KaTeX
         'math',
         'semantics',
         'mrow',
@@ -785,9 +820,43 @@ export function renderMarkdownSync(markdown: string): string {
         'mtr',
         'mtd',
         'annotation',
+        'annotation-xml',
         'mglyph',
         'none',
-        'foreignObject', // For Mermaid SVG text content
+        'merror',
+        'mphantom',
+        'mprescripts',
+        'ms',
+        'maligngroup',
+        'malignmark',
+        'mlongdiv',
+        'mscarries',
+        'mscarry',
+        'msgroup',
+        'msline',
+        'msrow',
+        'mspace',
+        'mstack',
+        'msqrt',
+        'mstyle',
+        'msub',
+        'msup',
+        'msubsup',
+        'munder',
+        'mover',
+        'munderover',
+        // SVG and Mermaid elements
+        'svg',
+        'path',
+        'g',
+        'rect',
+        'circle',
+        'text',
+        'line',
+        'polygon',
+        'polyline',
+        'ellipse',
+        'foreignObject',
       ],
       // Add KaTeX specific attributes
       ADD_ATTR: [
@@ -826,11 +895,124 @@ export function renderMarkdownSync(markdown: string): string {
         'alignment-baseline',
         'points',
         'pathLength',
+        // MathML attributes
+        'display',
+        'mode',
+        'scriptlevel',
+        'background',
+        'color',
+        'dir',
+        'fontfamily',
+        'fontsize',
+        'fontstyle',
+        'fontweight',
+        'height',
+        'linebreak',
+        'lspace',
+        'mathbackground',
+        'mathcolor',
+        'mathsize',
+        'mathvariant',
+        'maxsize',
+        'minsize',
+        'rowalign',
+        'rowspacing',
+        'rspace',
+        'width',
+        'columnalign',
+        'columnlines',
+        'columnspacing',
+        'columnwidth',
+        'rowlines',
+        'rowspacing',
+        'align',
+        'shift',
+        'selection',
+        'span',
+        'stretchy',
+        'symmetric',
+        'voffset',
+        'lspace',
+        'rspace',
+        'form',
+        'fence',
+        'separator',
+        'notation',
+        'groupalign',
+        'crossout',
+        'position',
+        'accent',
+        'accentunder',
+        'align',
+        'bevelled',
+        'linethickness',
+        'numalign',
+        'denomalign',
+        'subscriptshift',
+        'superscriptshift',
+        'accent',
+        'accentunder',
+        'align',
+        'dir',
+        'torsion',
+        'width',
+        'height',
+        'depth',
+        'lquote',
+        'rquote',
+        'maxwidth',
+        'minsize',
+        'rspace',
+        'lspace',
+        'definitionURL',
+        'encoding',
+        'cd',
+        'name',
+        'src',
+        'altimg',
+        'altimg-width',
+        'altimg-height',
+        'altimg-valign',
+        'fontfamily',
+        'index',
+        'lowlim',
+        'uplim',
+        'veryverythinmathspace',
+        'verythinmathspace',
+        'thinmathspace',
+        'mediummathspace',
+        'thickmathspace',
+        'verythickmathspace',
+        'veryverythickmathspace',
+        'negativeveryverythinmathspace',
+        'negativeverythinmathspace',
+        'negativethinmathspace',
+        'negativemediummathspace',
+        'negativethickmathspace',
+        'negativeverythickmathspace',
+        'negativeveryverythickmathspace',
+        'maxlabelwidth',
+        'side',
+        'position',
+        'shift',
+        'selection',
+        'span',
+        'stretchy',
+        'symmetric',
+        'voffset',
+        'xlink:href',
+        'xlink:title',
+        'xlink:role',
+        'xlink:type',
+        'xml:space',
+        'xmlns:xlink',
       ],
       // Allow data:* attributes for KaTeX
       ALLOW_DATA_ATTR: true,
       // Allow unknown protocols for data URIs
       ALLOW_UNKNOWN_PROTOCOLS: true,
+      // Allow namespaced attributes (xlink, xml, xmlns)
+      ALLOWED_NAMESPACES: ['http://www.w3.org/1999/xhtml', 'http://www.w3.org/2000/svg'],
     });
   } catch (error) {
     // Sanitized logging: only log error type in production, full details in development
