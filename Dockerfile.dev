@@ -42,6 +42,9 @@ COPY apps/web/package.json ./apps/web/
 # Install dependencies (this layer is heavily cached)
 RUN bun install --frozen-lockfile
 
+# Ensure all transitive dependencies are installed (Bun workspace fix)
+RUN bun install
+
 # =============================================================================
 # Layer 2: Source code (invalidates cache on source changes)
 # =============================================================================
