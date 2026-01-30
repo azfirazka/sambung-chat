@@ -26,10 +26,15 @@ ENV NODE_ENV=production \
 
 # Copy package files
 COPY package.json bun.lockb ./
-COPY packages/package.json ./packages/
+
+# Copy ALL workspace package.json files (Bun needs these for workspaces)
+COPY packages/api/package.json ./packages/api/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/config/package.json ./packages/config/
+COPY packages/db/package.json ./packages/db/
+COPY packages/env/package.json ./packages/env/
 COPY apps/server/package.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
-COPY apps/api/package.json ./apps/api/
 
 # Install ALL dependencies (including devDependencies for build)
 RUN bun install --frozen-lockfile
@@ -42,10 +47,6 @@ COPY scripts ./scripts
 # =============================================================================
 # Build Applications
 # =============================================================================
-# Build API (if needed)
-WORKDIR /app/apps/api
-RUN bun run build
-
 # Build Server
 WORKDIR /app/apps/server
 RUN bun run build
@@ -67,9 +68,14 @@ ENV NODE_ENV=production \
 
 # Copy package files and install ONLY production dependencies
 COPY package.json bun.lockb ./
-COPY packages/package.json ./packages/
+
+# Copy workspace package.json files needed for production
+COPY packages/api/package.json ./packages/api/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/config/package.json ./packages/config/
+COPY packages/db/package.json ./packages/db/
+COPY packages/env/package.json ./packages/env/
 COPY apps/server/package.json ./apps/server/
-COPY apps/api/package.json ./apps/api/
 
 RUN bun install --frozen-lockfile --production
 
@@ -112,9 +118,14 @@ ENV NODE_ENV=production \
 
 # Copy package files and install ONLY production dependencies
 COPY package.json bun.lockb ./
-COPY packages/package.json ./packages/
+
+# Copy workspace package.json files needed for production
+COPY packages/api/package.json ./packages/api/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/config/package.json ./packages/config/
+COPY packages/db/package.json ./packages/db/
+COPY packages/env/package.json ./packages/env/
 COPY apps/web/package.json ./apps/web/
-COPY apps/api/package.json ./apps/api/
 
 RUN bun install --frozen-lockfile --production
 
