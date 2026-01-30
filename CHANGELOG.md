@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cleaned up debug logging in `authenticatedFetch` function
   - Improved production code quality (addresses code review feedback)
 
+- **Accessibility Improvements**: Fixed missing label associations in filter dialog
+  - Changed `<label>` to `<span>` with `aria-labelledby` for dropdown triggers ([apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListFilterDialog.svelte](apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListFilterDialog.svelte:84-143))
+  - Added proper `id` and `aria-label` attributes to date inputs ([apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListFilterDialog.svelte](apps/web/src/lib/components/secondary-sidebar/chat-list/ChatListFilterDialog.svelte:187-221))
+  - Added `role="group"` for date range container with proper labeling
+
+- **Accessibility Scripts**: Made URLs configurable in audit scripts
+  - Added `AUDIT_BASE_URL` environment variable for configurable base URL ([scripts/run-accessibility-audit.ts](scripts/run-accessibility-audit.ts:67))
+  - Added `AUDIT_PAGES` environment variable for customizable page list ([scripts/run-accessibility-audit.ts](scripts/run-accessibility-audit.ts:80-82))
+  - Replaced hardcoded localhost URLs with environment variable references
+
 - **Chat Page Duplication Bug**: Removed duplicate message rendering code that was causing file corruption
   - Fixed lines 930-1029 which were duplicating the message rendering logic ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:924-975))
 
