@@ -948,6 +948,29 @@
       </div>
     {/if}
 
+    <!-- Loading skeleton when waiting for AI response -->
+    {#if isSubmitting && messages.length > 0 && messages[messages.length - 1].role === 'user'}
+      <div class="mx-auto mt-6 max-w-3xl">
+        <div class="flex justify-start">
+          <MessageBubble
+            role="assistant"
+            streaming={true}
+            class="!border-0 !bg-transparent px-4 py-3 !shadow-none"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-muted-foreground animate-pulse">●</span>
+              <span class="text-muted-foreground animate-pulse" style="animation-delay: 0.2s"
+                >●</span
+              >
+              <span class="text-muted-foreground animate-pulse" style="animation-delay: 0.4s"
+                >●</span
+              >
+            </div>
+          </MessageBubble>
+        </div>
+      </div>
+    {/if}
+
     {#if errorMessage}
       <!-- ARIA live region for error announcements -->
       <!-- aria-live="assertive" immediately announces important errors -->

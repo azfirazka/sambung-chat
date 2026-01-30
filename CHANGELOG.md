@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.39] - 2026-01-30
+
+### Fixed
+
+- **Chat Loading State**: Added visual loading skeleton when waiting for AI response generation
+  - Shows minimal animated pulsing dots indicator without border or background ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:951-968))
+  - Resolves issue where users had no visual feedback during AI response generation
+  - Skeleton appears between user message submission and assistant message creation with proper `mt-6` spacing
+
+- **Chat Page Duplication Bug**: Removed duplicate message rendering code that was causing file corruption
+  - Fixed lines 930-1029 which were duplicating the message rendering logic ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:924-975))
+
+- **API URL Configuration**: Fixed incorrect fallback URL for backend API calls
+  - Changed `BACKEND_API_URL` fallback from `localhost:5174` (frontend port) to `localhost:3000` (server port) ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:35))
+  - Added `PUBLIC_API_URL` to `.env.example` for explicit configuration ([apps/web/.env.example](apps/web/.env.example:5))
+
+### Changed
+
+- **AI Request Logging**: Enhanced logging for debugging AI response issues
+  - Added immediate logging at AI endpoint entry to track request reception ([apps/server/src/index.ts](apps/server/src/index.ts:232-240))
+  - Added comprehensive logging in frontend `handleSubmit` and `authenticatedFetch` for request/response tracking ([apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:69-99), [apps/web/src/routes/app/chat/[id]/+page.svelte](apps/web/src/routes/app/chat/[id]/+page.svelte:404-438))
+
 ## [0.0.38] - 2026-01-30
 
 ### Changed
