@@ -8,6 +8,7 @@
   import CommandIcon from '@lucide/svelte/icons/command';
   import ChatList from './secondary-sidebar/ChatList.svelte';
   import SettingsNav from './secondary-sidebar/SettingsNav.svelte';
+  import PromptsCategories from './secondary-sidebar/PromptsCategories.svelte';
   import { secondarySidebarStore } from '$lib/stores/secondary-sidebar.js';
 
   // Load nav config from JSON
@@ -110,7 +111,7 @@
 </script>
 
 <!-- Flex container for dual sidebar layout -->
-<div class="flex overflow-hidden" {...restProps}>
+<div id="navigation" class="flex overflow-hidden" {...restProps}>
   <!-- Navigation Rail (64px) -->
   <Sidebar.Root collapsible="none" class="!w-[calc(var(--sidebar-width-icon)_+_1px)] border-e">
     <Sidebar.Header>
@@ -176,6 +177,9 @@
       {#if activeNavId() === 'chat'}
         <!-- Render ChatList component for chat context -->
         <ChatList currentChatId={extractChatIdFromPath($page.url.pathname)} />
+      {:else if activeNavId() === 'prompts'}
+        <!-- Render PromptsCategories component for prompts context -->
+        <PromptsCategories />
       {:else if activeNavId() === 'settings'}
         <!-- Render SettingsNav component for settings context -->
         <SettingsNav />

@@ -168,14 +168,6 @@
           "icon": "Store",
           "defaultOpen": false,
           "emptyMessage": "No prompts available in marketplace"
-        },
-        {
-          "id": "shared",
-          "label": "Shared with me",
-          "type": "shared",
-          "icon": "Users",
-          "defaultOpen": false,
-          "emptyMessage": "No prompts shared with you"
         }
       ],
       "search": {

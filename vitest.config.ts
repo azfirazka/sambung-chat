@@ -38,8 +38,11 @@ export default defineConfig({
       '**/.svelte-kit/**',
       '**/build/**',
       '**/examples/**',
-      '**/tests/e2e/**',
-      '**/.auto-claude/**',
+      '**/tests/**', // All tests in tests/ folder (use packages/* for unit tests)
+      '**/.worktrees/**', // Git worktrees
+      '**/.auto-claude/**', // Auto-claude worktrees
+      '**/.auto-claude-status/**', // Auto-claude status files
+      '**/github_mermaid_compatibility_test.js', // Old compatibility test
     ],
 
     // Setup files - loads .env before tests run

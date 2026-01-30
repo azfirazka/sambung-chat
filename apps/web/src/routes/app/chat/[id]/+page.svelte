@@ -27,10 +27,12 @@
   import ErrorDisplay from '$lib/components/error-display.svelte';
   import SecondarySidebarTrigger from '$lib/components/secondary-sidebar-trigger.svelte';
   import ChatSkeleton from '$lib/components/chat/chat-skeleton.svelte';
+  import MessageBubble from '$lib/components/chat/message-bubble.svelte';
+  import ViewModeToggle from '$lib/components/chat/view-mode-toggle.svelte';
 
   // Get backend API URL for AI endpoint
   // Use PUBLIC_API_URL (client-side environment variable)
-  const BACKEND_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:5174';
+  const BACKEND_API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
   let input = $state('');
   let errorMessage = $state('');
@@ -68,7 +70,7 @@
       // This ensures chats always use the current active model, not outdated modelId
       delete body.modelId;
 
-      return fetch(input, {
+      const fetchPromise = fetch(input, {
         ...init,
         credentials: 'include',
         headers: {
@@ -77,6 +79,8 @@
         },
         body: JSON.stringify(body),
       });
+
+      return fetchPromise;
     }
 
     return fetch(input, {
@@ -461,7 +465,6 @@
         }
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
       const errorObj = error instanceof Error ? error : new Error('Failed to send message');
 
       if (errorObj.name === 'AbortError') {
@@ -550,7 +553,7 @@
             }
           }
         } catch (retryError) {
-          console.error('Retry failed:', retryError);
+          // Retry failed silently
         } finally {
           isRetrying = false;
         }
@@ -731,34 +734,45 @@
         </div>
       </div>
       <div class="flex gap-2">
-        <DropdownMenu.DropdownMenu>
-          <DropdownMenu.DropdownMenuTrigger
+        <ViewModeToggle />
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
             class="bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
             title="Export chat"
+            aria-label="Export chat"
           >
             <DownloadIcon class="size-4" />
-          </DropdownMenu.DropdownMenuTrigger>
-          <DropdownMenu.DropdownMenuContent>
-            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('md')}>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content>
+            <DropdownMenu.Item onclick={() => handleExport('md')}>
               <CodeIcon class="mr-2 size-4" />
               <span>Markdown</span>
-            </DropdownMenu.DropdownMenuItem>
-            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('json')}>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item onclick={() => handleExport('json')}>
               <FileJsonIcon class="mr-2 size-4" />
               <span>JSON</span>
-            </DropdownMenu.DropdownMenuItem>
-            <DropdownMenu.DropdownMenuItem onclick={() => handleExport('txt')}>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item onclick={() => handleExport('txt')}>
               <FileTextIcon class="mr-2 size-4" />
               <span>Plain Text</span>
-            </DropdownMenu.DropdownMenuItem>
-          </DropdownMenu.DropdownMenuContent>
-        </DropdownMenu.DropdownMenu>
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </div>
     </div>
   </div>
 
   <!-- Messages Area -->
-  <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-6 py-4">
+  <!-- ARIA live region for screen reader announcements of new messages -->
+  <!-- aria-live="polite" waits for user to finish speaking before announcing -->
+  <!-- aria-atomic="false" announces only the new message, not entire container -->
+  <div
+    bind:this={messagesContainer}
+    class="flex-1 overflow-y-auto px-6 py-4"
+    role="log"
+    aria-live="polite"
+    aria-atomic="false"
+  >
     {#if loading}
       <div class="flex h-full items-center justify-center">
         <div class="w-full max-w-3xl">
@@ -785,14 +799,7 @@
             (message.parts?.find((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
               ?.text as string) || ''}
           <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
-            <div
-              class="group max-w-[85%] rounded-2xl px-4 py-3 text-sm transition-all duration-200 hover:shadow-lg md:text-base {message.role ===
-              'user'
-                ? 'bg-accent text-accent-foreground rounded-tr-sm'
-                : 'bg-muted text-card-foreground rounded-tl-sm'} {isStreamingMessage
-                ? 'border-primary animate-pulse border-2 shadow-lg'
-                : ''}"
-            >
+            <MessageBubble role={message.role} streaming={isStreamingMessage}>
               <p
                 class="mb-1.5 text-xs font-medium opacity-70"
                 class:text-accent-foreground={message.role === 'user'}
@@ -856,7 +863,7 @@
               {:else}
                 <div class="whitespace-pre-wrap">{messageText}</div>
               {/if}
-            </div>
+            </MessageBubble>
 
             {#if isStoppedMessage}
               <div
@@ -885,8 +892,34 @@
       </div>
     {/if}
 
+    <!-- Loading skeleton when waiting for AI response -->
+    {#if isSubmitting && messages.length > 0 && messages[messages.length - 1].role === 'user'}
+      <div class="mx-auto mt-6 max-w-3xl">
+        <div class="flex justify-start">
+          <MessageBubble
+            role="assistant"
+            streaming={true}
+            class="!border-0 !bg-transparent px-4 py-3 !shadow-none"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-muted-foreground animate-pulse">●</span>
+              <span class="text-muted-foreground animate-pulse" style="animation-delay: 0.2s"
+                >●</span
+              >
+              <span class="text-muted-foreground animate-pulse" style="animation-delay: 0.4s"
+                >●</span
+              >
+            </div>
+          </MessageBubble>
+        </div>
+      </div>
+    {/if}
+
     {#if errorMessage}
-      <div class="mx-auto mt-4 max-w-3xl">
+      <!-- ARIA live region for error announcements -->
+      <!-- aria-live="assertive" immediately announces important errors -->
+      <!-- aria-atomic="true" announces the complete error message -->
+      <div class="mx-auto mt-4 max-w-3xl" role="alert" aria-live="assertive" aria-atomic="true">
         <ErrorDisplay
           message={errorMessage}
           code={errorCode}
@@ -926,6 +959,7 @@
               variant="outline"
               onclick={handleStop}
               title="Stop generation"
+              aria-label="Stop generation"
             >
               <SquareIcon class="size-4" />
             </Button>
@@ -936,6 +970,7 @@
               disabled={!input.trim() || isSubmitting}
               title="Send message"
               class="relative"
+              aria-label="Send message"
             >
               {#if isSubmitting}
                 <svg
