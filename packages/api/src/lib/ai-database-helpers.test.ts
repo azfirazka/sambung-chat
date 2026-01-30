@@ -16,15 +16,13 @@
  * - Error handling for missing resources
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from 'vitest';
 import { ORPCError } from '@orpc/server';
 
 // Mock the database and encryption modules BEFORE importing the functions under test
-const mockSelect = vi.fn();
-
-// Get real implementation for fallback
-const actualEncryption = vi.requireActual('./encryption') as typeof import('./encryption');
-const mockDecrypt = vi.fn().mockImplementation(actualEncryption.decrypt);
+// Use vi.hoisted to make mocks available in both mock factory and tests
+const mockSelect = vi.hoisted(() => vi.fn());
+const mockDecrypt = vi.hoisted(() => vi.fn());
 
 vi.mock('@sambung-chat/db', () => ({
   db: {

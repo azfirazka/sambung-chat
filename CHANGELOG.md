@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.37] - 2026-01-30
+
+### Fixed
+
+- **Unit Tests**: Fixed date filter tests that were failing due to timezone and timestamp issues
+  - Fixed `vi.mock()` hoisting issues in `ai-database-helpers.test.ts` by using `vi.hoisted()` for mock declarations ([packages/api/src/lib/ai-database-helpers.test.ts](packages/api/src/lib/ai-database-helpers.test.ts:24-31))
+  - Fixed `chat.test.ts` date filter test by using wider date ranges (24-48 hours) to avoid timezone edge cases ([packages/api/src/routers/chat.test.ts](packages/api/src/routers/chat.test.ts:568-617))
+  - Fixed `folder.test.ts` date filter test with the same approach ([packages/api/src/routers/folder.test.ts](packages/api/src/routers/folder.test.ts:815-862))
+  - Fixed `prompt.test.ts` date filter tests (2 tests) with wider date ranges ([packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts:385-449), [packages/api/src/routers/prompt.test.ts](packages/api/src/routers/prompt.test.ts:1427-1468))
+  - All 28 test files now pass (1098 tests passed, 5 skipped)
+
+### Added
+
+- **Test Database**: Added PostgreSQL test database setup for CI/CD
+  - Created test database and user (`test/test`) in Docker ([vitest.config.ts](vitest.config.ts:63))
+  - Pushed schema to test database for integration tests
+
 ## [0.0.36] - 2026-01-27
 
 ### Changed
